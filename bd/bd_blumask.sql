@@ -4,12 +4,12 @@ use bd_blumask;
 create table usuario(
 id_usuario int primary key auto_increment,
 email varchar(100),
-nome_de_exibicao varchar(100),
+nome_de_exibicao varchar(100) unique,
 senha varchar(25),
 nome_de_usuario varchar(100) unique,
 descricao text,
-banner blob,
-foto_perfil blob
+banner varchar(200),
+foto_perfil varchar(200)
 );
 
 create table comunidade(
@@ -18,7 +18,7 @@ data_criacao date,
 descricao text,
 nome varchar(150),
 id_usuario int,
-imagem blob,
+imagem varchar(200),
 
 foreign key (id_usuario) references usuario(id_usuario)
 );

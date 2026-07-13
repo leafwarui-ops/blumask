@@ -11,6 +11,7 @@
     <button id = "entrar">entrar</button><!--//botão entrar que ativa a dialogue box-->
     <dialog id = "login-box"> <!-- dialog box propriamente dita-->
         <form action = "">
+            
             <label for="">Nome de exibição:</label><!-- aqui é onde esta o texto "Nome de exibição:" que aparece no pop up -->
             <br>
             <input type = "text" id = "nome_exibicao" name = "nome_exibi"><!-- nome de usuario que aparece para os outros usuarios -->
