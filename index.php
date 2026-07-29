@@ -9,12 +9,11 @@
     <!--//forms do botão entrar -->
     <button id = "btn-entrar">entrar</button><!--//botão entrar que ativa a dialogue box-->
     <dialog id = "login-box"> <!-- dialog box propriamente dita-->
-        <form id = "popup-form" action = "">
+        <form id = "popup-form" action = "" method = "post">
             <button type = "button" id = "btn-entrar-dialog">entrar</button>
             <button type = "button" id = "btn-cadastrar-dialog">cadastrar</button>
             <br>
             <div id = "pop-div">
-
             </div>
         </form>
     </dialog>
@@ -76,3 +75,37 @@
 
 </body>
 </html>
+<?php
+ include "php\bd.php";
+ 
+if ($_SERVER["REQUEST_METHOD"] == "POST"){ 
+    global $conn;
+    $popup_mode = trim($_POST['popup-mode']);
+
+if ($popup_mode == "0") {
+ $email = trim($_POST['email']);
+ $senha = $_POST['senha'];
+
+ 
+}
+else
+{
+    $nome_usr = trim($_POST['nome_usr']);
+    $nome_exb = $_POST['nome_exb'];
+    $email = trim($_POST['email']);
+    $senha = $_POST['senha'];
+    $sql = "INSERT INTO usuario (email,senha,nome_de_exibicao,nome_de_usuario) VALUES('$email','$senha','$nome_exb','$nome_usr')";
+
+    if ($conn->query($sql) === true)
+        {
+            echo 'foi';
+        }
+    else{
+        echo 'num foi';
+    }
+}
+
+
+ 
+}
+?>
