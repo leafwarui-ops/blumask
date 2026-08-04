@@ -1,3 +1,57 @@
+<?php
+session_start();
+include "php/bd.php";
+
+// Lógica de Sair (Logout)
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header("Location: index.php");
+    exit;
+}
+
+// Lógica de Entrar e Cadastrar
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $popup_mode = trim($_POST['popup-mode'] ?? '0');
+    
+    if ($popup_mode == "0") {
+        // Entrar
+        $email = mysqli_real_escape_string($conn, trim($_POST['email']));
+        $senha = mysqli_real_escape_string($conn, $_POST['senha']);
+        
+        $sql = "SELECT * FROM usuario WHERE email = '$email' AND senha = '$senha' LIMIT 1";
+        $result = mysqli_query($conn, $sql);
+        
+        if ($result && mysqli_num_rows($result) > 0) {
+            $user = mysqli_fetch_assoc($result);
+            $_SESSION['usuario'] = $user;
+            header("Location: index.php");
+            exit;
+        } else {
+            $login_error = "Email ou senha incorretos!";
+        }
+    } else {
+        // Cadastrar
+        $nome_usr = mysqli_real_escape_string($conn, trim($_POST['nome_usr']));
+        $nome_exb = mysqli_real_escape_string($conn, trim($_POST['nome_exb']));
+        $email = mysqli_real_escape_string($conn, trim($_POST['email']));
+        $senha = mysqli_real_escape_string($conn, $_POST['senha']);
+        
+        $sql = "INSERT INTO usuario (email, senha, nome_de_exibicao, nome_de_usuario) VALUES ('$email', '$senha', '$nome_exb', '$nome_usr')";
+        
+        if ($conn->query($sql) === TRUE) {
+            // Auto login depois de cadastrar
+            $new_user_id = $conn->insert_id;
+            $sql_fetch = "SELECT * FROM usuario WHERE id_usuario = $new_user_id";
+            $result = mysqli_query($conn, $sql_fetch);
+            $_SESSION['usuario'] = mysqli_fetch_assoc($result);
+            header("Location: index.php");
+            exit;
+        } else {
+            $login_error = "Erro ao cadastrar. Verifique se o nome de usuário já existe.";
+        }
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -20,6 +74,25 @@
 
     <!-- LEFT PANEL: PROFILE -->
     <section class="panel profile-panel">
+      <?php if (isset($_SESSION['usuario'])): ?>
+      <?php 
+          $user = $_SESSION['usuario'];
+          $nome_exibicao = htmlspecialchars($user['nome_de_exibicao']);
+          $nome_usuario = htmlspecialchars($user['nome_de_usuario']);
+          // Usa foto_perfil do banco se existir, senao gera avatar pelo nome
+          $avatarUrl = !empty($user['foto_perfil']) ? htmlspecialchars($user['foto_perfil']) : "https://ui-avatars.com/api/?name=" . urlencode($nome_exibicao) . "&background=random";
+      ?>
+      <div class="panel-header" style="height: 100px; position: relative;">
+        <div class="avatar" style="position: absolute; bottom: -35px; left: 50%; transform: translateX(-50%); width: 70px; height: 70px; border-radius: 50%; border: 4px solid #fff; overflow: hidden; background: #333;">
+          <img src="<?= $avatarUrl ?>" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+        </div>
+      </div>
+      <div class="profile-body" style="padding-top: 45px; text-align: center;">
+        <h3 style="margin-bottom: 5px;"><?= $nome_exibicao ?></h3>
+        <p style="font-size: 13px; color: #666; margin-bottom: 20px;">@<?= $nome_usuario ?></p>
+        <a href="?logout=1" class="btn-entrar" style="display: block; text-decoration: none; text-align: center;">Sair</a>
+      </div>
+      <?php else: ?>
       <div class="panel-header">
         <div class="avatar">
           <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>
@@ -27,19 +100,21 @@
       </div>
       <div class="profile-body">
         <p>Ops! Você precisa fazer login para visualizar e customizar o seu perfil!</p>
-        <button class="btn-entrar" id = "btn-entrar">entrar</button><!--//botão entrar que ativa a dialogue box-->
-    <dialog id = "login-box"> <!-- dialog box propriamente dita-->
-        <form id = "popup-form" action = "" method = "post">
-            <div class="dialog-tabs">
-                <button type = "button" id = "btn-entrar-dialog">entrar</button>
-                <button type = "button" id = "btn-cadastrar-dialog">cadastrar</button>
-            </div>
-            <br>
-            <div id = "pop-div">
-            </div>
-        </form>
-    </dialog>
+        <button class="btn-entrar" id="btn-entrar">entrar</button>
+        <?php if (isset($login_error)) echo "<p style='color: red; font-size: 13px; margin-top: 10px;'>$login_error</p>"; ?>
+        <dialog id="login-box"> 
+            <form id="popup-form" action="" method="post">
+                <div class="dialog-tabs">
+                    <button type="button" id="btn-entrar-dialog">entrar</button>
+                    <button type="button" id="btn-cadastrar-dialog">cadastrar</button>
+                </div>
+                <br>
+                <div id="pop-div">
+                </div>
+            </form>
+        </dialog>
       </div>
+      <?php endif; ?>
     </section>
 
     <!-- CENTER COLUMN -->
@@ -80,106 +155,55 @@
     const mostrar = document.getElementById("btn-entrar");
     const login = document.getElementById("login-box");
 
-    const btn_entrar = document.getElementById("btn-entrar-dialog");
-    const btn_cadastrar = document.getElementById("btn-cadastrar-dialog");
-    const pop_content = document.getElementById("pop-div");
-    let PopupMenu = 0;
+    if (mostrar && login) {
+        const btn_entrar = document.getElementById("btn-entrar-dialog");
+        const btn_cadastrar = document.getElementById("btn-cadastrar-dialog");
+        const pop_content = document.getElementById("pop-div");
+        let PopupMenu = 0;
 
-    function marcarAba(ativa) {
-        btn_entrar.classList.toggle("active-tab", ativa === "entrar");
-        btn_cadastrar.classList.toggle("active-tab", ativa === "cadastrar");
-    }
-
-    mostrar.addEventListener("click", (event) => {
-        event.preventDefault();
-        login.showModal();
-        PopupMenu = 0;
-        pop_content.innerHTML = "";
-        trocar(PopupMenu, pop_content);
-        marcarAba("entrar");
-    });
-
-    btn_entrar.addEventListener("click", (event) => {
-        event.stopPropagation();
-        PopupMenu = 0;
-        pop_content.innerHTML = "";
-        trocar(PopupMenu, pop_content);
-        marcarAba("entrar");
-    });
-
-    btn_cadastrar.addEventListener("click", (event) => {
-        event.stopPropagation();
-        PopupMenu = 1;
-        pop_content.innerHTML = "";
-        trocar(PopupMenu, pop_content);
-        marcarAba("cadastrar");
-    });
-
-    login.addEventListener("click", (event) => {
-        const bordas = login.getBoundingClientRect();
-        if (
-            event.clientX < bordas.left ||
-            event.clientX > bordas.right ||
-            event.clientY > bordas.bottom ||
-            event.clientY < bordas.top
-        ) {
-            login.close();
+        function marcarAba(ativa) {
+            btn_entrar.classList.toggle("active-tab", ativa === "entrar");
+            btn_cadastrar.classList.toggle("active-tab", ativa === "cadastrar");
         }
-    });
+
+        mostrar.addEventListener("click", (event) => {
+            event.preventDefault();
+            login.showModal();
+            PopupMenu = 0;
+            pop_content.innerHTML = "";
+            trocar(PopupMenu, pop_content);
+            marcarAba("entrar");
+        });
+
+        btn_entrar.addEventListener("click", (event) => {
+            event.stopPropagation();
+            PopupMenu = 0;
+            pop_content.innerHTML = "";
+            trocar(PopupMenu, pop_content);
+            marcarAba("entrar");
+        });
+
+        btn_cadastrar.addEventListener("click", (event) => {
+            event.stopPropagation();
+            PopupMenu = 1;
+            pop_content.innerHTML = "";
+            trocar(PopupMenu, pop_content);
+            marcarAba("cadastrar");
+        });
+
+        login.addEventListener("click", (event) => {
+            const bordas = login.getBoundingClientRect();
+            if (
+                event.clientX < bordas.left ||
+                event.clientX > bordas.right ||
+                event.clientY > bordas.bottom ||
+                event.clientY < bordas.top
+            ) {
+                login.close();
+            }
+        });
+    }
 </script>
 
 </body>
 </html>
-<?php
- include "php\bd.php";
- 
- // puxa a api de icon dos usuários
- $url = "https://ui-avatars.com/api/?background=random";
- $answer = file_get_contents($url);
- $dados = json_decode($answer, true);
-
-
-if ($_SERVER["REQUEST_METHOD"] == "POST"){ 
-    global $conn;
-    $popup_mode = trim($_POST['popup-mode']);
-
-if ($popup_mode == "0") {
- $email = mysqli_real_escape_string($conn,trim($_POST['email']));
- $senha = mysqli_real_escape_string($conn,$_POST['senha']);
-
- $sql = "SELECT * FROM usuario WHERE email = '$email' && senha = '$senha' LIMIT 1";
- $login_compare = mysqli_query($conn,$sql);
- $login_list = mysqli_fetch_assoc($login_compare);
-
-    //verifica email e senha estão corretos
- if (($login_list['email'] == $email) && ($login_list['senha'] == $senha))
-    {
-       $logado = true;
-       echo "fdp, tu logou";
-       }
-    else{
-        echo "ta errado pai";
-    }
-}
-else
-{
-    // manda as informações de cadastro do usuário para o banco de dados
-    $nome_usr = mysqli_real_escape_string($conn,trim($_POST['nome_usr']));
-    $nome_exb = mysqli_real_escape_string($conn,$_POST['nome_exb']);
-    $email = mysqli_real_escape_string($conn,trim($_POST['email']));
-    $senha = mysqli_real_escape_string($conn,$_POST['senha']);
-    $sql = "INSERT INTO usuario (email,senha,nome_de_exibicao,nome_de_usuario) VALUES('$email','$senha','$nome_exb','$nome_usr')";
-    
-    // verifica se foi ou não
-    if ($conn->query($sql) === true)
-        {
-            echo 'foi';
-            $avatarUrl = "https://ui-avatars.com/api/?name=" . urlencode($nome_exb);
-            echo "<img src='$avatarUrl' alt='Avatar'>";
-        }
-    else{
-        echo 'num foi';
-    }
-}
-}
-?>
