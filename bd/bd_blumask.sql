@@ -5,7 +5,7 @@ create table usuario(
 id_usuario int primary key auto_increment,
 email varchar(100),
 nome_de_exibicao varchar(100) unique,
-senha varchar(25),
+senha varchar(255),
 nome_de_usuario varchar(100) unique,
 descricao text,
 banner varchar(200),
