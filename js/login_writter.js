@@ -51,8 +51,6 @@ function trocar(popup,objeto)
             {"tag":"input","name":"popup-mode","id":"popup","type":"hidden","value":"0"},
             {"tag":"label","conteudo":"Email:"},
             {"tag":"input","name":"email","id":"email","type":"text","value":""},
-            {"tag":"label","conteudo":"Email:"},
-            {"tag":"input","name":"email","id":"email","type":"text","value":""},
             {"tag":"label","conteudo":"Senha:"},
             {"tag":"input","name":"senha","id":"senha","type":"password","value":""},
             {"tag":"input","name":"entrar","id":"entrar","type":"submit","value":"entrar"}
