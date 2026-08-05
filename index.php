@@ -101,7 +101,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       <div class="profile-body" style="padding-top: 45px; text-align: center;">
         <h3 style="margin-bottom: 5px;"><?= $nome_exibicao ?></h3>
         <p style="font-size: 13px; color: #666; margin-bottom: 20px;">@<?= $nome_usuario ?></p>
-        <button class="btn-entrar" id="btn-editar-perfil" style="display: block; width: 100%; cursor: pointer;">Editar</button>
+        <button onclick="window.location.href='php/usr_edit.php'" class="btn-entrar" id="btn-editar-perfil" style="display: block; width: 100%; cursor: pointer;">Editar</button>
       </div>
       <?php else: ?>
       <div class="panel-header">
