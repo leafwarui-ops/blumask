@@ -74,7 +74,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <div class="page">
 
-  <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px;">
+  <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px;">
     <div style="display: flex; align-items: center; gap: 12px;">
       <img src="style/blumaskBlueLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
       <h1 style="margin: 0;">BluMask</h1>
