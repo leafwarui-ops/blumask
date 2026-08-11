@@ -1,6 +1,7 @@
 <?php
 session_start();
 include __DIR__ . "/bd.php";
+require_once __DIR__ . "/rate_limit.php";
 
 if (!isset($_SESSION['usuario'])) {
     header("Location: ../index.php");
@@ -30,12 +31,18 @@ $error_message   = '';
 $success_message = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $post_nome_usr  = trim($_POST['nome_usr'] ?? '');
-    $post_nome_exb  = trim($_POST['nome_exb'] ?? '');
-    $post_email     = trim($_POST['email'] ?? '');
-    $post_descricao = str_replace(["\r\n", "\r"], "\n", trim($_POST['descricao'] ?? ''));
-    $senha_atual    = $_POST['senha_atual'] ?? '';
-    $nova_senha     = $_POST['nova_senha'] ?? '';
+    // Checa Rate Limit de edição (máx 5 atualizações / 15 min = 900s)
+    if (!check_rate_limit('usr_edit_attempt', 5, 900)) {
+        $waitTime = get_rate_limit_wait_time('usr_edit_attempt', 900);
+        $error_message = "Muitas solicitações de alteração seguidas. Por favor, aguarde $waitTime para tentar novamente.";
+    } else {
+        hit_rate_limit('usr_edit_attempt');
+        $post_nome_usr  = trim($_POST['nome_usr'] ?? '');
+        $post_nome_exb  = trim($_POST['nome_exb'] ?? '');
+        $post_email     = trim($_POST['email'] ?? '');
+        $post_descricao = str_replace(["\r\n", "\r"], "\n", trim($_POST['descricao'] ?? ''));
+        $senha_atual    = $_POST['senha_atual'] ?? '';
+        $nova_senha     = $_POST['nova_senha'] ?? '';
 
     // 1. Checa se alterou e-mail ou senha (que exigem confirmação da senha atual)
     $email_alterado = ($post_email !== $user['email']);
@@ -193,6 +200,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error_message = "Erro no banco de dados: " . $conn->error;
         }
     }
+}
 }
 
 // Avatar URL inicial

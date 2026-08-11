@@ -1,6 +1,7 @@
 <?php
 session_start();
 include "php/bd.php";
+require_once "php/rate_limit.php";
 
 // Lógica de Sair (Logout)
 if (isset($_GET['logout'])) {
@@ -14,48 +15,62 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $popup_mode = trim($_POST['popup-mode'] ?? '0');
     
     if ($popup_mode == "0") {
-        // Entrar
-        $email = mysqli_real_escape_string($conn, trim($_POST['email']));
-        $senha = $_POST['senha'];
-        
-        $sql = "SELECT * FROM usuario WHERE email = '$email' LIMIT 1";
-        $result = mysqli_query($conn, $sql);
-        
-        if ($result && mysqli_num_rows($result) > 0) {
-            $user = mysqli_fetch_assoc($result);
-            if (password_verify($senha, $user['senha'])) {
-                $_SESSION['usuario'] = $user;
-                header("Location: index.php");
-                exit;
+        // Entrar com Rate Limiting (Máx 5 erros = bloqueio de 1h / 3600s)
+        if (!check_rate_limit('login_attempt', 5, 3600)) {
+            $waitTime = get_rate_limit_wait_time('login_attempt', 3600);
+            $login_error = "Muitas tentativas incorretas. Por favor, aguarde $waitTime para tentar novamente.";
+        } else {
+            $email = mysqli_real_escape_string($conn, trim($_POST['email']));
+            $senha = $_POST['senha'];
+            
+            $sql = "SELECT * FROM usuario WHERE email = '$email' LIMIT 1";
+            $result = mysqli_query($conn, $sql);
+            
+            if ($result && mysqli_num_rows($result) > 0) {
+                $user = mysqli_fetch_assoc($result);
+                if (password_verify($senha, $user['senha'])) {
+                    reset_rate_limit('login_attempt');
+                    $_SESSION['usuario'] = $user;
+                    header("Location: index.php");
+                    exit;
+                } else {
+                    hit_rate_limit('login_attempt');
+                    $login_error = "Email ou senha incorretos!";
+                }
             } else {
+                hit_rate_limit('login_attempt');
                 $login_error = "Email ou senha incorretos!";
             }
-        } else {
-            $login_error = "Email ou senha incorretos!";
         }
     } else {
-        // Cadastrar
-        $nome_usr = mysqli_real_escape_string($conn, trim($_POST['nome_usr']));
-        $nome_exb = mysqli_real_escape_string($conn, trim($_POST['nome_exb']));
-        $email = mysqli_real_escape_string($conn, trim($_POST['email']));
-        $senha = mysqli_real_escape_string($conn, $_POST['senha']);
-        
-        if (!preg_match('/^(?=.*[A-Z])(?=.*[\W_]).{8,32}$/', $_POST['senha'])) {
-            $login_error = "A senha deve ter entre 8 e 32 caracteres, uma maiúscula e um símbolo.";
+        // Cadastrar com Rate Limiting (Máx 3 cadastros = bloqueio de 1h / 3600s)
+        if (!check_rate_limit('register_attempt', 3, 3600)) {
+            $waitTime = get_rate_limit_wait_time('register_attempt', 3600);
+            $login_error = "Você realizou muitos cadastros recentemente. Aguarde $waitTime para tentar cadastrar novamente.";
         } else {
-            $senha_hash = password_hash($_POST['senha'], PASSWORD_DEFAULT);
-            $sql = "INSERT INTO usuario (email, senha, nome_de_exibicao, nome_de_usuario) VALUES ('$email', '$senha_hash', '$nome_exb', '$nome_usr')";
+            $nome_usr = mysqli_real_escape_string($conn, trim($_POST['nome_usr']));
+            $nome_exb = mysqli_real_escape_string($conn, trim($_POST['nome_exb']));
+            $email = mysqli_real_escape_string($conn, trim($_POST['email']));
+            $senha = $_POST['senha'];
             
-            if ($conn->query($sql) === TRUE) {
-                // Auto login depois de cadastrar
-                $new_user_id = $conn->insert_id;
-                $sql_fetch = "SELECT * FROM usuario WHERE id_usuario = $new_user_id";
-                $result = mysqli_query($conn, $sql_fetch);
-                $_SESSION['usuario'] = mysqli_fetch_assoc($result);
-                header("Location: index.php");
-                exit;
+            if (!preg_match('/^(?=.*[A-Z])(?=.*[\W_]).{8,32}$/', $_POST['senha'])) {
+                $login_error = "A senha deve ter entre 8 e 32 caracteres, uma maiúscula e um símbolo.";
             } else {
-                $login_error = "Erro ao cadastrar. Verifique se o nome de usuário já existe.";
+                $senha_hash = password_hash($_POST['senha'], PASSWORD_DEFAULT);
+                $sql = "INSERT INTO usuario (email, senha, nome_de_exibicao, nome_de_usuario) VALUES ('$email', '$senha_hash', '$nome_exb', '$nome_usr')";
+                
+                if ($conn->query($sql) === TRUE) {
+                    hit_rate_limit('register_attempt');
+                    // Auto login depois de cadastrar
+                    $new_user_id = $conn->insert_id;
+                    $sql_fetch = "SELECT * FROM usuario WHERE id_usuario = $new_user_id";
+                    $result = mysqli_query($conn, $sql_fetch);
+                    $_SESSION['usuario'] = mysqli_fetch_assoc($result);
+                    header("Location: index.php");
+                    exit;
+                } else {
+                    $login_error = "Erro ao cadastrar. Verifique se o nome de usuário já existe.";
+                }
             }
         }
     }
