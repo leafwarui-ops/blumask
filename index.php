@@ -92,19 +92,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       <?php 
           $user = $_SESSION['usuario'];
           $nome_exibicao = htmlspecialchars($user['nome_de_exibicao']);
-          $nome_usuario = htmlspecialchars($user['nome_de_usuario']);
+          $nome_usuario  = htmlspecialchars($user['nome_de_usuario']);
+          $descricao_usr = htmlspecialchars($user['descricao'] ?? '');
+          $bannerUrl     = !empty($user['banner']) ? htmlspecialchars($user['banner']) : '';
           
           // Utiliza a foto de perfil salva no banco; caso não exista, gera um avatar dinâmico com as iniciais
           $avatarUrl = !empty($user['foto_perfil']) ? htmlspecialchars($user['foto_perfil']) : "https://ui-avatars.com/api/?name=" . urlencode($nome_exibicao) . "&background=random";
+          $bannerStyle = !empty($bannerUrl) ? "background-image: url('$bannerUrl'); background-size: cover; background-position: center;" : "";
       ?>
-      <div class="panel-header" style="height: 100px; position: relative;">
+      <div class="panel-header" style="height: 100px; position: relative; <?= $bannerStyle ?>">
         <div class="avatar" style="position: absolute; bottom: -35px; left: 50%; transform: translateX(-50%); width: 70px; height: 70px; border-radius: 50%; border: 4px solid #fff; overflow: hidden; background: #333;">
           <img src="<?= $avatarUrl ?>" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
         </div>
       </div>
       <div class="profile-body" style="padding-top: 45px; text-align: center;">
-        <h3 style="margin-bottom: 5px;"><?= $nome_exibicao ?></h3>
-        <p style="font-size: 13px; color: #666; margin-bottom: 20px;">@<?= $nome_usuario ?></p>
+        <h3 style="margin-bottom: 2px;"><?= $nome_exibicao ?></h3>
+        <p style="font-size: 13px; color: #666; margin-bottom: 10px;">@<?= $nome_usuario ?></p>
+        <?php if (!empty($descricao_usr)): ?>
+          <p style="font-size: 12px; color: #444; margin-bottom: 15px; font-style: italic; font-weight: 500; word-break: break-word;"><?= $descricao_usr ?></p>
+        <?php endif; ?>
         <button onclick="window.location.href='php/usr_edit.php'" class="btn-entrar" id="btn-editar-perfil" style="display: block; width: 100%; cursor: pointer;">Editar</button>
       </div>
       <?php else: ?>
