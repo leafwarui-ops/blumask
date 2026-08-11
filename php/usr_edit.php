@@ -203,7 +203,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
   <title>Editar Perfil - BluMask</title>
   <link rel="icon" type="image/webp" href="../style/blumaskWhiteLogo.webp">
   <link rel="stylesheet" href="../style/index_style.css">
-  <link rel="stylesheet" href="../style/edit_style.css">
+  <link rel="stylesheet" href="../style/edit_style.css?v=<?= time() ?>">
 </head>
 <body>
   <div class="page">
