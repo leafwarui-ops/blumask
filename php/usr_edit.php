@@ -59,13 +59,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Editar Perfil - BluMask</title>
+  <link rel="icon" type="image/webp" href="../style/blumaskWhiteLogo.webp">
   <link rel="stylesheet" href="../style/index_style.css">
   <link rel="stylesheet" href="../style/edit_style.css">
 </head>
 <body>
   <div class="page">
-    <header class="topbar">
-      <h1>BluMask</h1>
+    <header class="topbar" style="display: flex; align-items: center; gap: 12px;">
+      <img src="../style/blumaskWhiteLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
+      <h1 style="margin: 0;">BluMask</h1>
     </header>
 
     <main class="layout layout-single">
