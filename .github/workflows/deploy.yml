@@ -1,0 +1,46 @@
+name: CI e deploy GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  validar-php:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar PHP
+        uses: shivammathur/setup-php@v4
+        with:
+          php-version: '8.2'
+
+      - name: Validar sintaxe PHP
+        run: |
+          find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
+
+  deploy-producao:
+    needs: validar-php
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar o GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Compactar artefatos do site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Publicar no GitHub Pages
+        uses: actions/deploy-pages@v4
+
+      # Atenção: GitHub Pages não executa PHP. Seu site PHP só funcionará em um servidor PHP real.
