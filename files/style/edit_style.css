@@ -1,0 +1,190 @@
+/* Modificador para o layout centralizado em tela cheia */
+main.layout-single {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Painel Principal de Edição */
+.edit-panel {
+  width: 100%;
+  max-width: 900px;
+  background: var(--panel-body-blue);
+  border-radius: 40px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Topo Cinza do Painel */
+.edit-panel-header {
+  background: var(--panel-header-gray);
+  height: 140px;
+  border-radius: 40px 40px 0 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-edit-banner {
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  color: #333;
+  transition: 0.2s ease;
+}
+
+.btn-edit-banner:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.btn-edit-banner svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Corpo do Painel Azul */
+.edit-panel-body {
+  padding: 0 40px 40px;
+  position: relative;
+}
+
+/* Avatar Centralizado */
+.edit-avatar-wrapper {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  margin: -65px auto 30px auto; /* Sobe o avatar pra ficar entre o cinza e o azul */
+  display: flex;
+  justify-content: center;
+}
+
+.edit-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid var(--panel-body-blue); /* Borda para mesclar suavemente */
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.btn-edit-avatar {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  background: #d8d8d8;
+  border: 2px solid var(--panel-body-blue);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  color: #333;
+}
+
+.btn-edit-avatar svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Grid do Formulário */
+.edit-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 40px;
+  margin-bottom: 30px;
+}
+
+.edit-form-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Inputs e Labels */
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group.h-100 {
+  height: 100%;
+}
+
+.form-group label {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-dark);
+  margin-bottom: 6px;
+  margin-left: 10px;
+}
+
+.form-group input {
+  background: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  color: var(--text-dark);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+  outline: none;
+}
+
+.form-group input:focus, .form-group textarea:focus {
+  box-shadow: 0 0 0 2px var(--header-blue);
+}
+
+.form-group textarea {
+  background: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 16px;
+  font-size: 0.95rem;
+  color: var(--text-dark);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+  outline: none;
+  resize: none;
+  flex: 1; /* Faz a textarea preencher a altura da coluna */
+  min-height: 150px;
+}
+
+/* Botão Voltar */
+.edit-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.btn-voltar {
+  background: transparent;
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 20px;
+  padding: 8px 32px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-voltar:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Responsividade do Painel */
+@media (max-width: 768px) {
+  .edit-form-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .edit-panel-body {
+    padding: 0 20px 30px;
+  }
+}

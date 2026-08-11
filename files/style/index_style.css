@@ -1,0 +1,319 @@
+:root {
+    --header-blue: #bfe3fb;
+    --bg-top: #c9d6dc;
+    --bg-bottom: #c2d2d8;
+    --panel-header-gray: #cfcfcf;
+    --panel-body-blue: #d0eefb;
+    --search-blue: #a9d8f8;
+    --post-header-blue: #b6c2f0;
+    --post-body-blue: #cdd3f5;
+    --accent-blue: #2b17e0;
+    --text-dark: #1c1c1c;
+    --text-muted: #8b93a1;
+    --footer-gray: #e2e2e2;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg-bottom);
+  }
+
+  .page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  header.topbar {
+    background: var(--header-blue);
+    padding: 18px 32px;
+  }
+
+  header.topbar h1 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-dark);
+  }
+
+  /* MAIN LAYOUT */
+  main.layout {
+    flex: 1;
+    background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+    display: grid;
+    grid-template-columns: 240px 1fr 240px;
+    gap: 28px;
+    padding: 32px;
+    align-items: start;
+  }
+
+  .panel {
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+  }
+
+  .panel-header {
+    background: var(--panel-header-gray);
+    padding: 20px 20px 14px;
+  }
+
+  .panel-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-dark);
+  }
+
+  /* LEFT: PROFILE PANEL */
+  .profile-panel {
+    background: var(--panel-body-blue);
+    min-height: 460px;
+    text-align: center;
+  }
+
+  .profile-panel .panel-header {
+    display: flex;
+    justify-content: center;
+    padding-top: 24px;
+  }
+
+  .avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #4d4d4d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .avatar svg {
+    width: 34px;
+    height: 34px;
+    fill: #d8d8d8;
+  }
+
+  .profile-body {
+    padding: 22px 24px;
+  }
+
+  .profile-body p {
+    margin: 0 0 20px;
+    color: var(--text-dark);
+    font-size: 0.92rem;
+    line-height: 1.4;
+  }
+
+  .btn-entrar {
+    background: var(--accent-blue);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 22px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-entrar:hover {
+    filter: brightness(1.1);
+  }
+
+  /* CENTER COLUMN */
+  .center-col {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .search-bar {
+    background: var(--search-blue);
+    border-radius: 28px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+  }
+
+  .search-bar svg {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  .search-bar span {
+    font-weight: 600;
+    color: var(--text-dark);
+    font-size: 1rem;
+  }
+
+  .last-post {
+    background: var(--post-body-blue);
+    border-radius: 24px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+    overflow: hidden;
+  }
+
+  .last-post .panel-header {
+    background: var(--post-header-blue);
+    padding: 16px 22px;
+  }
+
+  .last-post .panel-header h2 {
+    font-size: 1rem;
+  }
+
+  .last-post-body {
+    padding: 40px 22px;
+    text-align: center;
+  }
+
+  .last-post-body span {
+    color: var(--text-muted);
+    font-size: 1rem;
+  }
+
+  /* RIGHT: COMMUNITIES PANEL */
+  .communities-panel {
+    background: var(--panel-body-blue);
+    min-height: 460px;
+  }
+
+  /* FOOTER */
+  footer.bottombar {
+    background: var(--footer-gray);
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  footer.bottombar strong {
+    color: var(--text-dark);
+    font-size: 0.95rem;
+  }
+
+  footer.bottombar svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    main.layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* ===== DIALOG DE LOGIN / CADASTRO ===== */
+  #login-box {
+    border: none;
+    border-radius: 28px;
+    padding: 0;
+    width: 340px;
+    max-width: 90vw;
+    background: var(--panel-body-blue);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    overflow: hidden;
+  }
+
+  #login-box::backdrop {
+    background: rgba(20, 30, 40, 0.55);
+    backdrop-filter: blur(2px);
+  }
+
+  #popup-form {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  /* container das duas abas lado a lado */
+  .dialog-tabs {
+    display: flex;
+    width: 100%;
+  }
+
+  /* Abas Entrar / Cadastrar */
+  .dialog-tabs button {
+    flex: 1;
+    border: none;
+    background: var(--panel-header-gray);
+    color: var(--text-dark);
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: capitalize;
+    padding: 18px 0;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+
+  .dialog-tabs button:hover {
+    background: var(--search-blue);
+  }
+
+  .dialog-tabs button.active-tab {
+    background: var(--post-header-blue);
+    color: var(--text-dark);
+  }
+
+  #popup-form br {
+    display: none;
+  }
+
+  #pop-div {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 26px 28px 30px;
+  }
+
+  #pop-div label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: -6px;
+  }
+
+  #pop-div input[type="text"],
+  #pop-div input[type="password"],
+  #pop-div input[type="email"] {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    background: #fff;
+    color: var(--text-dark);
+    outline: none;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+  }
+
+  #pop-div input[type="text"]:focus,
+  #pop-div input[type="password"]:focus,
+  #pop-div input[type="email"]:focus {
+    box-shadow: inset 0 0 0 2px var(--accent-blue);
+  }
+
+  #pop-div input[type="submit"] {
+    margin-top: 8px;
+    background: var(--accent-blue);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 11px 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+  }
+
+  #pop-div input[type="submit"]:hover {
+    filter: brightness(1.1);
+  }
