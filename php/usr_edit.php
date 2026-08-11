@@ -37,11 +37,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $senha_atual    = $_POST['senha_atual'] ?? '';
     $nova_senha     = $_POST['nova_senha'] ?? '';
 
-    // 1. Confirmação obrigatória da Senha Atual
-    if (empty($senha_atual)) {
-        $error_message = "Você precisa informar sua senha atual para salvar as edições.";
-    } elseif (!password_verify($senha_atual, $user['senha'])) {
-        $error_message = "Senha atual incorreta.";
+    // 1. Checa se alterou e-mail ou senha (que exigem confirmação da senha atual)
+    $email_alterado = ($post_email !== $user['email']);
+    $senha_alterada = !empty($nova_senha);
+
+    if ($email_alterado || $senha_alterada) {
+        if (empty($senha_atual)) {
+            $error_message = "Você precisa informar sua senha atual para alterar o e-mail ou a senha.";
+        } elseif (!password_verify($senha_atual, $user['senha'])) {
+            $error_message = "Senha atual incorreta.";
+        }
     }
     
     // 2. Validação do Nome de Usuário (4 a 20 caracteres)
@@ -277,8 +282,8 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
 
                 <!-- Senha Atual -->
                 <div class="form-group">
-                  <label for="senha_atual">Senha Atual <span class="required-asterisk">*</span></label>
-                  <input id="senha_atual" name="senha_atual" type="password" placeholder="Obrigatória para salvar" required>
+                  <label for="senha_atual">Senha Atual <span id="label-senha-req" style="font-size: 0.8rem; font-weight: normal; color: #666;">(Apenas se alterar e-mail ou senha)</span></label>
+                  <input id="senha_atual" name="senha_atual" type="password" placeholder="Preencha caso altere e-mail ou nova senha">
                   <span id="err-senha_atual" class="field-error"></span>
                 </div>
 
@@ -353,6 +358,12 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
 
       const MAX_FILE_SIZE = 31457280; // 30MB
 
+      // Valores Iniciais para detectar se houve alteração na página
+      const initialNomeUsr   = inputNomeUsr.value.trim();
+      const initialNomeExb   = inputNomeExb.value.trim();
+      const initialEmail     = inputEmail.value.trim();
+      const initialDescricao = textDescricao.value.replace(/\r\n/g, "\n");
+
       // Acionadores dos campos File
       btnBanner.addEventListener("click", () => inputBanner.click());
       btnAvatar.addEventListener("click", () => inputAvatar.click());
@@ -374,6 +385,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
           };
           reader.readAsDataURL(file);
         }
+        validateForm();
       });
 
       // Preview Avatar
@@ -391,6 +403,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
           };
           reader.readAsDataURL(file);
         }
+        validateForm();
       });
 
       // Contador de Caracteres da Bio (normalizando quebras de linha)
@@ -411,43 +424,58 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
       function validateForm() {
         let isValid = true;
 
+        const currentNomeUsr   = inputNomeUsr.value.trim();
+        const currentNomeExb   = inputNomeExb.value.trim();
+        const currentEmail     = inputEmail.value.trim();
+        const currentDescricao = textDescricao.value.replace(/\r\n/g, "\n");
+        const hasFileBanner    = inputBanner.files.length > 0;
+        const hasFileAvatar    = inputAvatar.files.length > 0;
+        const hasNovaSenha     = inputNovaSenha.value.length > 0;
+
+        // Detecta se o usuário alterou algum dado em relação ao estado inicial
+        const hasChanges = (
+          currentNomeUsr !== initialNomeUsr ||
+          currentNomeExb !== initialNomeExb ||
+          currentEmail !== initialEmail ||
+          currentDescricao !== initialDescricao ||
+          hasNovaSenha ||
+          hasFileBanner ||
+          hasFileAvatar
+        );
+
         // 1. Nome de Usuario (4 a 20 chars)
-        const valUsr = inputNomeUsr.value.trim();
-        if (valUsr.length < 4 || valUsr.length > 20) {
+        if (currentNomeUsr.length < 4 || currentNomeUsr.length > 20) {
           isValid = false;
           inputNomeUsr.classList.add("invalid");
-          errNomeUsr.textContent = valUsr.length > 0 ? "O nome de usuário deve ter entre 4 e 20 caracteres." : "Campo obrigatório.";
+          errNomeUsr.textContent = currentNomeUsr.length > 0 ? "O nome de usuário deve ter entre 4 e 20 caracteres." : "Campo obrigatório.";
         } else {
           inputNomeUsr.classList.remove("invalid");
           errNomeUsr.textContent = "";
         }
 
         // 2. Nome de Exibição (2 a 10 chars)
-        const valExb = inputNomeExb.value.trim();
-        if (valExb.length < 2 || valExb.length > 10) {
+        if (currentNomeExb.length < 2 || currentNomeExb.length > 10) {
           isValid = false;
           inputNomeExb.classList.add("invalid");
-          errNomeExb.textContent = valExb.length > 0 ? "O nome de exibição deve ter entre 2 e 10 caracteres." : "Campo obrigatório.";
+          errNomeExb.textContent = currentNomeExb.length > 0 ? "O nome de exibição deve ter entre 2 e 10 caracteres." : "Campo obrigatório.";
         } else {
           inputNomeExb.classList.remove("invalid");
           errNomeExb.textContent = "";
         }
 
         // 3. Email
-        const valEmail = inputEmail.value.trim();
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(valEmail)) {
+        if (!emailRegex.test(currentEmail)) {
           isValid = false;
           inputEmail.classList.add("invalid");
-          errEmail.textContent = valEmail.length > 0 ? "Formato de e-mail inválido." : "Campo obrigatório.";
+          errEmail.textContent = currentEmail.length > 0 ? "Formato de e-mail inválido." : "Campo obrigatório.";
         } else {
           inputEmail.classList.remove("invalid");
           errEmail.textContent = "";
         }
 
-        // 4. Descrição (<= 200 chars, normalizando \r\n)
-        const valDesc = textDescricao.value.replace(/\r\n/g, "\n");
-        if (valDesc.length > 200) {
+        // 4. Descrição (<= 200 chars)
+        if (currentDescricao.length > 200) {
           isValid = false;
           textDescricao.classList.add("invalid");
           errDescricao.textContent = "A descrição não pode ter mais de 200 caracteres.";
@@ -456,21 +484,26 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
           errDescricao.textContent = "";
         }
 
-        // 5. Senha Atual (não pode ser vazia)
-        if (inputSenhaAtu.value.trim().length === 0) {
-          isValid = false;
-          inputSenhaAtu.classList.add("invalid");
-          errSenhaAtu.textContent = "Informe sua senha atual para liberar a confirmação.";
+        // 5. Senha Atual - EXIGIDA APENAS se alterou o e-mail ou a senha!
+        const requiresPassword = (currentEmail !== initialEmail || hasNovaSenha);
+        if (requiresPassword) {
+          if (inputSenhaAtu.value.trim().length === 0) {
+            isValid = false;
+            inputSenhaAtu.classList.add("invalid");
+            errSenhaAtu.textContent = "Senha atual é necessária para alterar e-mail ou nova senha.";
+          } else {
+            inputSenhaAtu.classList.remove("invalid");
+            errSenhaAtu.textContent = "";
+          }
         } else {
           inputSenhaAtu.classList.remove("invalid");
           errSenhaAtu.textContent = "";
         }
 
         // 6. Nova Senha (opcional, mas se preenchida deve bater com a regex 8-32, maiúscula, símbolo)
-        const valNovaSenha = inputNovaSenha.value;
-        if (valNovaSenha.length > 0) {
+        if (hasNovaSenha) {
           const passRegex = /^(?=.*[A-Z])(?=.*[\W_]).{8,32}$/;
-          if (!passRegex.test(valNovaSenha)) {
+          if (!passRegex.test(inputNovaSenha.value)) {
             isValid = false;
             inputNovaSenha.classList.add("invalid");
             errNovaSenha.textContent = "8-32 caracteres, com maiúscula e símbolo.";
@@ -483,8 +516,8 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
           errNovaSenha.textContent = "";
         }
 
-        // Bloqueia/Libera o botão Confirmar
-        btnConfirmar.disabled = !isValid;
+        // O botão Confirmar só fica ativo se HOUVER ALTERAÇÕES e TODOS OS CAMPOS forem válidos!
+        btnConfirmar.disabled = !(isValid && hasChanges);
       }
 
       // Adiciona eventos aos campos
