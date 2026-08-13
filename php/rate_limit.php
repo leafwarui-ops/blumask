@@ -1,23 +1,61 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . "/security_headers.php";
 
 /**
- * Módulo Helper de Rate Limiting via Sessão PHP
+ * Módulo Helper de Rate Limiting via IP e Sessão PHP
  */
+
+function get_client_ip() {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+    return preg_replace('/[^0-9a-fA-F:\.]/', '', $ip);
+}
+
+function get_rate_limit_file($key) {
+    $ip = get_client_ip();
+    $hash = md5($ip . '_' . $key);
+    return sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'blumask_rl_' . $hash . '.json';
+}
+
+function get_rate_limit_data($key) {
+    $file = get_rate_limit_file($key);
+    if (file_exists($file)) {
+        $content = @file_get_contents($file);
+        if ($content !== false) {
+            $data = json_decode($content, true);
+            if (is_array($data)) {
+                return $data;
+            }
+        }
+    }
+    return $_SESSION['rate_limits'][$key] ?? null;
+}
+
+function save_rate_limit_data($key, $data) {
+    $_SESSION['rate_limits'][$key] = $data;
+    $file = get_rate_limit_file($key);
+    @file_put_contents($file, json_encode($data), LOCK_EX);
+}
+
+function remove_rate_limit_file($key) {
+    $file = get_rate_limit_file($key);
+    if (file_exists($file)) {
+        @unlink($file);
+    }
+}
 
 /**
  * Registra uma tentativa/hit para determinada chave.
  */
 function hit_rate_limit($key) {
-    if (!isset($_SESSION['rate_limits'][$key])) {
-        $_SESSION['rate_limits'][$key] = [
+    $data = get_rate_limit_data($key);
+    if (!$data || !is_array($data)) {
+        $data = [
             'count' => 0,
             'first_hit' => time()
         ];
     }
-    $_SESSION['rate_limits'][$key]['count']++;
+    $data['count']++;
+    save_rate_limit_data($key, $data);
 }
 
 /**
@@ -29,11 +67,11 @@ function hit_rate_limit($key) {
  * @return bool True se permitido, False se bloqueado
  */
 function check_rate_limit($key, $maxAttempts, $decaySeconds) {
-    if (!isset($_SESSION['rate_limits'][$key])) {
+    $data = get_rate_limit_data($key);
+    if (!$data || !is_array($data)) {
         return true;
     }
 
-    $data = $_SESSION['rate_limits'][$key];
     $elapsed = time() - $data['first_hit'];
 
     // Se a janela de tempo já passou, reseta a contagem
@@ -57,17 +95,19 @@ function reset_rate_limit($key) {
     if (isset($_SESSION['rate_limits'][$key])) {
         unset($_SESSION['rate_limits'][$key]);
     }
+    remove_rate_limit_file($key);
 }
 
 /**
  * Retorna mensagem formatada com o tempo restante de bloqueio.
  */
 function get_rate_limit_wait_time($key, $decaySeconds) {
-    if (!isset($_SESSION['rate_limits'][$key])) {
+    $data = get_rate_limit_data($key);
+    if (!$data || !is_array($data)) {
         return "0 segundos";
     }
 
-    $elapsed = time() - $_SESSION['rate_limits'][$key]['first_hit'];
+    $elapsed = time() - $data['first_hit'];
     $remaining = $decaySeconds - $elapsed;
 
     if ($remaining <= 0) {

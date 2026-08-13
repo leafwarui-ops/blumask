@@ -1,0 +1,7 @@
+# Desabilitar listagem de diretórios
+Options -Indexes
+
+# Bloquear a execução de scripts PHP e outros executáveis na pasta de uploads
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps|cgi|pl|exe)$">
+    Require all denied
+</FilesMatch>

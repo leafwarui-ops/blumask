@@ -1,7 +1,7 @@
 <?php
-session_start();
-include __DIR__ . "/bd.php";
+require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
+include __DIR__ . "/bd.php";
 
 if (!isset($_SESSION['usuario'])) {
     header("Location: ../index.php");
@@ -20,10 +20,10 @@ if ($res_user && $res_user->num_rows > 0) {
     $user = $_SESSION['usuario'];
 }
 
-$nomeUsuario  = htmlspecialchars($user['nome_de_usuario'] ?? '');
-$nomeExibicao = htmlspecialchars($user['nome_de_exibicao'] ?? '');
-$email        = htmlspecialchars($user['email'] ?? '');
-$descricao    = htmlspecialchars($user['descricao'] ?? '');
+$nomeUsuario  = htmlspecialchars($user['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
+$nomeExibicao = htmlspecialchars($user['nome_de_exibicao'] ?? '', ENT_QUOTES, 'UTF-8');
+$email        = htmlspecialchars($user['email'] ?? '', ENT_QUOTES, 'UTF-8');
+$descricao    = htmlspecialchars($user['descricao'] ?? '', ENT_QUOTES, 'UTF-8');
 $fotoPerfil   = $user['foto_perfil'] ?? '';
 $bannerPath   = $user['banner'] ?? '';
 
@@ -31,8 +31,12 @@ $error_message   = '';
 $success_message = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // 0. Validação de CSRF Token
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        $error_message = "Token de segurança (CSRF) inválido. Recarregue a página e tente novamente.";
+    }
     // Checa Rate Limit de edição (máx 5 atualizações / 15 min = 900s)
-    if (!check_rate_limit('usr_edit_attempt', 5, 900)) {
+    elseif (!check_rate_limit('usr_edit_attempt', 5, 900)) {
         $waitTime = get_rate_limit_wait_time('usr_edit_attempt', 900);
         $error_message = "Muitas solicitações de alteração seguidas. Por favor, aguarde $waitTime para tentar novamente.";
     } else {
@@ -44,168 +48,173 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $senha_atual    = $_POST['senha_atual'] ?? '';
         $nova_senha     = $_POST['nova_senha'] ?? '';
 
-    // 1. Checa se alterou e-mail ou senha (que exigem confirmação da senha atual)
-    $email_alterado = ($post_email !== $user['email']);
-    $senha_alterada = !empty($nova_senha);
+        // 1. Checa se alterou e-mail ou senha (que exigem confirmação da senha atual)
+        $email_alterado = ($post_email !== $user['email']);
+        $senha_alterada = !empty($nova_senha);
 
-    if ($email_alterado || $senha_alterada) {
-        if (empty($senha_atual)) {
-            $error_message = "Você precisa informar sua senha atual para alterar o e-mail ou a senha.";
-        } elseif (!password_verify($senha_atual, $user['senha'])) {
-            $error_message = "Senha atual incorreta.";
+        if ($email_alterado || $senha_alterada) {
+            if (empty($senha_atual)) {
+                $error_message = "Você precisa informar sua senha atual para alterar o e-mail ou a senha.";
+            } elseif (!password_verify($senha_atual, $user['senha'])) {
+                $error_message = "Senha atual incorreta.";
+            }
         }
-    }
-    
-    // 2. Validação do Nome de Usuário (4 a 20 caracteres)
-    elseif (mb_strlen($post_nome_usr) < 4 || mb_strlen($post_nome_usr) > 20) {
-        $error_message = "O nome de usuário deve ter entre 4 e 20 caracteres.";
-    } else {
-        // Checa duplicidade do nome de usuário no banco
-        $esc_usr = mysqli_real_escape_string($conn, $post_nome_usr);
-        $check_usr = $conn->query("SELECT id_usuario FROM usuario WHERE nome_de_usuario = '$esc_usr' AND id_usuario != $user_id");
-        if ($check_usr && $check_usr->num_rows > 0) {
-            $error_message = "Este nome de usuário já está em uso por outra conta.";
-        }
-    }
 
-    // 3. Validação do Nome de Exibição (2 a 10 caracteres)
-    if (empty($error_message)) {
-        if (mb_strlen($post_nome_exb) < 2 || mb_strlen($post_nome_exb) > 10) {
-            $error_message = "O nome de exibição deve ter entre 2 e 10 caracteres.";
+        // 2. Validação do Nome de Usuário (4 a 20 caracteres)
+        if (empty($error_message)) {
+            if (mb_strlen($post_nome_usr) < 4 || mb_strlen($post_nome_usr) > 20) {
+                $error_message = "O nome de usuário deve ter entre 4 e 20 caracteres.";
+            } else {
+                $esc_usr = mysqli_real_escape_string($conn, $post_nome_usr);
+                $check_usr = $conn->query("SELECT id_usuario FROM usuario WHERE nome_de_usuario = '$esc_usr' AND id_usuario != $user_id");
+                if ($check_usr && $check_usr->num_rows > 0) {
+                    $error_message = "Este nome de usuário já está em uso por outra conta.";
+                }
+            }
         }
-    }
 
-    // 4. Validação do E-mail e Unicidade
-    if (empty($error_message)) {
-        if (!filter_var($post_email, FILTER_VALIDATE_EMAIL)) {
-            $error_message = "Formato de e-mail inválido.";
-        } else {
+        // 3. Validação do Nome de Exibição (2 a 10 caracteres)
+        if (empty($error_message)) {
+            if (mb_strlen($post_nome_exb) < 2 || mb_strlen($post_nome_exb) > 10) {
+                $error_message = "O nome de exibição deve ter entre 2 e 10 caracteres.";
+            }
+        }
+
+        // 4. Validação do E-mail e Unicidade
+        if (empty($error_message)) {
+            if (!filter_var($post_email, FILTER_VALIDATE_EMAIL)) {
+                $error_message = "Formato de e-mail inválido.";
+            } else {
+                $esc_email = mysqli_real_escape_string($conn, $post_email);
+                $check_email = $conn->query("SELECT id_usuario FROM usuario WHERE email = '$esc_email' AND id_usuario != $user_id");
+                if ($check_email && $check_email->num_rows > 0) {
+                    $error_message = "Este e-mail já está cadastrado por outro usuário.";
+                }
+            }
+        }
+
+        // 5. Validação da Descrição/Bio (Máximo 200 caracteres)
+        if (empty($error_message)) {
+            if (mb_strlen($post_descricao) > 200) {
+                $error_message = "A descrição não pode ter mais de 200 caracteres.";
+            }
+        }
+
+        // 6. Validação da Nova Senha (se preenchida)
+        $senha_final_hash = $user['senha'];
+        if (empty($error_message) && !empty($nova_senha)) {
+            if (!preg_match('/^(?=.*[A-Z])(?=.*[\W_]).{8,32}$/', $nova_senha)) {
+                $error_message = "A nova senha deve ter entre 8 e 32 caracteres, uma letra maiúscula e um símbolo.";
+            } else {
+                $senha_final_hash = password_hash($nova_senha, PASSWORD_DEFAULT);
+            }
+        }
+
+        // Max file size: 30MB (31457280 bytes)
+        $max_file_size = 31457280;
+        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+
+        // 7. Upload do Banner (se enviado)
+        $uploaded_banner_path = $bannerPath;
+        if (empty($error_message) && isset($_FILES['banner']) && $_FILES['banner']['error'] === UPLOAD_ERR_OK) {
+            $b_size = $_FILES['banner']['size'];
+            $b_tmp  = $_FILES['banner']['tmp_name'];
+            $b_name = $_FILES['banner']['name'];
+            $b_ext  = strtolower(pathinfo($b_name, PATHINFO_EXTENSION));
+
+            if ($b_size > $max_file_size) {
+                $error_message = "A imagem do banner excede o limite máximo de 30MB.";
+            } elseif (!in_array($b_ext, $allowed_extensions)) {
+                $error_message = "Formato de imagem de banner inválido. Use JPG, PNG, GIF ou WEBP.";
+            } elseif (@getimagesize($b_tmp) === false) {
+                $error_message = "O arquivo enviado para o banner não é uma imagem válida.";
+            } else {
+                $target_dir = __DIR__ . '/../uploads/banners/';
+                if (!is_dir($target_dir)) {
+                    mkdir($target_dir, 0777, true);
+                }
+                $new_b_name = 'banner_' . $user_id . '_' . time() . '.' . $b_ext;
+                $target_file = $target_dir . $new_b_name;
+
+                if (move_uploaded_file($b_tmp, $target_file)) {
+                    $uploaded_banner_path = 'uploads/banners/' . $new_b_name;
+                } else {
+                    $error_message = "Erro ao salvar a imagem do banner no servidor.";
+                }
+            }
+        }
+
+        // 8. Upload da Foto de Perfil (Avatar) (se enviada)
+        $uploaded_avatar_path = $fotoPerfil;
+        if (empty($error_message) && isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
+            $a_size = $_FILES['avatar']['size'];
+            $a_tmp  = $_FILES['avatar']['tmp_name'];
+            $a_name = $_FILES['avatar']['name'];
+            $a_ext  = strtolower(pathinfo($a_name, PATHINFO_EXTENSION));
+
+            if ($a_size > $max_file_size) {
+                $error_message = "A imagem de perfil excede o limite máximo de 30MB.";
+            } elseif (!in_array($a_ext, $allowed_extensions)) {
+                $error_message = "Formato de foto de perfil inválido. Use JPG, PNG, GIF ou WEBP.";
+            } elseif (@getimagesize($a_tmp) === false) {
+                $error_message = "O arquivo enviado para foto de perfil não é uma imagem válida.";
+            } else {
+                $target_dir = __DIR__ . '/../uploads/avatars/';
+                if (!is_dir($target_dir)) {
+                    mkdir($target_dir, 0777, true);
+                }
+                $new_a_name = 'avatar_' . $user_id . '_' . time() . '.' . $a_ext;
+                $target_file = $target_dir . $new_a_name;
+
+                if (move_uploaded_file($a_tmp, $target_file)) {
+                    $uploaded_avatar_path = 'uploads/avatars/' . $new_a_name;
+                } else {
+                    $error_message = "Erro ao salvar a foto de perfil no servidor.";
+                }
+            }
+        }
+
+        // 9. Atualização no Banco de Dados
+        if (empty($error_message)) {
+            $esc_usr   = mysqli_real_escape_string($conn, $post_nome_usr);
+            $esc_exb   = mysqli_real_escape_string($conn, $post_nome_exb);
             $esc_email = mysqli_real_escape_string($conn, $post_email);
-            $check_email = $conn->query("SELECT id_usuario FROM usuario WHERE email = '$esc_email' AND id_usuario != $user_id");
-            if ($check_email && $check_email->num_rows > 0) {
-                $error_message = "Este e-mail já está cadastrado por outro usuário.";
-            }
-        }
-    }
+            $esc_desc  = mysqli_real_escape_string($conn, $post_descricao);
+            $esc_ban   = mysqli_real_escape_string($conn, $uploaded_banner_path);
+            $esc_ava   = mysqli_real_escape_string($conn, $uploaded_avatar_path);
 
-    // 5. Validação da Descrição/Bio (Máximo 200 caracteres)
-    if (empty($error_message)) {
-        if (mb_strlen($post_descricao) > 200) {
-            $error_message = "A descrição não pode ter mais de 200 caracteres.";
-        }
-    }
+            $sql_update = "UPDATE usuario SET 
+                            nome_de_usuario = '$esc_usr',
+                            nome_de_exibicao = '$esc_exb',
+                            email = '$esc_email',
+                            descricao = '$esc_desc',
+                            senha = '$senha_final_hash',
+                            banner = '$esc_ban',
+                            foto_perfil = '$esc_ava'
+                           WHERE id_usuario = $user_id";
 
-    // 6. Validação da Nova Senha (se preenchida)
-    $senha_final_hash = $user['senha'];
-    if (empty($error_message) && !empty($nova_senha)) {
-        if (!preg_match('/^(?=.*[A-Z])(?=.*[\W_]).{8,32}$/', $nova_senha)) {
-            $error_message = "A nova senha deve ter entre 8 e 32 caracteres, uma letra maiúscula e um símbolo.";
-        } else {
-            $senha_final_hash = password_hash($nova_senha, PASSWORD_DEFAULT);
-        }
-    }
+            if ($conn->query($sql_update) === TRUE) {
+                // Atualiza Sessão
+                $_SESSION['usuario']['nome_de_usuario']  = $post_nome_usr;
+                $_SESSION['usuario']['nome_de_exibicao'] = $post_nome_exb;
+                $_SESSION['usuario']['email']            = $post_email;
+                $_SESSION['usuario']['descricao']        = $post_descricao;
+                $_SESSION['usuario']['senha']            = $senha_final_hash;
+                $_SESSION['usuario']['banner']           = $uploaded_banner_path;
+                $_SESSION['usuario']['foto_perfil']      = $uploaded_avatar_path;
 
-    // Max file size: 30MB (30 * 1024 * 1024 = 31457280 bytes)
-    $max_file_size = 31457280;
-    $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-
-    // 7. Upload do Banner (se enviado)
-    $uploaded_banner_path = $bannerPath;
-    if (empty($error_message) && isset($_FILES['banner']) && $_FILES['banner']['error'] === UPLOAD_ERR_OK) {
-        $b_size = $_FILES['banner']['size'];
-        $b_tmp  = $_FILES['banner']['tmp_name'];
-        $b_name = $_FILES['banner']['name'];
-        $b_ext  = strtolower(pathinfo($b_name, PATHINFO_EXTENSION));
-
-        if ($b_size > $max_file_size) {
-            $error_message = "A imagem do banner excede o limite máximo de 30MB.";
-        } elseif (!in_array($b_ext, $allowed_extensions)) {
-            $error_message = "Formato de imagem de banner inválido. Use JPG, PNG, GIF ou WEBP.";
-        } else {
-            $target_dir = __DIR__ . '/../uploads/banners/';
-            if (!is_dir($target_dir)) {
-                mkdir($target_dir, 0777, true);
-            }
-            $new_b_name = 'banner_' . $user_id . '_' . time() . '.' . $b_ext;
-            $target_file = $target_dir . $new_b_name;
-
-            if (move_uploaded_file($b_tmp, $target_file)) {
-                $uploaded_banner_path = 'uploads/banners/' . $new_b_name;
+                header("Location: ../index.php");
+                exit;
             } else {
-                $error_message = "Erro ao salvar a imagem do banner no servidor.";
+                $error_message = "Erro ao atualizar perfil no banco de dados.";
             }
         }
     }
-
-    // 8. Upload da Foto de Perfil (Avatar) (se enviada)
-    $uploaded_avatar_path = $fotoPerfil;
-    if (empty($error_message) && isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
-        $a_size = $_FILES['avatar']['size'];
-        $a_tmp  = $_FILES['avatar']['tmp_name'];
-        $a_name = $_FILES['avatar']['name'];
-        $a_ext  = strtolower(pathinfo($a_name, PATHINFO_EXTENSION));
-
-        if ($a_size > $max_file_size) {
-            $error_message = "A imagem de perfil excede o limite máximo de 30MB.";
-        } elseif (!in_array($a_ext, $allowed_extensions)) {
-            $error_message = "Formato de foto de perfil inválido. Use JPG, PNG, GIF ou WEBP.";
-        } else {
-            $target_dir = __DIR__ . '/../uploads/avatars/';
-            if (!is_dir($target_dir)) {
-                mkdir($target_dir, 0777, true);
-            }
-            $new_a_name = 'avatar_' . $user_id . '_' . time() . '.' . $a_ext;
-            $target_file = $target_dir . $new_a_name;
-
-            if (move_uploaded_file($a_tmp, $target_file)) {
-                $uploaded_avatar_path = 'uploads/avatars/' . $new_a_name;
-            } else {
-                $error_message = "Erro ao salvar a foto de perfil no servidor.";
-            }
-        }
-    }
-
-    // 9. Atualização no Banco de Dados
-    if (empty($error_message)) {
-        $esc_usr   = mysqli_real_escape_string($conn, $post_nome_usr);
-        $esc_exb   = mysqli_real_escape_string($conn, $post_nome_exb);
-        $esc_email = mysqli_real_escape_string($conn, $post_email);
-        $esc_desc  = mysqli_real_escape_string($conn, $post_descricao);
-        $esc_ban   = mysqli_real_escape_string($conn, $uploaded_banner_path);
-        $esc_ava   = mysqli_real_escape_string($conn, $uploaded_avatar_path);
-
-        $sql_update = "UPDATE usuario SET 
-                        nome_de_usuario = '$esc_usr',
-                        nome_de_exibicao = '$esc_exb',
-                        email = '$esc_email',
-                        descricao = '$esc_desc',
-                        senha = '$senha_final_hash',
-                        banner = '$esc_ban',
-                        foto_perfil = '$esc_ava'
-                       WHERE id_usuario = $user_id";
-
-        if ($conn->query($sql_update) === TRUE) {
-            // Atualiza Sessão
-            $_SESSION['usuario']['nome_de_usuario']  = $post_nome_usr;
-            $_SESSION['usuario']['nome_de_exibicao'] = $post_nome_exb;
-            $_SESSION['usuario']['email']            = $post_email;
-            $_SESSION['usuario']['descricao']        = $post_descricao;
-            $_SESSION['usuario']['senha']            = $senha_final_hash;
-            $_SESSION['usuario']['banner']           = $uploaded_banner_path;
-            $_SESSION['usuario']['foto_perfil']      = $uploaded_avatar_path;
-
-            header("Location: ../index.php");
-            exit;
-        } else {
-            $error_message = "Erro no banco de dados: " . $conn->error;
-        }
-    }
-}
 }
 
 // Avatar URL inicial
-$avatarUrl = !empty($fotoPerfil) ? "../" . htmlspecialchars($fotoPerfil) : "https://ui-avatars.com/api/?name=" . urlencode($nomeExibicao) . "&background=random";
-$bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialchars($bannerPath) . "'); background-size: cover; background-position: center;" : "";
+$avatarUrl = !empty($fotoPerfil) ? "../" . htmlspecialchars($fotoPerfil, ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($nomeExibicao) . "&background=random";
+$bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialchars($bannerPath, ENT_QUOTES, 'UTF-8') . "'); background-size: cover; background-position: center;" : "";
 ?>
 
 <!DOCTYPE html>
@@ -253,11 +262,12 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
           <!-- MENSAGEM DE ERRO DO SERVIDOR -->
           <?php if (!empty($error_message)): ?>
             <div style="background: rgba(217, 48, 37, 0.15); border: 1px solid #d93025; color: #d93025; padding: 12px; border-radius: 12px; font-weight: bold; margin-bottom: 20px; text-align: center;">
-              <?= htmlspecialchars($error_message) ?>
+              <?= htmlspecialchars($error_message, ENT_QUOTES, 'UTF-8') ?>
             </div>
           <?php endif; ?>
 
           <form method="post" action="" enctype="multipart/form-data" id="edit-profile-form">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
             <!-- INPUTS ESCONDIDOS DE FILE -->
             <input type="file" name="banner" id="banner-input" accept="image/*,.gif" style="display: none;">
             <input type="file" name="avatar" id="avatar-input" accept="image/*,.gif" style="display: none;">

@@ -1,0 +1,10 @@
+# Desabilitar listagem de diretórios (Directory Listing)
+Options -Indexes
+
+# Ocultar assinatura do servidor
+ServerSignature Off
+
+# Proteção contra acesso direto a arquivos sensíveis
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

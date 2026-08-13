@@ -1,7 +1,7 @@
 <?php
-session_start();
-include "php/bd.php";
+require_once "php/security_headers.php";
 require_once "php/rate_limit.php";
+include "php/bd.php";
 
 // Lógica de Sair (Logout)
 if (isset($_GET['logout'])) {
@@ -14,49 +14,68 @@ if (isset($_GET['logout'])) {
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $popup_mode = trim($_POST['popup-mode'] ?? '0');
     
-    if ($popup_mode == "0") {
-        // Entrar com Rate Limiting (Máx 5 erros = bloqueio de 1h / 3600s)
-        if (!check_rate_limit('login_attempt', 5, 3600)) {
-            $waitTime = get_rate_limit_wait_time('login_attempt', 3600);
+    // Validação de CSRF Token para formulários de autenticação
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        $login_error = "Token de segurança (CSRF) inválido. Por favor, recarregue a página e tente novamente.";
+    } elseif ($popup_mode == "0") {
+        // Entrar com Rate Limiting (Máx 5 erros = bloqueio de 15 min / 900s)
+        if (!check_rate_limit('login_attempt', 5, 900)) {
+            $waitTime = get_rate_limit_wait_time('login_attempt', 900);
             $login_error = "Muitas tentativas incorretas. Por favor, aguarde $waitTime para tentar novamente.";
         } else {
-            $email = mysqli_real_escape_string($conn, trim($_POST['email']));
-            $senha = $_POST['senha'];
+            $email = mysqli_real_escape_string($conn, trim($_POST['email'] ?? ''));
+            $senha = $_POST['senha'] ?? '';
             
-            $sql = "SELECT * FROM usuario WHERE email = '$email' LIMIT 1";
-            $result = mysqli_query($conn, $sql);
-            
-            if ($result && mysqli_num_rows($result) > 0) {
-                $user = mysqli_fetch_assoc($result);
-                if (password_verify($senha, $user['senha'])) {
-                    reset_rate_limit('login_attempt');
-                    $_SESSION['usuario'] = $user;
-                    header("Location: index.php");
-                    exit;
+            if (empty($email) || empty($senha)) {
+                hit_rate_limit('login_attempt');
+                $login_error = "Email e senha são obrigatórios!";
+            } else {
+                $sql = "SELECT * FROM usuario WHERE email = '$email' LIMIT 1";
+                $result = mysqli_query($conn, $sql);
+                
+                if ($result && mysqli_num_rows($result) > 0) {
+                    $user = mysqli_fetch_assoc($result);
+                    if (password_verify($senha, $user['senha'])) {
+                        reset_rate_limit('login_attempt');
+                        session_regenerate_id(true);
+                        $_SESSION['usuario'] = $user;
+                        header("Location: index.php");
+                        exit;
+                    } else {
+                        hit_rate_limit('login_attempt');
+                        $login_error = "Email ou senha incorretos!";
+                    }
                 } else {
                     hit_rate_limit('login_attempt');
                     $login_error = "Email ou senha incorretos!";
                 }
-            } else {
-                hit_rate_limit('login_attempt');
-                $login_error = "Email ou senha incorretos!";
             }
         }
     } else {
-        // Cadastrar com Rate Limiting (Máx 3 cadastros = bloqueio de 1h / 3600s)
-        if (!check_rate_limit('register_attempt', 3, 3600)) {
-            $waitTime = get_rate_limit_wait_time('register_attempt', 3600);
+        // Cadastrar com Rate Limiting (Máx 3 cadastros = bloqueio de 15 min / 900s)
+        if (!check_rate_limit('register_attempt', 3, 900)) {
+            $waitTime = get_rate_limit_wait_time('register_attempt', 900);
             $login_error = "Você realizou muitos cadastros recentemente. Aguarde $waitTime para tentar cadastrar novamente.";
         } else {
-            $nome_usr = mysqli_real_escape_string($conn, trim($_POST['nome_usr']));
-            $nome_exb = mysqli_real_escape_string($conn, trim($_POST['nome_exb']));
-            $email = mysqli_real_escape_string($conn, trim($_POST['email']));
-            $senha = $_POST['senha'];
-            
-            if (!preg_match('/^(?=.*[A-Z])(?=.*[\W_]).{8,32}$/', $_POST['senha'])) {
+            $nome_usr_raw = trim($_POST['nome_usr'] ?? '');
+            $nome_exb_raw = trim($_POST['nome_exb'] ?? '');
+            $email_raw    = trim($_POST['email'] ?? '');
+            $senha        = $_POST['senha'] ?? '';
+
+            if (mb_strlen($nome_usr_raw) < 4 || mb_strlen($nome_usr_raw) > 20) {
+                $login_error = "O nome de usuário deve ter entre 4 e 20 caracteres.";
+            } elseif (mb_strlen($nome_exb_raw) < 2 || mb_strlen($nome_exb_raw) > 10) {
+                $login_error = "O nome de exibição deve ter entre 2 e 10 caracteres.";
+            } elseif (!filter_var($email_raw, FILTER_VALIDATE_EMAIL)) {
+                $login_error = "Formato de e-mail inválido.";
+            } elseif (!preg_match('/^(?=.*[A-Z])(?=.*[\W_]).{8,32}$/', $senha)) {
                 $login_error = "A senha deve ter entre 8 e 32 caracteres, uma maiúscula e um símbolo.";
             } else {
-                $senha_hash = password_hash($_POST['senha'], PASSWORD_DEFAULT);
+                $nome_usr = mysqli_real_escape_string($conn, htmlspecialchars($nome_usr_raw, ENT_QUOTES, 'UTF-8'));
+                $nome_exb = mysqli_real_escape_string($conn, htmlspecialchars($nome_exb_raw, ENT_QUOTES, 'UTF-8'));
+                $email    = mysqli_real_escape_string($conn, $email_raw);
+                $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
+                
                 $sql = "INSERT INTO usuario (email, senha, nome_de_exibicao, nome_de_usuario) VALUES ('$email', '$senha_hash', '$nome_exb', '$nome_usr')";
                 
                 if ($conn->query($sql) === TRUE) {
@@ -65,11 +84,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $new_user_id = $conn->insert_id;
                     $sql_fetch = "SELECT * FROM usuario WHERE id_usuario = $new_user_id";
                     $result = mysqli_query($conn, $sql_fetch);
+                    session_regenerate_id(true);
                     $_SESSION['usuario'] = mysqli_fetch_assoc($result);
                     header("Location: index.php");
                     exit;
                 } else {
-                    $login_error = "Erro ao cadastrar. Verifique se o nome de usuário já existe.";
+                    hit_rate_limit('register_attempt');
+                    $login_error = "Erro ao cadastrar. Verifique se o nome de usuário ou e-mail já existe.";
                 }
             }
         }
@@ -84,6 +105,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <title>BluMask</title>
     <link rel="icon" type="image/webp" href="style/blumaskWhiteLogo.webp">
     <link rel="stylesheet" href="style/index_style.css">
+    <link rel="stylesheet" href="style/comunidade_style.css?v=<?= time() ?>">
 </head>
 <body>
 
@@ -106,13 +128,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       <?php if (isset($_SESSION['usuario'])): ?>
       <?php 
           $user = $_SESSION['usuario'];
-          $nome_exibicao = htmlspecialchars($user['nome_de_exibicao']);
-          $nome_usuario  = htmlspecialchars($user['nome_de_usuario']);
-          $descricao_usr = htmlspecialchars($user['descricao'] ?? '');
-          $bannerUrl     = !empty($user['banner']) ? htmlspecialchars($user['banner']) : '';
+          $nome_exibicao = htmlspecialchars($user['nome_de_exibicao'], ENT_QUOTES, 'UTF-8');
+          $nome_usuario  = htmlspecialchars($user['nome_de_usuario'], ENT_QUOTES, 'UTF-8');
+          $descricao_usr = htmlspecialchars($user['descricao'] ?? '', ENT_QUOTES, 'UTF-8');
+          $bannerUrl     = !empty($user['banner']) ? htmlspecialchars($user['banner'], ENT_QUOTES, 'UTF-8') : '';
           
           // Utiliza a foto de perfil salva no banco; caso não exista, gera um avatar dinâmico com as iniciais
-          $avatarUrl = !empty($user['foto_perfil']) ? htmlspecialchars($user['foto_perfil']) : "https://ui-avatars.com/api/?name=" . urlencode($nome_exibicao) . "&background=random";
+          $avatarUrl = !empty($user['foto_perfil']) ? htmlspecialchars($user['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($nome_exibicao) . "&background=random";
           $bannerStyle = !empty($bannerUrl) ? "background-image: url('$bannerUrl'); background-size: cover; background-position: center;" : "";
       ?>
       <div class="panel-header" style="height: 100px; position: relative; <?= $bannerStyle ?>">
@@ -142,7 +164,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <!-- Modal de Autenticação (Login/Cadastro) -->
         <dialog id="login-box"> 
             <form id="popup-form" action="" method="post">
-                <?php if (isset($login_error)) echo "<p style='color: red; font-size: 13px; margin-bottom: 15px; text-align: center; font-weight: bold;'>$login_error</p>"; ?>
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+                <?php if (isset($login_error)) echo "<p style='color: red; font-size: 13px; margin-bottom: 15px; text-align: center; font-weight: bold;'>" . htmlspecialchars($login_error, ENT_QUOTES, 'UTF-8') . "</p>"; ?>
                 <div class="dialog-tabs">
                     <button type="button" id="btn-entrar-dialog">entrar</button>
                     <button type="button" id="btn-cadastrar-dialog">cadastrar</button>
@@ -178,6 +201,49 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       <div class="panel-header">
         <h2>Comunidades</h2>
       </div>
+
+      <?php if (isset($_SESSION['usuario'])): ?>
+      <div class="communities-actions">
+        <button class="btn-criar-comunidade" id="btn-criar-comunidade">+ Criar Comunidade</button>
+      </div>
+
+      <ul class="communities-list" id="communities-list">
+        <!-- Preenchida via JS a partir de php/buscar_comunidades.php -->
+      </ul>
+
+      <!-- Modal de Criação de Comunidade -->
+      <dialog id="criar-comunidade-box">
+        <form id="form-criar-comunidade" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+          <h2>Criar Comunidade</h2>
+
+          <div class="criar-comunidade-body">
+            <div class="criar-comunidade-campos">
+              <input type="text" name="nome" id="input-nome-comunidade" placeholder="Nome da comunidade" minlength="2" maxlength="40" required>
+              <textarea name="descricao" id="input-descricao-comunidade" placeholder="Breve descrição da comunidade..." maxlength="200"></textarea>
+            </div>
+
+            <div class="criar-comunidade-foto">
+              <span>Foto / Ícone:</span>
+              <label for="input-imagem-comunidade" class="avatar-upload" title="Escolher Imagem/GIF (máx 30MB)">
+                <img id="preview-imagem-comunidade" src="" alt="Preview">
+                <svg class="avatar-placeholder-icon" viewBox="0 0 24 24"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>
+              </label>
+              <input type="file" id="input-imagem-comunidade" name="imagem" accept="image/*,.gif" hidden>
+            </div>
+          </div>
+
+          <div class="criar-comunidade-botoes">
+            <button type="submit" class="btn-criar">Criar</button>
+            <button type="button" class="btn-descartar" id="btn-descartar-comunidade">Descartar</button>
+          </div>
+
+          <p id="erro-criar-comunidade" class="erro-msg"></p>
+        </form>
+      </dialog>
+      <?php else: ?>
+      <p class="communities-login-hint">Faça login para criar ou participar de comunidades.</p>
+      <?php endif; ?>
     </section>
 
   </main>
@@ -191,6 +257,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     
 <!-- Script responsável por construir os inputs (Email/Senha/etc) dinamicamente -->
 <script src="js/login_writter.js"></script>
+<?php if (isset($_SESSION['usuario'])): ?>
+<!-- Script para controle e carregamento do Painel de Comunidades -->
+<script src="js/comunidade.js"></script>
+<?php endif; ?>
 
 <!-- Script para controle de exibição e alternância de abas do Modal de Autenticação -->
 <script>

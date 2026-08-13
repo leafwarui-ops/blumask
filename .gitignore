@@ -1,0 +1,8 @@
+cookies*.txt
+cookies.txt
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+uploads/banners/*
+!uploads/banners/.gitkeep
+uploads/comunidades/*
+!uploads/comunidades/.gitkeep
