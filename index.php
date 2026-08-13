@@ -159,18 +159,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       <div class="profile-body">
         <!-- Mensagem para usuários não autenticados -->
         <p>Ops! Você precisa fazer login para visualizar e customizar o seu perfil!</p>
-        <button class="btn-entrar" id="btn-entrar">entrar</button>
+        <button class="btn-entrar" id="btn-entrar">Entrar</button>
         
         <!-- Modal de Autenticação (Login/Cadastro) -->
         <dialog id="login-box"> 
             <form id="popup-form" action="" method="post">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
-                <?php if (isset($login_error)) echo "<p style='color: red; font-size: 13px; margin-bottom: 15px; text-align: center; font-weight: bold;'>" . htmlspecialchars($login_error, ENT_QUOTES, 'UTF-8') . "</p>"; ?>
                 <div class="dialog-tabs">
                     <button type="button" id="btn-entrar-dialog">entrar</button>
                     <button type="button" id="btn-cadastrar-dialog">cadastrar</button>
                 </div>
-                <br>
                 <div id="pop-div">
                 </div>
             </form>
@@ -266,43 +264,59 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <script>
     const mostrar = document.getElementById("btn-entrar");
     const login = document.getElementById("login-box");
+    const btn_entrar = document.getElementById("btn-entrar-dialog");
+    const btn_cadastrar = document.getElementById("btn-cadastrar-dialog");
+    const pop_content = document.getElementById("pop-div");
 
-    if (mostrar && login) {
-        const btn_entrar = document.getElementById("btn-entrar-dialog");
-        const btn_cadastrar = document.getElementById("btn-cadastrar-dialog");
-        const pop_content = document.getElementById("pop-div");
-        let PopupMenu = 0;
-
-        function marcarAba(ativa) {
+    function marcarAba(ativa) {
+        if (btn_entrar && btn_cadastrar) {
             btn_entrar.classList.toggle("active-tab", ativa === "entrar");
             btn_cadastrar.classList.toggle("active-tab", ativa === "cadastrar");
         }
+    }
 
+    function abrirModalAutenticacao(modo = 0, erroMsg = null) {
+        if (!login || !pop_content) return;
+        
+        const modeNum = (modo === "cadastrar" || modo == 1 || modo === "1") ? 1 : 0;
+        pop_content.innerHTML = "";
+
+        if (erroMsg) {
+            const pErr = document.createElement("p");
+            pErr.id = "modal-error-msg";
+            pErr.style.cssText = "color: #d93025; font-size: 13px; margin: 0 0 12px 0; text-align: center; font-weight: bold;";
+            pErr.textContent = erroMsg;
+            pop_content.appendChild(pErr);
+        }
+
+        trocar(modeNum, pop_content);
+        marcarAba(modeNum === 0 ? "entrar" : "cadastrar");
+        
+        if (!login.open) {
+            login.showModal();
+        }
+    }
+
+    if (mostrar && login) {
         mostrar.addEventListener("click", (event) => {
             event.preventDefault();
-            login.showModal();
-            PopupMenu = 0;
-            pop_content.innerHTML = "";
-            trocar(PopupMenu, pop_content);
-            marcarAba("entrar");
+            abrirModalAutenticacao(0);
         });
+    }
 
+    if (btn_entrar && btn_cadastrar && pop_content) {
         btn_entrar.addEventListener("click", (event) => {
             event.stopPropagation();
-            PopupMenu = 0;
-            pop_content.innerHTML = "";
-            trocar(PopupMenu, pop_content);
-            marcarAba("entrar");
+            abrirModalAutenticacao(0);
         });
 
         btn_cadastrar.addEventListener("click", (event) => {
             event.stopPropagation();
-            PopupMenu = 1;
-            pop_content.innerHTML = "";
-            trocar(PopupMenu, pop_content);
-            marcarAba("cadastrar");
+            abrirModalAutenticacao(1);
         });
+    }
 
+    if (login) {
         login.addEventListener("click", (event) => {
             const bordas = login.getBoundingClientRect();
             if (
@@ -318,15 +332,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </script>
 
 <?php if (isset($login_error)): ?>
-<!-- Script para reabrir automaticamente o Modal em caso de erro na autenticação -->
+<!-- Reabertura automática unificada em caso de erro de autenticação -->
 <script>
-    if (login) {
-        login.showModal();
-        PopupMenu = <?= isset($popup_mode) ? json_encode($popup_mode) : '"0"' ?>;
-        pop_content.innerHTML = "";
-        trocar(PopupMenu, pop_content);
-        marcarAba(PopupMenu == "0" ? "entrar" : "cadastrar");
-    }
+    document.addEventListener("DOMContentLoaded", function () {
+        const popupMode = <?= isset($popup_mode) ? json_encode($popup_mode) : '"0"' ?>;
+        const errorMsg  = <?= json_encode($login_error) ?>;
+        abrirModalAutenticacao(popupMode, errorMsg);
+    });
 </script>
 <?php endif; ?>
 
