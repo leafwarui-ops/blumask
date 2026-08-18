@@ -4,6 +4,13 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
+    const currentPath = window.location.pathname || "";
+    const isInsidePhpFolder = currentPath.includes("/php/") || currentPath.endsWith("/php");
+    const searchEndpoint = isInsidePhpFolder ? "pesquisar.php" : "php/pesquisar.php";
+    const userProfileEndpoint = isInsidePhpFolder ? "user_view.php" : "php/user_view.php";
+    const communityEndpoint = isInsidePhpFolder ? "comunidade.php" : "php/comunidade.php";
+    const profileEditEndpoint = isInsidePhpFolder ? "usr_edit.php" : "php/usr_edit.php";
+
     const inputBusca = document.getElementById("input-busca");
     const btnLimpar = document.getElementById("btn-limpar-busca");
     const spinnerBusca = document.getElementById("busca-spinner");
@@ -89,7 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
         indexItemFocado = -1;
 
         try {
-            const url = `php/pesquisar.php?q=${encodeURIComponent(termo)}&tipo=${encodeURIComponent(tipoFiltro)}`;
+            const url = `${searchEndpoint}?q=${encodeURIComponent(termo)}&tipo=${encodeURIComponent(tipoFiltro)}`;
             const resposta = await fetch(url, {
                 signal: abortController.signal
             });
@@ -162,7 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 `;
 
-                li.addEventListener("click", () => abrirModalUsuario(user));
+                li.addEventListener("click", () => abrirPerfilUsuario(user));
                 listaUsr.appendChild(li);
             });
 
@@ -226,6 +233,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 7. Modais de Visualização Detalhada
+    function abrirPerfilUsuario(user) {
+        if (!user || !user.id_usuario) return;
+        fecharDropdown();
+        window.location.href = `${userProfileEndpoint}?id=${encodeURIComponent(user.id_usuario)}`;
+    }
+
     function abrirModalUsuario(user) {
         if (!dialogUsuario) return;
 
@@ -259,7 +272,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!btnEditar) {
                     btnEditar = document.createElement("a");
                     btnEditar.className = "btn-modal-acao btn-modal-acao-editar";
-                    btnEditar.href = "php/usr_edit.php";
+                    btnEditar.href = profileEditEndpoint;
                     btnEditar.textContent = "Editar Perfil";
                     actions.prepend(btnEditar);
                 }
@@ -304,7 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 btnAcessar.textContent = "Acessar";
                 actions.prepend(btnAcessar);
             }
-            btnAcessar.href = `php/comunidade.php?id=${parseInt(comu.id_comunidade, 10) || 0}`;
+            btnAcessar.href = `${communityEndpoint}?id=${parseInt(comu.id_comunidade, 10) || 0}`;
         }
 
         fecharDropdown();
