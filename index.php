@@ -106,8 +106,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <link rel="icon" type="image/webp" href="style/blumaskWhiteLogo.webp">
     <link rel="stylesheet" href="style/index_style.css">
     <link rel="stylesheet" href="style/comunidade_style.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="style/busca_style.css?v=<?= time() ?>">
 </head>
-<body>
+<body data-id-usuario="<?= isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0 ?>">
 
     <div class="page">
 
@@ -179,9 +180,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <!-- CENTER COLUMN -->
     <section class="center-col">
-      <div class="search-bar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#1c1c1c" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <span>Procurando por Algo?</span>
+      <!-- Interactive Search Container -->
+      <div class="search-container">
+        <div class="search-bar-interactive">
+          <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2.5">
+            <circle cx="11" cy="11" r="7"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" id="input-busca" class="search-input" placeholder="Procurando por Algo? (usuários, comunidades...)" autocomplete="off">
+          <div class="search-actions">
+            <div class="search-spinner" id="busca-spinner" title="Buscando..."></div>
+            <button type="button" class="btn-clear-search" id="btn-limpar-busca" title="Limpar busca">&times;</button>
+          </div>
+        </div>
+
+        <!-- Filtros Rápidos -->
+        <div class="search-filter-tabs">
+          <button type="button" class="filter-tab-btn active" data-tipo="todos">Todos</button>
+          <button type="button" class="filter-tab-btn" data-tipo="usuarios">Usuários</button>
+          <button type="button" class="filter-tab-btn" data-tipo="comunidades">Comunidades</button>
+        </div>
+
+        <!-- Dropdown de Resultados Dinâmicos -->
+        <div class="search-results-dropdown" id="busca-resultados-dropdown"></div>
       </div>
 
       <div class="panel last-post">
@@ -253,6 +274,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 </div>
     
+<!-- Modal de Pré-visualização de Perfil de Usuário -->
+<dialog id="dialog-ver-usuario">
+  <div class="user-modal-header">
+    <div class="user-modal-avatar">
+      <img src="" alt="Avatar">
+    </div>
+  </div>
+  <div class="user-modal-body">
+    <h3>Nome de Exibição</h3>
+    <p class="user-handle">@usuario</p>
+    <p class="user-bio">Descrição do perfil...</p>
+    <div class="user-modal-actions">
+      <button type="button" class="btn-modal-fechar">Fechar</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Modal de Pré-visualização de Comunidade -->
+<dialog id="dialog-ver-comunidade">
+  <div class="comu-modal-header">
+    <img class="comu-modal-avatar" src="" alt="Ícone da Comunidade">
+    <div>
+      <h3 class="comu-modal-title">Nome da Comunidade</h3>
+      <span class="comu-modal-meta">Criada em 01/01/2026 • 1 membro</span>
+    </div>
+  </div>
+  <div class="comu-modal-desc">
+    Descrição da comunidade...
+  </div>
+  <div class="comu-modal-actions">
+    <button type="button" class="btn-modal-fechar">Fechar</button>
+  </div>
+</dialog>
+
+<!-- Script de Busca em Tempo Real -->
+<script src="js/busca.js?v=<?= time() ?>"></script>
 <!-- Script responsável por construir os inputs (Email/Senha/etc) dinamicamente -->
 <script src="js/login_writter.js"></script>
 <?php if (isset($_SESSION['usuario'])): ?>
