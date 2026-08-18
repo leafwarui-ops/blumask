@@ -43,12 +43,12 @@ if ($id_comunidade <= 0) {
 }
 
 if (mb_strlen($assunto_raw) < 3 || mb_strlen($assunto_raw) > 150) {
-    echo json_encode(["sucesso" => false, "mensagem" => "O título deve ter entre 3 e 150 caracteres."]);
+    echo json_encode(["sucesso" => false, "mensagem" => "Validação inválida."]);
     exit;
 }
 
 if (mb_strlen($conteudo_raw) < 5 || mb_strlen($conteudo_raw) > 5000) {
-    echo json_encode(["sucesso" => false, "mensagem" => "O conteúdo deve ter entre 5 e 5000 caracteres."]);
+    echo json_encode(["sucesso" => false, "mensagem" => "Validação inválida."]);
     exit;
 }
 

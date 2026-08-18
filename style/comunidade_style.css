@@ -216,3 +216,482 @@
     margin-top: 10px;
     font-weight: 600;
 }
+
+/* ===== PÁGINA DE COMUNIDADE ===== */
+
+body {
+    background-color: #e8f0f8;
+}
+
+.search-container {
+    max-width: 1200px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+.search-bar {
+    background: white;
+    border-radius: 50px;
+    padding: 15px 25px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    font-size: 18px;
+}
+
+.search-bar input {
+    border: none;
+    outline: none;
+    flex: 1;
+    font-size: 16px;
+    color: #333;
+}
+
+.search-bar input::placeholder {
+    color: #999;
+}
+
+.content-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px 60px;
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 30px;
+}
+
+.comunidade-card {
+    background: linear-gradient(135deg, #a8c5ff 0%, #d4a5ff 100%);
+    border-radius: 20px;
+    padding: 25px;
+    text-align: center;
+    height: fit-content;
+    position: sticky;
+    top: 100px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.comunidade-card img {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    margin-bottom: 20px;
+    object-fit: cover;
+    border: 4px solid white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.comunidade-card h2 {
+    margin: 15px 0 10px;
+    color: #1a1a1a;
+    font-size: 22px;
+}
+
+.comunidade-card .descricao {
+    color: #333;
+    font-size: 14px;
+    line-height: 1.4;
+    margin-bottom: 15px;
+}
+
+.btn-seguir {
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.btn-seguir:hover {
+    background-color: #1d4ed8;
+    transform: translateY(-2px);
+}
+
+.btn-seguir.ja-membro {
+    background-color: #10b981;
+}
+
+.btn-seguir.ja-membro:hover {
+    background-color: #059669;
+}
+
+.admin-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-admin {
+    background-color: rgba(255, 255, 255, 0.3);
+    color: #1a1a1a;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-admin:hover {
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+.btn-admin-edit {
+    background-color: rgba(37, 99, 235, 0.2);
+    color: #1976d2;
+}
+
+.btn-admin-edit:hover {
+    background-color: rgba(37, 99, 235, 0.4);
+}
+
+.btn-admin-delete {
+    background-color: rgba(255, 59, 48, 0.3);
+    color: #c41c3b;
+}
+
+.btn-admin-delete:hover {
+    background-color: rgba(255, 59, 48, 0.6);
+}
+
+.posts-section h3 {
+    color: #1a1a1a;
+    font-size: 20px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-novo-post {
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.btn-novo-post:hover {
+    background-color: #1d4ed8;
+}
+
+.post {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+}
+
+.post:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+.post-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+    justify-content: space-between;
+}
+
+.post-header-info {
+    flex: 1;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.post-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #ddd;
+    flex-shrink: 0;
+}
+
+.post-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.post-user-info {
+    flex: 1;
+}
+
+.post-user-info h4 {
+    margin: 0;
+    font-size: 15px;
+    color: #1a1a1a;
+    font-weight: 600;
+}
+
+.post-user-info p {
+    margin: 3px 0 0;
+    font-size: 13px;
+    color: #666;
+}
+
+.post-date {
+    font-size: 12px;
+    color: #999;
+}
+
+.post-actions-admin {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-post-action {
+    background: none;
+    border: none;
+    color: #d93025;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 8px;
+    transition: color 0.3s;
+}
+
+.btn-post-action:hover {
+    color: #9a0a05;
+}
+
+.btn-post-edit {
+    color: #1976d2;
+}
+
+.btn-post-edit:hover {
+    color: #1565c0;
+}
+
+.post-title {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 10px;
+    color: #1a1a1a;
+}
+
+.post-content {
+    color: #333;
+    line-height: 1.5;
+    margin-bottom: 12px;
+    word-break: break-word;
+    white-space: pre-wrap;
+    font-size: 14px;
+}
+
+.post-actions {
+    display: flex;
+    gap: 15px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+    font-size: 13px;
+}
+
+.post-action {
+    cursor: pointer;
+    color: #666;
+    transition: color 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 500;
+}
+
+.post-action:hover {
+    color: #e91e63;
+}
+
+.posts-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+    background: white;
+    border-radius: 15px;
+}
+
+.form-novo-post {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    display: none;
+}
+
+.form-novo-post.ativo {
+    display: block;
+}
+
+.form-novo-post h3 {
+    margin-top: 0;
+    color: #1a1a1a;
+    font-size: 16px;
+}
+
+.form-novo-post input,
+.form-novo-post textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+}
+
+.form-novo-post textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.form-novo-post button {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.form-novo-post button:hover {
+    background: #1d4ed8;
+}
+
+/* ===== MODAL SOFISTICADO ===== */
+
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-overlay.ativo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 16px;
+    padding: 30px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease;
+}
+
+.modal-header {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 10px;
+}
+
+.modal-message {
+    color: #666;
+    font-size: 15px;
+    line-height: 1.5;
+    margin-bottom: 25px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.modal-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.modal-btn-cancel {
+    background: #e0e0e0;
+    color: #333;
+}
+
+.modal-btn-cancel:hover {
+    background: #d0d0d0;
+}
+
+.modal-btn-confirm {
+    background: #2563eb;
+    color: white;
+}
+
+.modal-btn-confirm:hover {
+    background: #1d4ed8;
+}
+
+.modal-btn-danger {
+    background: #d93025;
+    color: white;
+}
+
+.modal-btn-danger:hover {
+    background: #c41c3b;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .content-wrapper {
+        grid-template-columns: 1fr;
+    }
+
+    .comunidade-card {
+        position: static;
+    }
+}

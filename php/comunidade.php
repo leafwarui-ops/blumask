@@ -88,221 +88,19 @@ if ($resultado_count) {
     <link rel="icon" type="image/webp" href="../style/blumaskWhiteLogo.webp">
     <link rel="stylesheet" href="../style/index_style.css">
     <link rel="stylesheet" href="../style/comunidade_style.css?v=<?= time() ?>">
-    <style>
-        .comunidade-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 30px 20px;
-            text-align: center;
-            position: relative;
-            border-radius: 0 0 15px 15px;
-        }
-
-        .comunidade-header img {
-            max-width: 200px;
-            width: 100%;
-            height: auto;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        .comunidade-info h1 {
-            margin: 0;
-            color: white;
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
-
-        .comunidade-meta {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.9);
-        }
-
-        .comunidade-meta span {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .btn-entrar {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            margin-top: 10px;
-        }
-
-        .btn-entrar:hover {
-            background-color: #45a049;
-            transform: scale(1.05);
-        }
-
-        .btn-entrar:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-            transform: scale(1);
-        }
-
-        .posts-container {
-            margin-top: 30px;
-            padding: 0 20px 60px;
-        }
-
-        .post {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .post-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 15px;
-        }
-
-        .post-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            overflow: hidden;
-            background: #ddd;
-        }
-
-        .post-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .post-user-info {
-            flex: 1;
-        }
-
-        .post-user-info h4 {
-            margin: 0;
-            font-size: 14px;
-        }
-
-        .post-user-info p {
-            margin: 0;
-            font-size: 12px;
-            color: #999;
-        }
-
-        .post-title {
-            font-weight: bold;
-            font-size: 16px;
-            margin-bottom: 10px;
-        }
-
-        .post-content {
-            color: #333;
-            line-height: 1.5;
-            margin-bottom: 15px;
-            word-break: break-word;
-            white-space: pre-wrap;
-        }
-
-        .post-actions {
-            display: flex;
-            gap: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #eee;
-            font-size: 14px;
-        }
-
-        .post-action {
-            cursor: pointer;
-            color: #666;
-            transition: color 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .post-action:hover {
-            color: #667eea;
-        }
-
-        .posts-empty {
-            text-align: center;
-            padding: 40px 20px;
-            color: #999;
-        }
-
-        .descricao-comunidade {
-            color: rgba(255, 255, 255, 0.95);
-            font-size: 16px;
-            margin-bottom: 20px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .main-container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        .form-novo-post {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .form-novo-post h3 {
-            margin-top: 0;
-            color: #333;
-        }
-
-        .form-novo-post input,
-        .form-novo-post textarea {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-        }
-
-        .form-novo-post textarea {
-            min-height: 100px;
-            resize: vertical;
-        }
-
-        .form-novo-post button {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.3s;
-        }
-
-        .form-novo-post button:hover {
-            background: #5568d3;
-        }
-    </style>
 </head>
 <body>
+    <!-- MODAL DE CONFIRMAÇÃO -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalTitle">Confirmação</div>
+            <div class="modal-message" id="modalMessage"></div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="fecharModal()">Cancelar</button>
+                <button class="modal-btn modal-btn-confirm" id="modalConfirmBtn" onclick="executarAcao()">Confirmar</button>
+            </div>
+        </div>
+    </div>
     <div class="page">
         <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100;">
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -317,49 +115,54 @@ if ($resultado_count) {
         </header>
 
         <main>
-            <div class="main-container">
-                <!-- HEADER DA COMUNIDADE -->
-                <div class="comunidade-header">
+            <!-- BARRA DE BUSCA -->
+            <div class="search-container">
+                <div class="search-bar">
+                    <span style="font-size: 24px;">🔍</span>
+                    <input type="text" placeholder="Procurando por Algo?" id="searchInput">
+                </div>
+            </div>
+
+            <!-- CONTEÚDO PRINCIPAL -->
+            <div class="content-wrapper">
+                <!-- CARD DA COMUNIDADE (ESQUERDA) -->
+                <div class="comunidade-card">
                     <?php if (!empty($comunidade['imagem'])): ?>
                         <img src="../<?= htmlspecialchars($comunidade['imagem'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($comunidade['nome'], ENT_QUOTES, 'UTF-8') ?>">
                     <?php else: ?>
-                        <div style="width: 200px; height: 150px; background: #555; border-radius: 10px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; color: white;">
+                        <div style="width: 120px; height: 120px; background: #555; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; color: white; border: 4px solid white;">
                             Sem imagem
                         </div>
                     <?php endif; ?>
 
-                    <div class="comunidade-info">
-                        <h1><?= htmlspecialchars($comunidade['nome'], ENT_QUOTES, 'UTF-8') ?></h1>
-                        <p class="descricao-comunidade"><?= htmlspecialchars($comunidade['descricao'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
-                        
-                        <div class="comunidade-meta">
-                            <span>👥 <?= $total_membros ?> membro(s)</span>
-                            <span>📅 <?= date('d/m/Y', strtotime($comunidade['data_criacao'])) ?></span>
-                            <span>👤 Por <?= htmlspecialchars($comunidade['nome_de_exibicao'] ?? 'Desconhecido', ENT_QUOTES, 'UTF-8') ?></span>
-                        </div>
+                    <h2><?= htmlspecialchars($comunidade['nome'], ENT_QUOTES, 'UTF-8') ?></h2>
+                    <p class="descricao"><?= htmlspecialchars($comunidade['descricao'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
 
-                        <?php if (!$eh_membro): ?>
-                            <button class="btn-entrar" onclick="entrarComunidade(<?= $id_comunidade ?>)">
-                                ✓ Entrar na Comunidade
-                            </button>
-                        <?php else: ?>
-                            <div style="color: rgba(255, 255, 255, 0.9); font-weight: bold; margin-top: 10px;">
-                                ✓ Você é membro desta comunidade
-                                <?php if ($eh_admin): ?>
-                                    <div style="font-size: 14px; margin-top: 5px;">(Administrador)</div>
-                                <?php endif; ?>
+                    <?php if (!$eh_membro): ?>
+                        <button class="btn-seguir" onclick="entrarComunidade(<?= $id_comunidade ?>)">Seguir +</button>
+                    <?php else: ?>
+                        <button class="btn-seguir ja-membro" onclick="event.preventDefault()">✓ Seguindo</button>
+                        <?php if ($eh_admin): ?>
+                            <div class="admin-actions">
+                                <button class="btn-admin btn-admin-edit" onclick="abrirModalEditarComunidade(<?= $id_comunidade ?>)">✎ Editar Comunidade</button>
+                                <button class="btn-admin btn-admin-delete" onclick="abrirModalExcluirComunidade(<?= $id_comunidade ?>)">🗑 Excluir Comunidade</button>
                             </div>
                         <?php endif; ?>
-                    </div>
+                    <?php endif; ?>
                 </div>
 
-                <!-- POSTS DA COMUNIDADE -->
-                <div class="posts-container">
-                    <h2 style="color: #333;">Posts da Comunidade</h2>
+                <!-- POSTS (DIREITA) -->
+                <div class="posts-section">
+                    <h3>
+                        Últimos posts
+                        <?php if ($eh_membro): ?>
+                            <button class="btn-novo-post" onclick="toggleFormNovoPost()">+ Novo Post</button>
+                        <?php endif; ?>
+                    </h3>
 
                     <?php if ($eh_membro): ?>
                         <!-- Área para criar novo post (apenas para membros) -->
-                        <div class="form-novo-post">
+                        <div class="form-novo-post" id="formContainer">
                             <h3>Criar novo post</h3>
                             <form id="formNovoPost">
                                 <input type="hidden" name="csrf_token" value="<?php echo isset($_SESSION['csrf_token']) ? htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') : ''; ?>">
@@ -382,24 +185,31 @@ if ($resultado_count) {
                                     <div class="post-avatar">
                                         <img src="<?= !empty($post['foto_perfil']) ? htmlspecialchars($post['foto_perfil'], ENT_QUOTES, 'UTF-8') : 'https://ui-avatars.com/api/?name=' . urlencode(htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8')) . '&background=random'; ?>" alt="Avatar">
                                     </div>
-                                    <div class="post-user-info">
-                                        <h4><?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></h4>
-                                        <p>@<?= htmlspecialchars($post['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?></p>
+                                    <div class="post-header-info">
+                                        <div class="post-user-info">
+                                            <h4><?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></h4>
+                                            <p>@<?= htmlspecialchars($post['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?></p>
+                                        </div>
+                                        <div class="post-date">
+                                            <?= date('d/m/Y', strtotime($post['Data_post'])) ?>
+                                        </div>
                                     </div>
-                                    <div style="font-size: 12px; color: #999;">
-                                        <?= date('d/m/Y H:i', strtotime($post['Data_post'])) ?>
-                                    </div>
+                                    <?php if ($eh_admin): ?>
+                                        <div class="post-actions-admin">
+                                            <button class="btn-post-action btn-post-edit" onclick="abrirModalEditarPost(<?= $post['id_post'] ?>)">✎</button>
+                                            <button class="btn-post-action" onclick="abrirModalExcluirPost(<?= $post['id_post'] ?>)">✕</button>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
 
-                                <div class="post-title"><?= htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8') ?></div>
                                 <div class="post-content"><?= htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8') ?></div>
 
                                 <div class="post-actions">
                                     <span class="post-action" onclick="curtirPost(<?= $post['id_post'] ?>, this)">
                                         <span><?php echo intval($post['curtiu']) === 1 ? '❤️' : '🤍'; ?></span>
-                                        <span><?= intval($post['total_curtidas']) ?> curtida(s)</span>
+                                        <span><?= intval($post['total_curtidas']) ?></span>
                                     </span>
-                                    <span class="post-action">💬 Comentar (em breve)</span>
+                                    <span class="post-action">💬 Ler mais</span>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -420,6 +230,107 @@ if ($resultado_count) {
 
     <script>
         let csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+        let acaoAtual = null;
+
+        // ===== MODAL FUNCTIONS =====
+        function abrirModal(titulo, mensagem, temDanger = false) {
+            document.getElementById('modalTitle').textContent = titulo;
+            document.getElementById('modalMessage').textContent = mensagem;
+            const btn = document.getElementById('modalConfirmBtn');
+            if (temDanger) {
+                btn.className = 'modal-btn modal-btn-danger';
+            } else {
+                btn.className = 'modal-btn modal-btn-confirm';
+            }
+            document.getElementById('confirmModal').classList.add('ativo');
+        }
+
+        function fecharModal() {
+            document.getElementById('confirmModal').classList.remove('ativo');
+            acaoAtual = null;
+        }
+
+        function executarAcao() {
+            if (acaoAtual) {
+                acaoAtual();
+            }
+            fecharModal();
+        }
+
+        // Fecha modal ao clicar fora
+        document.getElementById('confirmModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModal();
+            }
+        });
+
+        // ===== COMUNIDADE FUNCTIONS =====
+        function abrirModalEditarComunidade(idComunidade) {
+            abrirModal('Editar Comunidade', 'Esta funcionalidade será implementada em breve.');
+        }
+
+        function abrirModalExcluirComunidade(idComunidade) {
+            abrirModal('Excluir Comunidade', 'Tem certeza que deseja excluir esta comunidade? Esta ação é irreversível e todos os posts serão perdidos.', true);
+            acaoAtual = function() {
+                excluirComunidade(idComunidade);
+            };
+        }
+
+        function excluirComunidade(idComunidade) {
+            fetch('../php/excluir_comunidade.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_comunidade=${idComunidade}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.sucesso) {
+                    window.location.href = '../index.php';
+                } else {
+                    console.error(data.mensagem);
+                }
+            })
+            .catch(error => console.error('Erro:', error));
+        }
+
+        // ===== POST FUNCTIONS =====
+        function abrirModalEditarPost(idPost) {
+            abrirModal('Editar Post', 'Esta funcionalidade será implementada em breve.');
+        }
+
+        function abrirModalExcluirPost(idPost) {
+            abrirModal('Excluir Post', 'Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.', true);
+            acaoAtual = function() {
+                excluirPost(idPost);
+            };
+        }
+
+        function excluirPost(idPost) {
+            fetch('../php/excluir_post.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_post=${idPost}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.sucesso) {
+                    location.reload();
+                } else {
+                    console.error(data.mensagem);
+                }
+            })
+            .catch(error => console.error('Erro:', error));
+        }
+
+        // ===== COMUNIDADE ENTRY FUNCTION =====
+        function toggleFormNovoPost() {
+            const formContainer = document.getElementById('formContainer');
+            formContainer.classList.toggle('ativo');
+        }
 
         function entrarComunidade(idComunidade) {
             const btn = event.target;
@@ -436,22 +347,20 @@ if ($resultado_count) {
             .then(response => response.json())
             .then(data => {
                 if (data.sucesso) {
-                    alert(data.mensagem);
                     location.reload();
                 } else {
-                    alert(data.mensagem);
                     btn.disabled = false;
-                    btn.textContent = '✓ Entrar na Comunidade';
+                    btn.textContent = 'Seguir +';
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                alert('Erro ao entrar na comunidade.');
                 btn.disabled = false;
-                btn.textContent = '✓ Entrar na Comunidade';
+                btn.textContent = 'Seguir +';
             });
         }
 
+        // ===== POST LIKE FUNCTION =====
         function curtirPost(idPost, elemento) {
             fetch('../php/curtir_post.php', {
                 method: 'POST',
@@ -464,21 +373,26 @@ if ($resultado_count) {
             .then(data => {
                 if (data.sucesso) {
                     location.reload();
-                } else {
-                    alert(data.mensagem);
                 }
             })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Erro ao curtir post.');
-            });
+            .catch(error => console.error('Erro:', error));
         }
 
-        // Evento para criar novo post
+        // ===== NEW POST FORM =====
         const formNovoPost = document.getElementById('formNovoPost');
         if (formNovoPost) {
             formNovoPost.addEventListener('submit', function(e) {
                 e.preventDefault();
+                
+                const assunto = this.querySelector('input[name="assunto"]').value.trim();
+                const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
+
+                if (assunto.length < 3) {
+                    return;
+                }
+                if (conteudo.length < 5) {
+                    return;
+                }
                 
                 const formData = new FormData(this);
 
@@ -489,15 +403,23 @@ if ($resultado_count) {
                 .then(response => response.json())
                 .then(data => {
                     if (data.sucesso) {
-                        alert('Post criado com sucesso!');
                         location.reload();
-                    } else {
-                        alert(data.mensagem);
                     }
                 })
-                .catch(error => {
-                    console.error('Erro:', error);
-                    alert('Erro ao criar post.');
+                .catch(error => console.error('Erro:', error));
+            });
+        }
+
+        // ===== SEARCH FUNCTION =====
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function(e) {
+                const query = e.target.value.toLowerCase();
+                const posts = document.querySelectorAll('.post');
+                
+                posts.forEach(post => {
+                    const content = post.textContent.toLowerCase();
+                    post.style.display = content.includes(query) ? 'block' : 'none';
                 });
             });
         }
