@@ -42,10 +42,15 @@ $id_usuario = intval($_SESSION['usuario']['id_usuario']);
 $nome_raw = trim($_POST['nome'] ?? '');
 $descricao_raw = str_replace(["\r\n", "\r"], "\n", trim($_POST['descricao'] ?? ''));
 
-// 4. Validação do Nome da Comunidade (2 a 40 caracteres)
+// 4. Validação do Nome da Comunidade (2 a 40 caracteres e sem caracteres especiais)
 $len_nome = mb_strlen($nome_raw);
 if ($len_nome < 2 || $len_nome > 40) {
     echo json_encode(["sucesso" => false, "mensagem" => "O nome da comunidade deve ter entre 2 e 40 caracteres."]);
+    exit;
+}
+
+if (!preg_match('/^[\pL\pN\s]+$/u', $nome_raw)) {
+    echo json_encode(["sucesso" => false, "mensagem" => "O nome da comunidade deve conter apenas letras, números e espaços."]);
     exit;
 }
 

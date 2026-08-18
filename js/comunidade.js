@@ -59,8 +59,15 @@ document.addEventListener("DOMContentLoaded", () => {
         erroMsg.textContent = "";
 
         const valNome = inputNome.value.trim();
+        const nomeRegex = /^[\p{L}\p{N}\s]+$/u;
+
         if (valNome.length < 2 || valNome.length > 40) {
             erroMsg.textContent = "O nome da comunidade deve ter entre 2 e 40 caracteres.";
+            return;
+        }
+
+        if (!nomeRegex.test(valNome)) {
+            erroMsg.textContent = "O nome da comunidade deve conter apenas letras, números e espaços.";
             return;
         }
 
