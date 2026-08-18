@@ -71,26 +71,47 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             } elseif (!preg_match('/^(?=.*[A-Z])(?=.*[\W_]).{8,32}$/', $senha)) {
                 $login_error = "A senha deve ter entre 8 e 32 caracteres, uma maiúscula e um símbolo.";
             } else {
-                $nome_usr = mysqli_real_escape_string($conn, htmlspecialchars($nome_usr_raw, ENT_QUOTES, 'UTF-8'));
-                $nome_exb = mysqli_real_escape_string($conn, htmlspecialchars($nome_exb_raw, ENT_QUOTES, 'UTF-8'));
+                $nome_usr = mysqli_real_escape_string($conn, $nome_usr_raw);
+                $nome_exb = mysqli_real_escape_string($conn, $nome_exb_raw);
                 $email    = mysqli_real_escape_string($conn, $email_raw);
-                $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
-                
-                $sql = "INSERT INTO usuario (email, senha, nome_de_exibicao, nome_de_usuario) VALUES ('$email', '$senha_hash', '$nome_exb', '$nome_usr')";
-                
-                if ($conn->query($sql) === TRUE) {
+
+                // Verificação prévia de duplicidade amigável
+                $check_sql = "SELECT email, nome_de_usuario, nome_de_exibicao FROM usuario WHERE email = '$email' OR nome_de_usuario = '$nome_usr' OR nome_de_exibicao = '$nome_exb' LIMIT 1";
+                $check_res = mysqli_query($conn, $check_sql);
+
+                if ($check_res && mysqli_num_rows($check_res) > 0) {
                     hit_rate_limit('register_attempt');
-                    // Auto login depois de cadastrar
-                    $new_user_id = $conn->insert_id;
-                    $sql_fetch = "SELECT * FROM usuario WHERE id_usuario = $new_user_id";
-                    $result = mysqli_query($conn, $sql_fetch);
-                    session_regenerate_id(true);
-                    $_SESSION['usuario'] = mysqli_fetch_assoc($result);
-                    header("Location: index.php");
-                    exit;
+                    $row_dup = mysqli_fetch_assoc($check_res);
+                    if (strcasecmp($row_dup['email'] ?? '', $email_raw) === 0) {
+                        $login_error = "Este e-mail já está cadastrado.";
+                    } elseif (strcasecmp($row_dup['nome_de_usuario'] ?? '', $nome_usr_raw) === 0) {
+                        $login_error = "Este nome de usuário já está em uso.";
+                    } else {
+                        $login_error = "Este nome de exibição já está em uso.";
+                    }
                 } else {
-                    hit_rate_limit('register_attempt');
-                    $login_error = "Erro ao cadastrar. Verifique se o nome de usuário ou e-mail já existe.";
+                    try {
+                        $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
+                        $sql = "INSERT INTO usuario (email, senha, nome_de_exibicao, nome_de_usuario) VALUES ('$email', '$senha_hash', '$nome_exb', '$nome_usr')";
+                        
+                        if ($conn->query($sql) === TRUE) {
+                            hit_rate_limit('register_attempt');
+                            // Auto login depois de cadastrar
+                            $new_user_id = $conn->insert_id;
+                            $sql_fetch = "SELECT * FROM usuario WHERE id_usuario = $new_user_id";
+                            $result = mysqli_query($conn, $sql_fetch);
+                            session_regenerate_id(true);
+                            $_SESSION['usuario'] = mysqli_fetch_assoc($result);
+                            header("Location: index.php");
+                            exit;
+                        } else {
+                            hit_rate_limit('register_attempt');
+                            $login_error = "Erro ao cadastrar. Por favor, tente novamente.";
+                        }
+                    } catch (\Throwable $e) {
+                        hit_rate_limit('register_attempt');
+                        $login_error = "Não foi possível concluir o cadastro. Verifique os dados informados.";
+                    }
                 }
             }
         }

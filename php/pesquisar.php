@@ -23,12 +23,14 @@ global $conn;
 
 // 2. Leitura e Sanitização dos Parâmetros GET
 $termo_raw = trim($_GET['q'] ?? '');
-$tipo      = trim($_GET['tipo'] ?? 'todos'); // 'todos', 'usuarios', 'comunidades'
+$tipo_raw  = trim($_GET['tipo'] ?? 'todos');
+$tipo      = in_array($tipo_raw, ['todos', 'usuarios', 'comunidades'], true) ? $tipo_raw : 'todos';
 
-// Se a busca estiver vazia, retorna listas vazias
-if ($termo_raw === '') {
+// Se a busca estiver vazia ou composta apenas por curingas/espaços, retorna listas vazias
+if ($termo_raw === '' || preg_match('/^[%_\s]+$/', $termo_raw)) {
     echo json_encode([
         "sucesso" => true,
+        "termo" => htmlspecialchars($termo_raw, ENT_QUOTES, 'UTF-8'),
         "total" => 0,
         "usuarios" => [],
         "comunidades" => []
@@ -41,10 +43,13 @@ if (mb_strlen($termo_raw) > 100) {
     $termo_raw = mb_substr($termo_raw, 0, 100);
 }
 
-$termo_esc = mysqli_real_escape_string($conn, $termo_raw);
+// Escapar curingas do LIKE (% e _) para que a busca seja tratada de forma literal
+$termo_like = addcslashes($termo_raw, '%_\\');
+$termo_esc  = mysqli_real_escape_string($conn, $termo_like);
 
 $usuarios = [];
 $comunidades = [];
+
 
 // 3. Busca de Usuários (se tipo for 'todos' ou 'usuarios')
 if ($tipo === 'todos' || $tipo === 'usuarios') {

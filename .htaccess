@@ -1,10 +1,21 @@
 # Desabilitar listagem de diretórios (Directory Listing)
 Options -Indexes
 
-# Ocultar assinatura do servidor
-ServerSignature Off
+# Bloquear métodos HTTP inseguros / não permitidos via Rewrite
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_METHOD} ^(TRACE|TRACK|PUT|DELETE|PATCH) [NC]
+    RewriteRule .* - [F,L]
+</IfModule>
 
-# Proteção contra acesso direto a arquivos sensíveis
+# Bloquear acesso a arquivos sensíveis (SQL, ENV, Logs, Configurações, Git, etc)
+<FilesMatch "(?i)\.(sql|env|ini|log|git|bak|old|config|sh|bat)$">
+    Require all denied
+</FilesMatch>
+
+# Bloquear arquivos e diretórios ocultos que iniciam com ponto
 <FilesMatch "^\.">
     Require all denied
 </FilesMatch>
+
+

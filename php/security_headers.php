@@ -5,7 +5,9 @@
 
 // 1. Configuração de Cookies de Sessão e Inicialização Segura
 if (session_status() === PHP_SESSION_NONE) {
-    $isSecure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+    $isSecure = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') 
+                || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)
+                || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
     session_set_cookie_params([
         'lifetime' => 0,
         'path' => '/',
@@ -24,6 +26,7 @@ if (!headers_sent()) {
     header("Referrer-Policy: strict-origin-when-cross-origin");
     header("Permissions-Policy: camera=(), microphone=(), geolocation=()");
     header("X-XSS-Protection: 1; mode=block");
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://ui-avatars.com; font-src 'self' data:; connect-src 'self'; frame-ancestors 'self';");
     if (function_exists('header_remove')) {
         header_remove("X-Powered-By");
     }

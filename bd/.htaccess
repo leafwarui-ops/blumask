@@ -1,0 +1,2 @@
+# Bloquear todo acesso externo à pasta de banco de dados
+Require all denied
