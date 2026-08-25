@@ -460,6 +460,73 @@ body {
     gap: 8px;
 }
 
+.post-menu-wrapper {
+    position: relative;
+}
+
+.post-menu-toggle {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e5e7eb;
+    background: #f8fafc;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #374151;
+    font-size: 22px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.post-menu-toggle:hover {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+}
+
+.post-menu-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+    min-width: 170px;
+    display: none;
+    z-index: 20;
+    overflow: hidden;
+}
+
+.post-menu-dropdown.open {
+    display: block;
+}
+
+.post-menu-btn {
+    width: 100%;
+    text-align: left;
+    background: white;
+    border: none;
+    color: #111827;
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.post-menu-btn:hover {
+    background: #f3f4f6;
+}
+
+.post-menu-btn.danger {
+    color: #b91c1c;
+}
+
+.post-menu-btn.danger:hover {
+    background: #fef2f2;
+}
+
 .btn-post-action {
     background: none;
     border: none;
@@ -483,16 +550,37 @@ body {
     color: #1565c0;
 }
 
+.btn-post-fix {
+    color: #f59e0b;
+}
+
+.btn-post-fix:hover {
+    color: #d97706;
+}
+
+.post-pinned-badge {
+    display: inline-block;
+    margin-bottom: 12px;
+    background: #fff7ed;
+    color: #b45309;
+    border: 1px solid #fdba74;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
 .post-title {
-    font-weight: 600;
+    font-weight: 700;
     font-size: 15px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     color: #1a1a1a;
+    line-height: 1.4;
 }
 
 .post-content {
     color: #333;
-    line-height: 1.5;
+    line-height: 1.6;
     margin-bottom: 12px;
     word-break: break-word;
     white-space: pre-wrap;
@@ -622,6 +710,34 @@ body {
     font-size: 15px;
     line-height: 1.5;
     margin-bottom: 25px;
+}
+
+.modal-form {
+    display: none;
+}
+
+.modal-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.modal-form input,
+.modal-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    font: inherit;
+    resize: vertical;
+    background: #fff;
+}
+
+.modal-form textarea {
+    min-height: 150px;
 }
 
 .modal-actions {

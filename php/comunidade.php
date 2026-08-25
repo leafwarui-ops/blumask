@@ -48,7 +48,14 @@ if ($resultado_membro && mysqli_num_rows($resultado_membro) > 0) {
     $cargo_usuario = intval($membro_info['cargo']);
 }
 
-$eh_admin = $eh_membro && $cargo_usuario === 1;
+$is_community_owner = (int) $comunidade['id_usuario'] === $id_usuario;
+$eh_admin = $is_community_owner || ($eh_membro && $cargo_usuario === 1);
+$is_community_admin = $eh_admin;
+
+if ($is_community_owner && !$eh_membro) {
+    $eh_membro = true;
+    $cargo_usuario = 1;
+}
 
 // Buscar posts da comunidade
 $sqlPosts = "SELECT p.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil, u.id_usuario,
@@ -66,6 +73,14 @@ if ($postsResult) {
     while ($post = mysqli_fetch_assoc($postsResult)) {
         $posts[] = $post;
     }
+}
+
+$postsMap = [];
+foreach ($posts as $post) {
+    $postsMap[(int) $post['id_post']] = [
+        'assunto' => $post['assunto'] ?? '',
+        'conteudo' => $post['conteudo'] ?? ''
+    ];
 }
 
 // Contar membros
@@ -95,7 +110,25 @@ if ($resultado_count) {
         <div class="modal-content">
             <div class="modal-header" id="modalTitle">Confirmação</div>
             <div class="modal-message" id="modalMessage"></div>
-            <div class="modal-actions">
+
+            <form id="formEditarPost" class="modal-form">
+                <input type="hidden" name="csrf_token" value="<?php echo isset($_SESSION['csrf_token']) ? htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') : ''; ?>">
+                <input type="hidden" name="id_post" value="">
+                <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
+
+                <label for="editarAssunto">Título do post</label>
+                <input type="text" id="editarAssunto" name="assunto" maxlength="150" required>
+
+                <label for="editarConteudo">Conteúdo</label>
+                <textarea id="editarConteudo" name="conteudo" maxlength="5000" required></textarea>
+
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn modal-btn-cancel" onclick="fecharModal()">Cancelar</button>
+                    <button type="submit" class="modal-btn modal-btn-confirm">Salvar alterações</button>
+                </div>
+            </form>
+
+            <div class="modal-actions" id="confirmActions">
                 <button class="modal-btn modal-btn-cancel" onclick="fecharModal()">Cancelar</button>
                 <button class="modal-btn modal-btn-confirm" id="modalConfirmBtn" onclick="executarAcao()">Confirmar</button>
             </div>
@@ -142,7 +175,7 @@ if ($resultado_count) {
                         <button class="btn-seguir" onclick="entrarComunidade(<?= $id_comunidade ?>)">Seguir +</button>
                     <?php else: ?>
                         <button class="btn-seguir ja-membro" onclick="event.preventDefault()">✓ Seguindo</button>
-                        <?php if ($eh_admin): ?>
+                        <?php if ($is_community_owner): ?>
                             <div class="admin-actions">
                                 <button class="btn-admin btn-admin-edit" onclick="abrirModalEditarComunidade(<?= $id_comunidade ?>)">✎ Editar Comunidade</button>
                                 <button class="btn-admin btn-admin-delete" onclick="abrirModalExcluirComunidade(<?= $id_comunidade ?>)">🗑 Excluir Comunidade</button>
@@ -194,14 +227,28 @@ if ($resultado_count) {
                                             <?= date('d/m/Y', strtotime($post['Data_post'])) ?>
                                         </div>
                                     </div>
-                                    <?php if ($eh_admin): ?>
-                                        <div class="post-actions-admin">
-                                            <button class="btn-post-action btn-post-edit" onclick="abrirModalEditarPost(<?= $post['id_post'] ?>)">✎</button>
-                                            <button class="btn-post-action" onclick="abrirModalExcluirPost(<?= $post['id_post'] ?>)">✕</button>
+                                    <?php if ((int) $post['id_usuario'] === $id_usuario || $is_community_admin): ?>
+                                        <div class="post-menu-wrapper">
+                                            <button class="post-menu-toggle" type="button" aria-label="Opções do post" onclick="togglePostMenu(this)">⋯</button>
+                                            <div class="post-menu-dropdown">
+                                                <?php if ((int) $post['id_usuario'] === $id_usuario): ?>
+                                                    <button class="post-menu-btn" type="button" onclick="abrirModalEditarPost(<?= $post['id_post'] ?>)">Editar post</button>
+                                                    <button class="post-menu-btn danger" type="button" onclick="abrirModalExcluirPost(<?= $post['id_post'] ?>)">Excluir post</button>
+                                                <?php endif; ?>
+                                                <?php if ($is_community_admin): ?>
+                                                    <button class="post-menu-btn" type="button" onclick="fixarPost(<?= $post['id_post'] ?>)">
+                                                        <?= !empty($comunidade['id_post_fixado']) && (int) $post['id_post'] === (int) $comunidade['id_post_fixado'] ? 'Desfixar post' : 'Fixar post' ?>
+                                                    </button>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
                                     <?php endif; ?>
                                 </div>
 
+                                <?php if (!empty($comunidade['id_post_fixado']) && (int) $post['id_post'] === (int) $comunidade['id_post_fixado']): ?>
+                                    <div class="post-pinned-badge">📌 Post fixado</div>
+                                <?php endif; ?>
+                                <div class="post-title"><?= htmlspecialchars($post['assunto'] ?? 'Sem assunto', ENT_QUOTES, 'UTF-8') ?></div>
                                 <div class="post-content"><?= htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8') ?></div>
 
                                 <div class="post-actions">
@@ -229,6 +276,7 @@ if ($resultado_count) {
     </div>
 
     <script>
+        const postsMap = <?php echo json_encode($postsMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         let csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
         let acaoAtual = null;
 
@@ -236,6 +284,8 @@ if ($resultado_count) {
         function abrirModal(titulo, mensagem, temDanger = false) {
             document.getElementById('modalTitle').textContent = titulo;
             document.getElementById('modalMessage').textContent = mensagem;
+            document.getElementById('formEditarPost').style.display = 'none';
+            document.getElementById('confirmActions').style.display = 'flex';
             const btn = document.getElementById('modalConfirmBtn');
             if (temDanger) {
                 btn.className = 'modal-btn modal-btn-danger';
@@ -247,6 +297,8 @@ if ($resultado_count) {
 
         function fecharModal() {
             document.getElementById('confirmModal').classList.remove('ativo');
+            document.getElementById('formEditarPost').style.display = 'none';
+            document.getElementById('confirmActions').style.display = 'flex';
             acaoAtual = null;
         }
 
@@ -297,7 +349,23 @@ if ($resultado_count) {
 
         // ===== POST FUNCTIONS =====
         function abrirModalEditarPost(idPost) {
-            abrirModal('Editar Post', 'Esta funcionalidade será implementada em breve.');
+            const post = postsMap[idPost];
+            const form = document.getElementById('formEditarPost');
+
+            if (!post) {
+                abrirModal('Editar Post', 'Não foi possível carregar este post.');
+                return;
+            }
+
+            acaoAtual = null;
+            document.getElementById('modalTitle').textContent = 'Editar Post';
+            document.getElementById('modalMessage').textContent = 'Atualize os dados do post abaixo.';
+            document.getElementById('confirmActions').style.display = 'none';
+            form.style.display = 'block';
+            form.querySelector('[name="id_post"]').value = idPost;
+            form.querySelector('[name="assunto"]').value = post.assunto || '';
+            form.querySelector('[name="conteudo"]').value = post.conteudo || '';
+            document.getElementById('confirmModal').classList.add('ativo');
         }
 
         function abrirModalExcluirPost(idPost) {
@@ -305,6 +373,44 @@ if ($resultado_count) {
             acaoAtual = function() {
                 excluirPost(idPost);
             };
+        }
+
+        function togglePostMenu(button) {
+            const wrapper = button.closest('.post-menu-wrapper');
+            if (!wrapper) return;
+
+            const menu = wrapper.querySelector('.post-menu-dropdown');
+            const isOpen = menu.classList.contains('open');
+
+            document.querySelectorAll('.post-menu-dropdown').forEach(item => item.classList.remove('open'));
+            if (!isOpen) {
+                menu.classList.add('open');
+            }
+        }
+
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.post-menu-toggle') && !event.target.closest('.post-menu-dropdown')) {
+                document.querySelectorAll('.post-menu-dropdown').forEach(item => item.classList.remove('open'));
+            }
+        });
+
+        function fixarPost(idPost) {
+            fetch('../php/fixar_post.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_post=${idPost}&id_comunidade=${<?= $id_comunidade ?>}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.sucesso) {
+                    location.reload();
+                } else {
+                    console.error(data.mensagem);
+                }
+            })
+            .catch(error => console.error('Erro:', error));
         }
 
         function excluirPost(idPost) {
@@ -407,6 +513,41 @@ if ($resultado_count) {
                     }
                 })
                 .catch(error => console.error('Erro:', error));
+            });
+        }
+
+        const formEditarPost = document.getElementById('formEditarPost');
+        if (formEditarPost) {
+            formEditarPost.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const assunto = this.querySelector('input[name="assunto"]').value.trim();
+                const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
+
+                if (assunto.length < 3 || conteudo.length < 5) {
+                    return;
+                }
+
+                const formData = new FormData(this);
+                formData.set('csrf_token', csrfToken);
+
+                fetch('../php/editar_post.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.sucesso) {
+                        fecharModal();
+                        location.reload();
+                    } else {
+                        document.getElementById('modalMessage').textContent = data.mensagem || 'Não foi possível editar o post.';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    document.getElementById('modalMessage').textContent = 'Erro ao editar o post.';
+                });
             });
         }
 
