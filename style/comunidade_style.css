@@ -219,13 +219,44 @@
 
 /* ===== PÁGINA DE COMUNIDADE ===== */
 
+html {
+    font-size: 18px !important;
+}
+
 body {
     background-color: #e8f0f8;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-size: 18px !important;
+    line-height: 1.5;
+}
+
+button, input, textarea, select {
+    font: inherit;
+}
+
+.page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    flex: 1;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+footer.bottombar {
+    margin-top: auto;
 }
 
 .search-container {
-    max-width: 1200px;
-    margin: 30px auto;
+    width: 100%;
+    max-width: none;
+    margin: 30px 0;
     padding: 0 20px;
 }
 
@@ -253,11 +284,12 @@ body {
 }
 
 .content-wrapper {
-    max-width: 1200px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
     padding: 0 20px 60px;
     display: grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns: 300px minmax(0, 1fr);
     gap: 30px;
 }
 
@@ -366,7 +398,7 @@ body {
 
 .posts-section h3 {
     color: #1a1a1a;
-    font-size: 20px;
+    font-size: 24px;
     margin-bottom: 20px;
     display: flex;
     justify-content: space-between;
@@ -439,19 +471,19 @@ body {
 
 .post-user-info h4 {
     margin: 0;
-    font-size: 15px;
+    font-size: 16px;
     color: #1a1a1a;
     font-weight: 600;
 }
 
 .post-user-info p {
     margin: 3px 0 0;
-    font-size: 13px;
+    font-size: 14px;
     color: #666;
 }
 
 .post-date {
-    font-size: 12px;
+    font-size: 13px;
     color: #999;
 }
 
@@ -572,7 +604,7 @@ body {
 
 .post-title {
     font-weight: 700;
-    font-size: 15px;
+    font-size: 17px;
     margin-bottom: 8px;
     color: #1a1a1a;
     line-height: 1.4;
@@ -584,7 +616,7 @@ body {
     margin-bottom: 12px;
     word-break: break-word;
     white-space: pre-wrap;
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .post-actions {
@@ -592,7 +624,7 @@ body {
     gap: 15px;
     padding-top: 12px;
     border-top: 1px solid #eee;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .post-action {
@@ -645,7 +677,7 @@ body {
     border-radius: 8px;
     box-sizing: border-box;
     font-family: Arial, sans-serif;
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .form-novo-post textarea {
