@@ -15,16 +15,35 @@
 
   * { box-sizing: border-box; }
 
+  html {
+    font-size: 18px !important;
+    height: 100%;
+  }
+
+  html, body {
+    height: 100%;
+  }
+
   body {
     margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-size: 18px !important;
+    line-height: 1.5;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background: var(--bg-bottom);
+  }
+
+  button, input, textarea, select {
+    font: inherit;
   }
 
   .page {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    flex: 1;
   }
 
   /* HEADER */
@@ -49,6 +68,10 @@
     gap: 28px;
     padding: 32px;
     align-items: start;
+  }
+
+  footer.bottombar {
+    margin-top: auto;
   }
 
   .panel {
@@ -160,23 +183,263 @@
     overflow: hidden;
   }
 
-  .last-post .panel-header {
+  .last-post .panel-header.feed-panel-header {
     background: var(--post-header-blue);
-    padding: 16px 22px;
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
   }
 
-  .last-post .panel-header h2 {
-    font-size: 1rem;
+  .feed-tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.45);
+    padding: 4px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+  }
+
+  .feed-tab-btn {
+    background: transparent;
+    border: none;
+    border-radius: 16px;
+    padding: 6px 18px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-dark, #1c1c1c);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .feed-tab-btn:hover {
+    background: rgba(255, 255, 255, 0.7);
+  }
+
+  .feed-tab-btn.active {
+    background: var(--accent-blue, #2b17e0);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(43, 23, 224, 0.28);
+  }
+
+  .feed-tab-content {
+    display: none;
+    animation: feedTabFadeIn 0.25s ease-in-out;
+  }
+
+  .feed-tab-content.active {
+    display: block;
+  }
+
+  @keyframes feedTabFadeIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .last-post-body {
-    padding: 40px 22px;
-    text-align: center;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: 800px;
+    overflow-y: auto;
   }
 
-  .last-post-body span {
-    color: var(--text-muted);
+  .posts-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .post-card-feed {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 18px 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    text-align: left;
+    margin-bottom: 0;
+  }
+
+  .post-card-feed:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  .post-card-feed .post-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    justify-content: space-between;
+  }
+
+  .post-card-feed .post-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #e2e8f0;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+  }
+
+  .post-card-feed .post-avatar:hover {
+    transform: scale(1.05);
+  }
+
+  .post-card-feed .post-avatar a {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .post-card-feed .post-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .post-card-feed .post-header-info {
+    flex: 1;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+  }
+
+  .post-card-feed .post-user-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .post-card-feed .post-user-info h4 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .post-community-name {
+    color: #1a1a1a;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 15px;
+    transition: color 0.2s ease;
+    display: inline-block;
+    word-break: break-word;
+  }
+
+  .post-community-name:hover {
+    color: var(--accent-blue, #2b17e0);
+    text-decoration: underline;
+  }
+
+  .post-title {
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 8px;
+    color: #1a1a1a;
+  }
+
+  .post-content {
+    color: #333333;
+    line-height: 1.55;
+    margin-bottom: 12px;
+    word-break: break-word;
+    white-space: pre-wrap;
+    font-size: 14px;
+  }
+
+  .post-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding-top: 12px;
+    border-top: 1px solid #edf2f7;
+    font-size: 13px;
+  }
+
+  .btn-curtir-action {
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4a5568;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s ease, transform 0.15s ease, color 0.2s ease;
+  }
+
+  .btn-curtir-action:hover {
+    background-color: #ffeef0;
+    color: #e53e3e;
+    transform: scale(1.05);
+  }
+
+  .btn-curtir-action.curtido {
+    color: #e53e3e;
+  }
+
+  .post-comment-action {
+    text-decoration: none;
+    color: #4a5568;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .post-comment-action:hover {
+    background-color: #ebf8ff;
+    color: #2b6cb0;
+  }
+
+  .posts-empty-feed {
+    padding: 40px 20px;
+    text-align: center;
+    color: #718096;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+
+  .posts-empty-feed svg {
+    stroke: #a0aec0;
+    margin-bottom: 12px;
+  }
+
+  .posts-empty-feed p {
+    font-weight: 700;
     font-size: 1rem;
+    margin: 0 0 6px 0;
+    color: #2d3748;
+  }
+
+  .posts-empty-feed span {
+    font-size: 0.88rem;
+    color: #718096;
   }
 
   /* RIGHT: COMMUNITIES PANEL */

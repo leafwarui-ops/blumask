@@ -22,8 +22,8 @@ if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
     exit;
 }
 
-// 3. Verificação de Rate Limit (máx 20 posts por hora)
-if (!check_rate_limit('create_post', 20, 3600)) {
+// 3. Verificação de Rate Limit (máx 200 posts por hora para não bloquear uso normal)
+if (!check_rate_limit('create_post', 200, 3600)) {
     $wait = get_rate_limit_wait_time('create_post', 3600);
     echo json_encode(["sucesso" => false, "mensagem" => "Limite de criação de posts excedido. Aguarde $wait."]);
     exit;

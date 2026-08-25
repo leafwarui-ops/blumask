@@ -219,13 +219,44 @@
 
 /* ===== PÁGINA DE COMUNIDADE ===== */
 
+html {
+    font-size: 18px !important;
+}
+
 body {
     background-color: #e8f0f8;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-size: 18px !important;
+    line-height: 1.5;
+}
+
+button, input, textarea, select {
+    font: inherit;
+}
+
+.page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    flex: 1;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+footer.bottombar {
+    margin-top: auto;
 }
 
 .search-container {
-    max-width: 1200px;
-    margin: 30px auto;
+    width: 100%;
+    max-width: none;
+    margin: 30px 0;
     padding: 0 20px;
 }
 
@@ -253,11 +284,12 @@ body {
 }
 
 .content-wrapper {
-    max-width: 1200px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
     padding: 0 20px 60px;
     display: grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns: 300px minmax(0, 1fr);
     gap: 30px;
 }
 
@@ -366,7 +398,7 @@ body {
 
 .posts-section h3 {
     color: #1a1a1a;
-    font-size: 20px;
+    font-size: 24px;
     margin-bottom: 20px;
     display: flex;
     justify-content: space-between;
@@ -439,25 +471,92 @@ body {
 
 .post-user-info h4 {
     margin: 0;
-    font-size: 15px;
+    font-size: 16px;
     color: #1a1a1a;
     font-weight: 600;
 }
 
 .post-user-info p {
     margin: 3px 0 0;
-    font-size: 13px;
+    font-size: 14px;
     color: #666;
 }
 
 .post-date {
-    font-size: 12px;
+    font-size: 13px;
     color: #999;
 }
 
 .post-actions-admin {
     display: flex;
     gap: 8px;
+}
+
+.post-menu-wrapper {
+    position: relative;
+}
+
+.post-menu-toggle {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e5e7eb;
+    background: #f8fafc;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #374151;
+    font-size: 22px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.post-menu-toggle:hover {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+}
+
+.post-menu-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+    min-width: 170px;
+    display: none;
+    z-index: 20;
+    overflow: hidden;
+}
+
+.post-menu-dropdown.open {
+    display: block;
+}
+
+.post-menu-btn {
+    width: 100%;
+    text-align: left;
+    background: white;
+    border: none;
+    color: #111827;
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.post-menu-btn:hover {
+    background: #f3f4f6;
+}
+
+.post-menu-btn.danger {
+    color: #b91c1c;
+}
+
+.post-menu-btn.danger:hover {
+    background: #fef2f2;
 }
 
 .btn-post-action {
@@ -483,20 +582,41 @@ body {
     color: #1565c0;
 }
 
+.btn-post-fix {
+    color: #f59e0b;
+}
+
+.btn-post-fix:hover {
+    color: #d97706;
+}
+
+.post-pinned-badge {
+    display: inline-block;
+    margin-bottom: 12px;
+    background: #fff7ed;
+    color: #b45309;
+    border: 1px solid #fdba74;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
 .post-title {
-    font-weight: 600;
-    font-size: 15px;
-    margin-bottom: 10px;
+    font-weight: 700;
+    font-size: 17px;
+    margin-bottom: 8px;
     color: #1a1a1a;
+    line-height: 1.4;
 }
 
 .post-content {
     color: #333;
-    line-height: 1.5;
+    line-height: 1.6;
     margin-bottom: 12px;
     word-break: break-word;
     white-space: pre-wrap;
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .post-actions {
@@ -504,7 +624,7 @@ body {
     gap: 15px;
     padding-top: 12px;
     border-top: 1px solid #eee;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .post-action {
@@ -617,7 +737,7 @@ body {
     border-radius: 8px;
     box-sizing: border-box;
     font-family: Arial, sans-serif;
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .form-novo-post textarea {
@@ -829,6 +949,34 @@ body {
     font-size: 15px;
     line-height: 1.5;
     margin-bottom: 25px;
+}
+
+.modal-form {
+    display: none;
+}
+
+.modal-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.modal-form input,
+.modal-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    font: inherit;
+    resize: vertical;
+    background: #fff;
+}
+
+.modal-form textarea {
+    min-height: 150px;
 }
 
 .modal-actions {

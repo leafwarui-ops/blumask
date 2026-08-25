@@ -63,32 +63,59 @@ if ($profileUser) {
             }
         }
 
+        $id_usuario_logado = isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0;
+        $pinned_posts = [];
+        $recent_posts = [];
+
+        // 1. Post fixado do usuário do perfil
         $fixedPostId = intval($profileUser['id_post_fixado'] ?? 0);
         if ($fixedPostId > 0) {
-            $fixedPostResult = $conn->query("SELECT * FROM post WHERE id_post = $fixedPostId AND id_usuario = $profileUserId LIMIT 1");
-            if ($fixedPostResult && $fixedPostResult->num_rows > 0) {
-                $fixedPost = $fixedPostResult->fetch_assoc();
-            }
-        }
-
-        if (!$fixedPost) {
-            $latestPostResult = $conn->query("SELECT * FROM post WHERE id_usuario = $profileUserId ORDER BY Data_post DESC, id_post DESC LIMIT 1");
-            if ($latestPostResult && $latestPostResult->num_rows > 0) {
-                $fixedPost = $latestPostResult->fetch_assoc();
-            }
-        }
-
-        $postsQuery = "SELECT * FROM post WHERE id_usuario = $profileUserId ORDER BY Data_post DESC, id_post DESC";
-        if ($fixedPost) {
-            $postsQuery .= " LIMIT 10";
-        }
-        $postsResult = $conn->query($postsQuery);
-        if ($postsResult) {
-            while ($postRow = $postsResult->fetch_assoc()) {
-                if ($fixedPost && intval($postRow['id_post']) === intval($fixedPost['id_post'])) {
-                    continue;
+            $sql_pinned = "SELECT 
+                p.id_post,
+                p.id_comunidade,
+                p.Data_post,
+                p.conteudo,
+                p.assunto,
+                c.nome AS nome_comunidade,
+                c.imagem AS imagem_comunidade,
+                (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) AS total_curtidas,
+                (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) AS total_comentarios"
+                . ($id_usuario_logado > 0 ? ", (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario_logado) AS curtiu" : ", 0 AS curtiu") . "
+            FROM post p
+            INNER JOIN comunidade c ON p.id_comunidade = c.id_comunidade
+            WHERE p.id_post = $fixedPostId AND p.id_usuario = $profileUserId
+            LIMIT 1";
+            
+            $res_pinned = mysqli_query($conn, $sql_pinned);
+            if ($res_pinned) {
+                while ($pin_row = mysqli_fetch_assoc($res_pinned)) {
+                    $pinned_posts[] = $pin_row;
                 }
-                $posts[] = $postRow;
+            }
+        }
+
+        // 2. Posts recentes deste usuário
+        $sql_recent = "SELECT 
+            p.id_post,
+            p.id_comunidade,
+            p.Data_post,
+            p.conteudo,
+            p.assunto,
+            c.nome AS nome_comunidade,
+            c.imagem AS imagem_comunidade,
+            (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) AS total_curtidas,
+            (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) AS total_comentarios"
+            . ($id_usuario_logado > 0 ? ", (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario_logado) AS curtiu" : ", 0 AS curtiu") . "
+        FROM post p
+        INNER JOIN comunidade c ON p.id_comunidade = c.id_comunidade
+        WHERE p.id_usuario = $profileUserId
+        ORDER BY p.Data_post DESC, p.id_post DESC
+        LIMIT 30";
+
+        $res_recent = mysqli_query($conn, $sql_recent);
+        if ($res_recent) {
+            while ($rec_row = mysqli_fetch_assoc($res_recent)) {
+                $recent_posts[] = $rec_row;
             }
         }
     }
@@ -114,9 +141,10 @@ function userAvatar($user) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blumask</title>
   <link rel="icon" type="image/webp" href="../style/blumaskWhiteLogo.webp">
-  <link rel="stylesheet" href="../style/index_style.css">
+  <link rel="stylesheet" href="../style/index_style.css?v=<?= time() ?>">
+  <link rel="stylesheet" href="../style/comunidade_style.css?v=<?= time() ?>">
   <link rel="stylesheet" href="../style/busca_style.css?v=<?= time() ?>">
-  <link rel="stylesheet" href="../style/user_view_style.css">
+  <link rel="stylesheet" href="../style/user_view_style.css?v=<?= time() ?>">
 </head>
 <body data-id-usuario="<?= isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0 ?>">
   <div class="page">
@@ -207,57 +235,171 @@ function userAvatar($user) {
           <div class="search-results-dropdown" id="busca-resultados-dropdown"></div>
         </div>
 
-        <div class="feed">
-          <div class="feed-header">Último Post</div>
-          <div class="feed-list">
-            <?php if ($fixedPost): ?>
-              <?php
-                $fixedTitle = safeText($fixedPost['assunto'] ?? 'Sem assunto');
-                $fixedBody = safeText($fixedPost['conteudo'] ?? '');
-                $fixedDate = !empty($fixedPost['Data_post']) ? date('d/m/Y', strtotime($fixedPost['Data_post'])) : '';
-                $fixedAuthor = safeText($profileUser['nome_de_exibicao'] ?? $profileUser['nome_de_usuario'] ?? 'Usuário');
-                $fixedAvatar = userAvatar($profileUser);
-              ?>
-              <article class="post-card">
-                <div class="post-top">
-                  <img class="mini-avatar" src="<?= $fixedAvatar ?>" alt="<?= $fixedAuthor ?>">
-                  <div class="post-user"><?= $fixedAuthor ?></div>
-                  <div class="post-date"><?= $fixedDate ?></div>
-                </div>
-                <h3 class="post-title"><?= $fixedTitle ?></h3>
-                <p class="post-body"><?= $fixedBody ?: 'Nenhum conteúdo disponível neste post.' ?></p>
-              </article>
-            <?php else: ?>
-              <article class="post-card">
-                <div class="post-top">
-                  <div class="post-user"><?= safeText($profileUser['nome_de_exibicao'] ?? 'Usuário') ?></div>
-                </div>
-                <p class="post-body">Este usuário ainda não publicou nenhum post.</p>
-              </article>
-            <?php endif; ?>
+        <div class="panel last-post">
+          <div class="panel-header feed-panel-header">
+            <div class="feed-tabs">
+              <button type="button" class="feed-tab-btn active" data-target="user-feed-fixados">
+                Fixados
+              </button>
+              <button type="button" class="feed-tab-btn" data-target="user-feed-recentes">
+                Últimos Posts
+              </button>
+            </div>
+          </div>
+          <div class="last-post-body">
+            <!-- Aba 1: Fixados (Padrão) -->
+            <div class="feed-tab-content active" id="user-feed-fixados">
+              <?php if (!empty($pinned_posts)): ?>
+                <div class="posts-feed">
+                  <?php foreach ($pinned_posts as $post): ?>
+                    <?php 
+                      $id_post = intval($post['id_post']);
+                      $id_comunidade = intval($post['id_comunidade']);
+                      $nome_comunidade = htmlspecialchars($post['nome_comunidade'], ENT_QUOTES, 'UTF-8');
+                      $data_post_ts = strtotime($post['Data_post']);
+                      $data_formatada = $data_post_ts ? date('d/m/Y', $data_post_ts) : htmlspecialchars($post['Data_post'], ENT_QUOTES, 'UTF-8');
+                      $assunto = !empty($post['assunto']) ? htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8') : '';
+                      $conteudo = htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8');
+                      $total_curtidas = intval($post['total_curtidas']);
+                      $total_comentarios = intval($post['total_comentarios']);
+                      $curtiu = intval($post['curtiu']) === 1;
 
-            <?php if (!empty($posts)): ?>
-              <?php foreach ($posts as $post): ?>
-                <?php
-                  $postTitle = safeText($post['assunto'] ?? 'Sem assunto');
-                  $postBody = safeText($post['conteudo'] ?? '');
-                  $postDate = !empty($post['Data_post']) ? date('d/m/Y', strtotime($post['Data_post'])) : '';
-                ?>
-                <article class="post-card">
-                  <div class="post-top">
-                    <img class="mini-avatar" src="<?= $fixedAvatar ?? userAvatar($profileUser) ?>" alt="<?= safeText($profileUser['nome_de_exibicao'] ?? 'Usuário') ?>">
-                    <div class="post-user"><?= safeText($profileUser['nome_de_exibicao'] ?? $profileUser['nome_de_usuario'] ?? 'Usuário') ?></div>
-                    <div class="post-date"><?= $postDate ?></div>
-                  </div>
-                  <h3 class="post-title"><?= $postTitle ?></h3>
-                  <p class="post-body"><?= $postBody ?: 'Sem conteúdo neste post.' ?></p>
-                </article>
-              <?php endforeach; ?>
-            <?php elseif ($fixedPost): ?>
-              <article class="post-card">
-                <p class="post-body">Nenhum outro post deste usuário foi encontrado.</p>
-              </article>
-            <?php endif; ?>
+                      $raw_img = $post['imagem_comunidade'] ?? '';
+                      if (!empty($raw_img)) {
+                          $img_comunidade = (strpos($raw_img, 'http') === 0 || strpos($raw_img, '../') === 0) 
+                              ? htmlspecialchars($raw_img, ENT_QUOTES, 'UTF-8') 
+                              : '../' . htmlspecialchars($raw_img, ENT_QUOTES, 'UTF-8');
+                      } else {
+                          $img_comunidade = "https://ui-avatars.com/api/?name=" . urlencode($post['nome_comunidade']) . "&background=2b17e0&color=fff";
+                      }
+                    ?>
+                    <article class="post post-card-feed" data-post-id="<?= $id_post ?>">
+                      <div class="post-header">
+                        <div class="post-avatar">
+                          <a href="comunidade.php?id=<?= $id_comunidade ?>" title="Ver comunidade <?= $nome_comunidade ?>">
+                            <img src="<?= $img_comunidade ?>" alt="<?= $nome_comunidade ?>">
+                          </a>
+                        </div>
+                        <div class="post-header-info">
+                          <div class="post-user-info">
+                            <h4>
+                              <a href="comunidade.php?id=<?= $id_comunidade ?>" class="post-community-name">
+                                <?= $nome_comunidade ?>
+                              </a>
+                            </h4>
+                          </div>
+                          <div class="post-date">
+                            <?= $data_formatada ?>
+                          </div>
+                        </div>
+                      </div>
+
+                      <?php if (!empty($assunto)): ?>
+                        <div class="post-title"><?= $assunto ?></div>
+                      <?php endif; ?>
+
+                      <div class="post-content"><?= $conteudo ?></div>
+
+                      <div class="post-actions">
+                        <button type="button" class="post-action btn-curtir-action <?= $curtiu ? 'curtido' : '' ?>" onclick="curtirPostRecente(<?= $id_post ?>, this)" title="<?= $curtiu ? 'Descurtir post' : 'Curtir post' ?>">
+                          <span class="like-icon"><?= $curtiu ? '❤️' : '🤍' ?></span>
+                          <span class="like-count"><?= $total_curtidas ?></span>
+                        </button>
+                        <a href="comunidade.php?id=<?= $id_comunidade ?>" class="post-action post-comment-action" title="Ver comentários na comunidade">
+                          <span class="comment-icon">💬</span>
+                          <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
+                        </a>
+                      </div>
+                    </article>
+                  <?php endforeach; ?>
+                </div>
+              <?php else: ?>
+                <div class="posts-empty-feed">
+                  <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M12 2v10m0 0l3-3m-3 3L9 9m3 13a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"/>
+                  </svg>
+                  <p>Nenhum post fixado.</p>
+                  <span>Este usuário ainda não fixou nenhum post no perfil.</span>
+                </div>
+              <?php endif; ?>
+            </div>
+
+            <!-- Aba 2: Últimos Posts -->
+            <div class="feed-tab-content" id="user-feed-recentes" style="display: none;">
+              <?php if (!empty($recent_posts)): ?>
+                <div class="posts-feed">
+                  <?php foreach ($recent_posts as $post): ?>
+                    <?php 
+                      $id_post = intval($post['id_post']);
+                      $id_comunidade = intval($post['id_comunidade']);
+                      $nome_comunidade = htmlspecialchars($post['nome_comunidade'], ENT_QUOTES, 'UTF-8');
+                      $data_post_ts = strtotime($post['Data_post']);
+                      $data_formatada = $data_post_ts ? date('d/m/Y', $data_post_ts) : htmlspecialchars($post['Data_post'], ENT_QUOTES, 'UTF-8');
+                      $assunto = !empty($post['assunto']) ? htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8') : '';
+                      $conteudo = htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8');
+                      $total_curtidas = intval($post['total_curtidas']);
+                      $total_comentarios = intval($post['total_comentarios']);
+                      $curtiu = intval($post['curtiu']) === 1;
+
+                      $raw_img = $post['imagem_comunidade'] ?? '';
+                      if (!empty($raw_img)) {
+                          $img_comunidade = (strpos($raw_img, 'http') === 0 || strpos($raw_img, '../') === 0) 
+                              ? htmlspecialchars($raw_img, ENT_QUOTES, 'UTF-8') 
+                              : '../' . htmlspecialchars($raw_img, ENT_QUOTES, 'UTF-8');
+                      } else {
+                          $img_comunidade = "https://ui-avatars.com/api/?name=" . urlencode($post['nome_comunidade']) . "&background=2b17e0&color=fff";
+                      }
+                    ?>
+                    <article class="post post-card-feed" data-post-id="<?= $id_post ?>">
+                      <div class="post-header">
+                        <div class="post-avatar">
+                          <a href="comunidade.php?id=<?= $id_comunidade ?>" title="Ver comunidade <?= $nome_comunidade ?>">
+                            <img src="<?= $img_comunidade ?>" alt="<?= $nome_comunidade ?>">
+                          </a>
+                        </div>
+                        <div class="post-header-info">
+                          <div class="post-user-info">
+                            <h4>
+                              <a href="comunidade.php?id=<?= $id_comunidade ?>" class="post-community-name">
+                                <?= $nome_comunidade ?>
+                              </a>
+                            </h4>
+                          </div>
+                          <div class="post-date">
+                            <?= $data_formatada ?>
+                          </div>
+                        </div>
+                      </div>
+
+                      <?php if (!empty($assunto)): ?>
+                        <div class="post-title"><?= $assunto ?></div>
+                      <?php endif; ?>
+
+                      <div class="post-content"><?= $conteudo ?></div>
+
+                      <div class="post-actions">
+                        <button type="button" class="post-action btn-curtir-action <?= $curtiu ? 'curtido' : '' ?>" onclick="curtirPostRecente(<?= $id_post ?>, this)" title="<?= $curtiu ? 'Descurtir post' : 'Curtir post' ?>">
+                          <span class="like-icon"><?= $curtiu ? '❤️' : '🤍' ?></span>
+                          <span class="like-count"><?= $total_curtidas ?></span>
+                        </button>
+                        <a href="comunidade.php?id=<?= $id_comunidade ?>" class="post-action post-comment-action" title="Ver comentários na comunidade">
+                          <span class="comment-icon">💬</span>
+                          <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
+                        </a>
+                      </div>
+                    </article>
+                  <?php endforeach; ?>
+                </div>
+              <?php else: ?>
+                <div class="posts-empty-feed">
+                  <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  <p>Nenhum post publicado.</p>
+                  <span>Este usuário ainda não publicou nenhum post.</span>
+                </div>
+              <?php endif; ?>
+            </div>
           </div>
         </div>
       </section>
@@ -289,6 +431,75 @@ function userAvatar($user) {
     </footer>
   </div>
 
-  <script src="../js/busca.js"></script>
+  <script src="../js/busca.js?v=<?= time() ?>"></script>
+  <script>
+    const csrfToken = "<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>";
+
+    // Função assíncrona para curtir/descurtir posts
+    async function curtirPostRecente(idPost, btnElement) {
+        const idUsuarioLogado = parseInt(document.body.dataset.idUsuario, 10) || 0;
+        if (idUsuarioLogado <= 0) {
+            alert("Você precisa estar logado para curtir posts.");
+            return;
+        }
+
+        if (btnElement.disabled) return;
+        btnElement.disabled = true;
+
+        const iconSpan = btnElement.querySelector('.like-icon');
+        const countSpan = btnElement.querySelector('.like-count');
+
+        try {
+            const response = await fetch('curtir_post.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_post=${idPost}`
+            });
+
+            const data = await response.json();
+
+            if (data.sucesso) {
+                if (data.curtiu) {
+                    if (iconSpan) iconSpan.textContent = '❤️';
+                    if (countSpan) countSpan.textContent = parseInt(countSpan.textContent || '0', 10) + 1;
+                    btnElement.classList.add('curtido');
+                    btnElement.title = 'Descurtir post';
+                } else {
+                    if (iconSpan) iconSpan.textContent = '🤍';
+                    if (countSpan) countSpan.textContent = Math.max(0, parseInt(countSpan.textContent || '0', 10) - 1);
+                    btnElement.classList.remove('curtido');
+                    btnElement.title = 'Curtir post';
+                }
+            } else {
+                if (data.mensagem) alert(data.mensagem);
+            }
+        } catch (err) {
+            console.error('Erro ao curtir post:', err);
+        } finally {
+            btnElement.disabled = false;
+        }
+    }
+
+    // Alternância entre abas Fixados e Últimos Posts
+    document.querySelectorAll(".feed-tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const targetId = btn.getAttribute("data-target");
+            document.querySelectorAll(".feed-tab-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+
+            document.querySelectorAll(".feed-tab-content").forEach((content) => {
+                if (content.id === targetId) {
+                    content.classList.add("active");
+                    content.style.display = "block";
+                } else {
+                    content.classList.remove("active");
+                    content.style.display = "none";
+                }
+            });
+        });
+    });
+  </script>
 </body>
 </html>
