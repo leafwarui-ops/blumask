@@ -53,7 +53,8 @@ $eh_admin = $eh_membro && $cargo_usuario === 1;
 // Buscar posts da comunidade
 $sqlPosts = "SELECT p.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil, u.id_usuario,
              (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) as total_curtidas,
-             (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario) as curtiu
+             (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario) as curtiu,
+             (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) as total_comentarios
              FROM post p
              JOIN usuario u ON p.id_usuario = u.id_usuario
              WHERE p.id_comunidade = $id_comunidade
@@ -209,7 +210,24 @@ if ($resultado_count) {
                                         <span><?php echo intval($post['curtiu']) === 1 ? '❤️' : '🤍'; ?></span>
                                         <span><?= intval($post['total_curtidas']) ?></span>
                                     </span>
-                                    <span class="post-action">💬 Ler mais</span>
+
+                                    <button type="button" class="post-action comment-toggle" data-post-id="<?= $post['id_post'] ?>" aria-label="Comentar">
+                                        <span>💬</span>
+                                        <span><?= intval($post['total_comentarios']) ?></span>
+                                    </button>
+
+                                    <a href="post_detalhes.php?id_post=<?= $post['id_post'] ?>" class="post-action post-action-link" aria-label="Ver comentários">
+                                        <span>↗</span>
+                                    </a>
+                                </div>
+
+                                <div class="comment-form-wrap" id="comment-form-<?= $post['id_post'] ?>" style="display: none;">
+                                    <form class="form-comentario" data-post-id="<?= $post['id_post'] ?>">
+                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                        <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
+                                        <textarea name="conteudo" rows="3" placeholder="Escreva um comentário..." required></textarea>
+                                        <button type="submit">Comentar</button>
+                                    </form>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -377,6 +395,45 @@ if ($resultado_count) {
             })
             .catch(error => console.error('Erro:', error));
         }
+
+        document.querySelectorAll('.comment-toggle').forEach(button => {
+            button.addEventListener('click', function() {
+                const postId = this.dataset.postId;
+                const formWrap = document.getElementById(`comment-form-${postId}`);
+                if (formWrap) {
+                    formWrap.style.display = formWrap.style.display === 'none' ? 'block' : 'none';
+                }
+            });
+        });
+
+        document.querySelectorAll('.form-comentario').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
+                if (conteudo.length < 2) {
+                    return;
+                }
+
+                const formData = new FormData(this);
+                fetch('../php/criar_comentario.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.sucesso) {
+                        location.reload();
+                    } else {
+                        alert(data.mensagem || 'Não foi possível enviar o comentário.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao comentar:', error);
+                    alert('Erro ao comentar. Tente novamente.');
+                });
+            });
+        });
 
         // ===== NEW POST FORM =====
         const formNovoPost = document.getElementById('formNovoPost');

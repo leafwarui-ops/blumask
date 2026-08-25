@@ -511,14 +511,74 @@ body {
     cursor: pointer;
     color: #666;
     transition: color 0.3s;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 5px;
     font-weight: 500;
+    background: transparent;
+    border: none;
+    padding: 0;
+    font: inherit;
+    text-decoration: none;
 }
 
 .post-action:hover {
     color: #e91e63;
+}
+
+.post-action-link {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.comment-form-wrap {
+    margin-top: 15px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.form-comentario {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.form-comentario textarea {
+    width: 100%;
+    min-height: 90px;
+    resize: vertical;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.form-comentario button {
+    align-self: flex-end;
+    background: #e2e8f0;
+    color: #1e293b;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 12px;
+}
+
+.form-comentario button:hover {
+    background: #cbd5e1;
+}
+
+.form-comentario textarea:focus + button,
+.form-comentario textarea:not(:placeholder-shown) + button,
+.form-comentario textarea:valid + button {
+    background: #2563eb;
+    color: white;
 }
 
 .posts-empty {
@@ -578,6 +638,153 @@ body {
 
 .form-novo-post button:hover {
     background: #1d4ed8;
+}
+
+/* ===== PÁGINA DE DETALHES DO POST ===== */
+
+.post-detail-page {
+    width: min(100%, 1400px);
+    margin: 40px auto 60px;
+    padding: 0 20px;
+}
+
+.post-detail-card,
+.comments-list {
+    width: 100%;
+    background: white;
+    border-radius: 18px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.comment-detail-box {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 16px;
+    box-shadow: none;
+}
+
+.post-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.post-detail-community {
+    display: inline-block;
+    background: #e7f0ff;
+    color: #2563eb;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+.post-detail-title {
+    margin: 0 0 16px;
+    color: #1a1a1a;
+    font-size: 28px;
+}
+
+.post-detail-actions {
+    border-top: 1px solid #eee;
+    padding-top: 12px;
+    margin-top: 12px;
+}
+
+.comment-detail-box h3,
+.comments-list h3 {
+    margin-top: 0;
+    margin-bottom: 14px;
+    color: #1a1a1a;
+    font-size: 20px;
+}
+
+.comment-detail-box h3 {
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: #475569;
+    font-weight: 600;
+}
+
+.comment-detail-box .form-comentario textarea {
+    min-height: 56px;
+    border: 2px solid #cbd5e1;
+    background: #fff;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.comment-item {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid #eef2f7;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+.comment-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #ddd;
+}
+
+.comment-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.comment-body {
+    flex: 1;
+}
+
+.comment-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+    color: #666;
+    font-size: 12px;
+}
+
+.comment-meta strong {
+    color: #1a1a1a;
+    font-size: 14px;
+}
+
+.comment-body p {
+    margin: 0;
+    color: #333;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.comments-empty {
+    color: #666;
+    text-align: center;
+    padding: 18px;
+    background: #f8fafc;
+    border-radius: 12px;
 }
 
 /* ===== MODAL SOFISTICADO ===== */
