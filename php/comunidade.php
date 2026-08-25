@@ -272,6 +272,10 @@ if ($resultado_count) {
                     <?php endif; ?>
                 </div>
             </div>
+            <footer class="bottombar">
+                <strong>Blumask</strong>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#1c1c1c" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M15 9.5a3.5 3.5 0 1 0 0 5"/></svg>
+            </footer>
         </main>
     </div>
 
