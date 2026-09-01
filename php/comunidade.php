@@ -129,6 +129,25 @@ if ($resultado_count) {
                 </div>
             </form>
 
+            <form id="formEditarComunidade" class="modal-form" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="<?php echo isset($_SESSION['csrf_token']) ? htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') : ''; ?>">
+                <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
+
+                <label for="editarNomeComunidade">Nome da comunidade</label>
+                <input type="text" id="editarNomeComunidade" name="nome" maxlength="40" required>
+
+                <label for="editarDescricaoComunidade">Descrição</label>
+                <textarea id="editarDescricaoComunidade" name="descricao" maxlength="200" rows="4"></textarea>
+
+                <label for="editarImagemComunidade">Nova imagem da comunidade</label>
+                <input type="file" id="editarImagemComunidade" name="imagem" accept="image/jpeg,image/png,image/gif,image/webp">
+
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn modal-btn-cancel" onclick="fecharModal()">Cancelar</button>
+                    <button type="submit" class="modal-btn modal-btn-confirm">Salvar alterações</button>
+                </div>
+            </form>
+
             <div class="modal-actions" id="confirmActions">
                 <button class="modal-btn modal-btn-cancel" onclick="fecharModal()">Cancelar</button>
                 <button class="modal-btn modal-btn-confirm" id="modalConfirmBtn" onclick="executarAcao()">Confirmar</button>
@@ -214,7 +233,7 @@ if ($resultado_count) {
                     <!-- LISTA DE POSTS -->
                     <?php if (count($posts) > 0): ?>
                         <?php foreach ($posts as $post): ?>
-                            <div class="post">
+                            <div class="post" data-post-id="<?= $post['id_post'] ?>">
                                 <div class="post-header">
                                     <div class="post-avatar">
                                         <img src="<?= !empty($post['foto_perfil']) ? htmlspecialchars($post['foto_perfil'], ENT_QUOTES, 'UTF-8') : 'https://ui-avatars.com/api/?name=' . urlencode(htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8')) . '&background=random'; ?>" alt="Avatar">
@@ -234,8 +253,12 @@ if ($resultado_count) {
                                             <div class="post-menu-dropdown">
                                                 <?php if ((int) $post['id_usuario'] === $id_usuario): ?>
                                                     <button class="post-menu-btn" type="button" onclick="abrirModalEditarPost(<?= $post['id_post'] ?>)">Editar post</button>
+                                                <?php endif; ?>
+
+                                                <?php if ((int) $post['id_usuario'] === $id_usuario || $is_community_admin): ?>
                                                     <button class="post-menu-btn danger" type="button" onclick="abrirModalExcluirPost(<?= $post['id_post'] ?>)">Excluir post</button>
                                                 <?php endif; ?>
+
                                                 <?php if ($is_community_admin): ?>
                                                     <button class="post-menu-btn" type="button" onclick="fixarPost(<?= $post['id_post'] ?>)">
                                                         <?= !empty($comunidade['id_post_fixado']) && (int) $post['id_post'] === (int) $comunidade['id_post_fixado'] ? 'Desfixar post' : 'Fixar post' ?>
@@ -263,9 +286,6 @@ if ($resultado_count) {
                                         <span><?= intval($post['total_comentarios']) ?></span>
                                     </button>
 
-                                    <a href="post_detalhes.php?id_post=<?= $post['id_post'] ?>" class="post-action post-action-link" aria-label="Ver comentários">
-                                        <span>↗</span>
-                                    </a>
                                 </div>
 
                                 <div class="comment-form-wrap" id="comment-form-<?= $post['id_post'] ?>" style="display: none;">
@@ -307,6 +327,7 @@ if ($resultado_count) {
             document.getElementById('modalTitle').textContent = titulo;
             document.getElementById('modalMessage').textContent = mensagem;
             document.getElementById('formEditarPost').style.display = 'none';
+            document.getElementById('formEditarComunidade').style.display = 'none';
             document.getElementById('confirmActions').style.display = 'flex';
             const btn = document.getElementById('modalConfirmBtn');
             if (temDanger) {
@@ -320,6 +341,7 @@ if ($resultado_count) {
         function fecharModal() {
             document.getElementById('confirmModal').classList.remove('ativo');
             document.getElementById('formEditarPost').style.display = 'none';
+            document.getElementById('formEditarComunidade').style.display = 'none';
             document.getElementById('confirmActions').style.display = 'flex';
             acaoAtual = null;
         }
@@ -340,7 +362,23 @@ if ($resultado_count) {
 
         // ===== COMUNIDADE FUNCTIONS =====
         function abrirModalEditarComunidade(idComunidade) {
-            abrirModal('Editar Comunidade', 'Esta funcionalidade será implementada em breve.');
+            const form = document.getElementById('formEditarComunidade');
+            if (!form) return;
+
+            const nomeAtual = <?= json_encode($comunidade['nome'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+            const descricaoAtual = <?= json_encode($comunidade['descricao'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+
+            form.querySelector('[name="id_comunidade"]').value = idComunidade;
+            form.querySelector('[name="nome"]').value = nomeAtual;
+            form.querySelector('[name="descricao"]').value = descricaoAtual;
+            form.querySelector('[name="imagem"]').value = '';
+
+            document.getElementById('modalTitle').textContent = 'Editar Comunidade';
+            document.getElementById('modalMessage').textContent = 'Atualize os dados da comunidade abaixo.';
+            document.getElementById('confirmActions').style.display = 'none';
+            document.getElementById('formEditarPost').style.display = 'none';
+            form.style.display = 'block';
+            document.getElementById('confirmModal').classList.add('ativo');
         }
 
         function abrirModalExcluirComunidade(idComunidade) {
@@ -383,6 +421,7 @@ if ($resultado_count) {
             document.getElementById('modalTitle').textContent = 'Editar Post';
             document.getElementById('modalMessage').textContent = 'Atualize os dados do post abaixo.';
             document.getElementById('confirmActions').style.display = 'none';
+            document.getElementById('formEditarComunidade').style.display = 'none';
             form.style.display = 'block';
             form.querySelector('[name="id_post"]').value = idPost;
             form.querySelector('[name="assunto"]').value = post.assunto || '';
@@ -506,6 +545,20 @@ if ($resultado_count) {
             .catch(error => console.error('Erro:', error));
         }
 
+        document.querySelectorAll('.post').forEach(post => {
+            post.addEventListener('click', function(event) {
+                const isInteractive = event.target.closest('button, a, input, textarea, select, .post-action, .post-menu-wrapper, .post-menu-dropdown, .comment-toggle, .form-comentario');
+                if (isInteractive) {
+                    return;
+                }
+
+                const postId = this.dataset.postId;
+                if (postId) {
+                    window.location.href = `post_detalhes.php?id_post=${postId}`;
+                }
+            });
+        });
+
         document.querySelectorAll('.comment-toggle').forEach(button => {
             button.addEventListener('click', function() {
                 const postId = this.dataset.postId;
@@ -608,6 +661,52 @@ if ($resultado_count) {
                 .catch(error => {
                     console.error('Erro:', error);
                     document.getElementById('modalMessage').textContent = 'Erro ao editar o post.';
+                });
+            });
+        }
+
+        const formEditarComunidade = document.getElementById('formEditarComunidade');
+        if (formEditarComunidade) {
+            formEditarComunidade.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const nome = this.querySelector('input[name="nome"]').value.trim();
+                const descricao = this.querySelector('textarea[name="descricao"]').value.trim();
+
+                if (nome.length < 2 || nome.length > 40) {
+                    document.getElementById('modalMessage').textContent = 'O nome da comunidade deve ter entre 2 e 40 caracteres.';
+                    return;
+                }
+
+                if (!/^[\p{L}\p{N}\s]+$/u.test(nome)) {
+                    document.getElementById('modalMessage').textContent = 'O nome da comunidade deve conter apenas letras, números e espaços.';
+                    return;
+                }
+
+                if (descricao.length > 200) {
+                    document.getElementById('modalMessage').textContent = 'A descrição da comunidade não pode ter mais de 200 caracteres.';
+                    return;
+                }
+
+                const formData = new FormData(this);
+                formData.set('csrf_token', csrfToken);
+
+                fetch('../php/editar_comunidade.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.sucesso) {
+                        fecharModal();
+                        location.reload();
+                    } else {
+                        document.getElementById('modalMessage').textContent = data.mensagem || 'Não foi possível editar a comunidade.';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    document.getElementById('modalMessage').textContent = 'Erro ao editar a comunidade.';
                 });
             });
         }

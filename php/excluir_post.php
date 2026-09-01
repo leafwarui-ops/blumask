@@ -40,10 +40,13 @@ if ($id_post <= 0) {
 }
 
 // 5. Verificar se o post existe e buscar a comunidade
-$sql_post = "SELECT p.id_post, p.id_comunidade, c.id_usuario as comunidade_dono
+$sql_post = "SELECT p.id_post, p.id_comunidade, p.id_usuario AS autor_id, c.id_usuario AS comunidade_dono,
+                    mc.cargo AS cargo_usuario
              FROM post p
              JOIN comunidade c ON p.id_comunidade = c.id_comunidade
-             WHERE p.id_post = $id_post LIMIT 1";
+             LEFT JOIN membro_comunidade mc ON mc.id_comunidade = p.id_comunidade AND mc.id_usuario = $id_usuario
+             WHERE p.id_post = $id_post
+             LIMIT 1";
 
 $resultado = mysqli_query($conn, $sql_post);
 
@@ -55,9 +58,13 @@ if (!$resultado || mysqli_num_rows($resultado) === 0) {
 $post = mysqli_fetch_assoc($resultado);
 $id_comunidade = intval($post['id_comunidade']);
 $comunidade_dono = intval($post['comunidade_dono']);
+$autor_id = intval($post['autor_id']);
+$cargo_usuario = intval($post['cargo_usuario'] ?? 0);
 
-// 6. Verificar se o usuário é admin da comunidade
-if ($comunidade_dono !== $id_usuario) {
+// 6. Verificar se o usuário é o dono do post, o dono da comunidade ou administrador da comunidade
+$permitido = ($autor_id === $id_usuario) || ($comunidade_dono === $id_usuario) || ($cargo_usuario === 1);
+
+if (!$permitido) {
     echo json_encode(["sucesso" => false, "mensagem" => "Você não tem permissão para excluir este post."]);
     exit;
 }

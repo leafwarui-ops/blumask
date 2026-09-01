@@ -231,10 +231,10 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
   <div class="page">
     <!-- TOPBAR -->
     <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px;">
-      <div style="display: flex; align-items: center; gap: 12px;">
+      <a href="../index.php" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;">
         <img src="../style/blumaskBlueLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
         <h1 style="margin: 0;">BluMask</h1>
-      </div>
+      </a>
     </header>
 
     <!-- MAIN LAYOUT -->
