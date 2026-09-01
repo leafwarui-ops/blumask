@@ -194,7 +194,12 @@ if ($resultado_count) {
                     <?php if (!$eh_membro): ?>
                         <button class="btn-seguir" onclick="entrarComunidade(<?= $id_comunidade ?>)">Seguir +</button>
                     <?php else: ?>
-                        <button class="btn-seguir ja-membro" onclick="event.preventDefault()">✓ Seguindo</button>
+                        <?php if (!$is_community_owner && $cargo_usuario !== 1): ?>
+                            <button class="btn-seguir ja-membro" onclick="sairComunidade(<?= $id_comunidade ?>)">Sair da comunidade</button>
+                        <?php else: ?>
+                            <button class="btn-seguir ja-membro" onclick="event.preventDefault()">✓ Seguindo</button>
+                        <?php endif; ?>
+
                         <?php if ($is_community_owner): ?>
                             <div class="admin-actions">
                                 <button class="btn-admin btn-admin-edit" onclick="abrirModalEditarComunidade(<?= $id_comunidade ?>)">✎ Editar Comunidade</button>
@@ -235,14 +240,18 @@ if ($resultado_count) {
                         <?php foreach ($posts as $post): ?>
                             <div class="post" data-post-id="<?= $post['id_post'] ?>">
                                 <div class="post-header">
-                                    <div class="post-avatar">
-                                        <img src="<?= !empty($post['foto_perfil']) ? htmlspecialchars($post['foto_perfil'], ENT_QUOTES, 'UTF-8') : 'https://ui-avatars.com/api/?name=' . urlencode(htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8')) . '&background=random'; ?>" alt="Avatar">
-                                    </div>
-                                    <div class="post-header-info">
-                                        <div class="post-user-info">
-                                            <h4><?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></h4>
-                                            <p>@<?= htmlspecialchars($post['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?></p>
+                                    <a href="user_view.php?id=<?= (int) $post['id_usuario'] ?>" class="post-author-link" onclick="event.stopPropagation();" aria-label="Ver perfil de <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>">
+                                        <div class="post-avatar">
+                                            <img src="<?= !empty($post['foto_perfil']) ? htmlspecialchars($post['foto_perfil'], ENT_QUOTES, 'UTF-8') : 'https://ui-avatars.com/api/?name=' . urlencode(htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8')) . '&background=random'; ?>" alt="Avatar">
                                         </div>
+                                    </a>
+                                    <div class="post-header-info">
+                                        <a href="user_view.php?id=<?= (int) $post['id_usuario'] ?>" class="post-user-link" onclick="event.stopPropagation();">
+                                            <div class="post-user-info">
+                                                <h4><?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></h4>
+                                                <p>@<?= htmlspecialchars($post['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?></p>
+                                            </div>
+                                        </a>
                                         <div class="post-date">
                                             <?= date('d/m/Y', strtotime($post['Data_post'])) ?>
                                         </div>
@@ -524,6 +533,38 @@ if ($resultado_count) {
                 console.error('Erro:', error);
                 btn.disabled = false;
                 btn.textContent = 'Seguir +';
+            });
+        }
+
+        function sairComunidade(idComunidade) {
+            const btn = event.target;
+            if (!btn) return;
+
+            btn.disabled = true;
+            btn.textContent = 'Saindo...';
+
+            fetch('../php/sair_comunidade.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_comunidade=${idComunidade}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.sucesso) {
+                    location.reload();
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = 'Sair da comunidade';
+                    alert(data.mensagem || 'Não foi possível sair da comunidade.');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                btn.disabled = false;
+                btn.textContent = 'Sair da comunidade';
+                alert('Erro ao sair da comunidade. Tente novamente.');
             });
         }
 

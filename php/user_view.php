@@ -413,10 +413,10 @@ function userAvatar($user) {
                 $communityName = safeText($community['nome'] ?? 'Comunidade');
                 $communityImage = !empty($community['imagem']) ? htmlspecialchars($community['imagem'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($community['nome'] ?? 'Comunidade') . "&background=random";
               ?>
-              <div class="community-item">
+              <a href="comunidade.php?id=<?= intval($community['id_comunidade']) ?>" class="community-item" title="Entrar na comunidade <?= $communityName ?>">
                 <img src="<?= $communityImage ?>" alt="<?= $communityName ?>" class="community-avatar-mini">
                 <span><?= $communityName ?></span>
-              </div>
+              </a>
             <?php endforeach; ?>
           </div>
         <?php else: ?>

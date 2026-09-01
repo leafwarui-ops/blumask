@@ -10,15 +10,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const inputNome = document.getElementById("input-nome-comunidade");
     const inputImagem = document.getElementById("input-imagem-comunidade");
     const previewImagem = document.getElementById("preview-imagem-comunidade");
+    const avatarUpload = document.querySelector(".avatar-upload");
     const listaComunidades = document.getElementById("communities-list");
     const erroMsg = document.getElementById("erro-criar-comunidade");
 
     const MAX_FILE_SIZE = 31457280; // 30MB
 
+    function resetPreviewImagem() {
+        if (!previewImagem) return;
+        previewImagem.removeAttribute("src");
+        previewImagem.style.display = "none";
+        previewImagem.hidden = true;
+        if (avatarUpload) avatarUpload.classList.remove("has-image");
+    }
+
     btnCriar.addEventListener("click", () => {
         erroMsg.textContent = "";
         formCriar.reset();
-        previewImagem.removeAttribute("src");
+        resetPreviewImagem();
         dialogCriar.showModal();
     });
 
@@ -42,15 +51,27 @@ document.addEventListener("DOMContentLoaded", () => {
     // Preview de Imagem (com checagem de max 30MB)
     inputImagem.addEventListener("change", () => {
         const arquivo = inputImagem.files[0];
-        if (arquivo) {
-            if (arquivo.size > MAX_FILE_SIZE) {
-                alert("A imagem selecionada excede o limite máximo de 30MB.");
-                inputImagem.value = "";
-                previewImagem.removeAttribute("src");
-                return;
-            }
-            previewImagem.src = URL.createObjectURL(arquivo);
+        if (!arquivo) return;
+
+        if (arquivo.size > MAX_FILE_SIZE) {
+            alert("A imagem selecionada excede o limite máximo de 30MB.");
+            inputImagem.value = "";
+            resetPreviewImagem();
+            return;
         }
+
+        const reader = new FileReader();
+        reader.onload = function (event) {
+            const imageUrl = event.target.result;
+            previewImagem.src = imageUrl;
+            previewImagem.hidden = false;
+            previewImagem.style.display = "block";
+            previewImagem.style.objectFit = "cover";
+            previewImagem.style.width = "100%";
+            previewImagem.style.height = "100%";
+            if (avatarUpload) avatarUpload.classList.add("has-image");
+        };
+        reader.readAsDataURL(arquivo);
     });
 
     // Submissão do Formulário de Comunidade

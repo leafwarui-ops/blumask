@@ -42,6 +42,7 @@
     padding: 8px 14px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.06);
     min-width: 0;
+    max-width: 100%;
 }
 
 .community-item a {
@@ -55,6 +56,7 @@
     line-height: 1.3;
     overflow-wrap: anywhere;
     word-break: break-word;
+    white-space: normal;
 }
 
 .community-item a:hover {
@@ -172,6 +174,11 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: none;
+}
+
+.avatar-upload.has-image img {
+    display: block;
 }
 
 .avatar-upload img:not([src]),
@@ -179,10 +186,24 @@
     display: none;
 }
 
-.avatar-placeholder-icon {
+.avatar-upload .avatar-placeholder-icon {
     width: 60%;
     height: 60%;
     fill: #fff;
+    display: block;
+}
+
+.avatar-upload.has-image .avatar-placeholder-icon {
+    display: none;
+}
+
+#preview-imagem-comunidade {
+    display: none;
+    border-radius: 50%;
+}
+
+.avatar-upload.has-image #preview-imagem-comunidade {
+    display: block;
 }
 
 .criar-comunidade-botoes {
@@ -308,6 +329,8 @@ footer.bottombar {
     position: sticky;
     top: 100px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .comunidade-card img {
@@ -329,6 +352,7 @@ footer.bottombar {
     overflow-wrap: anywhere;
     word-break: break-word;
     hyphens: auto;
+    white-space: normal;
 }
 
 .comunidade-card .descricao {
@@ -339,6 +363,7 @@ footer.bottombar {
     max-width: 100%;
     overflow-wrap: anywhere;
     word-break: break-word;
+    white-space: normal;
 }
 
 .btn-seguir {
@@ -463,6 +488,20 @@ footer.bottombar {
     display: flex;
     gap: 12px;
     align-items: center;
+    min-width: 0;
+}
+
+.post-author-link,
+.post-user-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+.post-author-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .post-avatar {
@@ -482,6 +521,7 @@ footer.bottombar {
 
 .post-user-info {
     flex: 1;
+    min-width: 0;
 }
 
 .post-user-info h4 {

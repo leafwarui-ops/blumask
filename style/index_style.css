@@ -335,8 +335,12 @@
     font-weight: 700;
     font-size: 15px;
     transition: color 0.2s ease;
-    display: inline-block;
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
     word-break: break-word;
+    white-space: normal;
   }
 
   .post-community-name:hover {
@@ -395,7 +399,8 @@
     color: #e53e3e;
   }
 
-  .post-comment-action {
+  .post-comment-action,
+  .post-pin-action {
     text-decoration: none;
     color: #4a5568;
     font-weight: 600;
@@ -404,12 +409,23 @@
     gap: 6px;
     padding: 4px 8px;
     border-radius: 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
     transition: background-color 0.2s ease, color 0.2s ease;
+    font-family: inherit;
+    font-size: 13px;
   }
 
-  .post-comment-action:hover {
+  .post-comment-action:hover,
+  .post-pin-action:hover {
     background-color: #ebf8ff;
     color: #2b6cb0;
+  }
+
+  .post-pin-action:hover {
+    background-color: #fff7db;
+    color: #b7791f;
   }
 
   .posts-empty-feed {

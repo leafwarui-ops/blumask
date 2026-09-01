@@ -122,10 +122,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 // Consulta de Posts Recentes para o Feed
 // -------------------------------------------------------------
 $id_usuario_logado = isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0;
+$usuario_post_fixado = null;
+if ($id_usuario_logado > 0) {
+    $res_usuario_fixado = mysqli_query($conn, "SELECT id_post_fixado FROM usuario WHERE id_usuario = $id_usuario_logado LIMIT 1");
+    if ($res_usuario_fixado && mysqli_num_rows($res_usuario_fixado) > 0) {
+        $usuario_fixado_row = mysqli_fetch_assoc($res_usuario_fixado);
+        $usuario_post_fixado = intval($usuario_fixado_row['id_post_fixado'] ?? 0);
+    }
+}
 
 $sql_recent_posts = "SELECT 
     p.id_post,
     p.id_comunidade,
+    p.id_usuario AS autor_id,
     p.Data_post,
     p.conteudo,
     p.assunto,
@@ -153,6 +162,7 @@ if ($id_usuario_logado > 0) {
     $sql_pinned_posts = "SELECT 
         p.id_post,
         p.id_comunidade,
+        p.id_usuario AS autor_id,
         p.Data_post,
         p.conteudo,
         p.assunto,
@@ -316,17 +326,17 @@ if ($id_usuario_logado > 0) {
                       ? htmlspecialchars($post['imagem_comunidade'], ENT_QUOTES, 'UTF-8')
                       : "https://ui-avatars.com/api/?name=" . urlencode($post['nome_comunidade']) . "&background=2b17e0&color=fff";
                   ?>
-                  <article class="post post-card-feed" data-post-id="<?= $id_post ?>">
+                  <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-community-id="<?= $id_comunidade ?>">
                     <div class="post-header">
                       <div class="post-avatar">
-                        <a href="php/comunidade.php?id=<?= $id_comunidade ?>" title="Ver comunidade <?= $nome_comunidade ?>">
+                        <a href="php/comunidade.php?id=<?= $id_comunidade ?>" title="Ver comunidade <?= $nome_comunidade ?>" onclick="event.stopPropagation();">
                           <img src="<?= $img_comunidade ?>" alt="<?= $nome_comunidade ?>">
                         </a>
                       </div>
                       <div class="post-header-info">
                         <div class="post-user-info">
                           <h4>
-                            <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-community-name">
+                            <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-community-name" onclick="event.stopPropagation();">
                               <?= $nome_comunidade ?>
                             </a>
                           </h4>
@@ -344,11 +354,19 @@ if ($id_usuario_logado > 0) {
                     <div class="post-content"><?= $conteudo ?></div>
 
                     <div class="post-actions">
-                      <button type="button" class="post-action btn-curtir-action <?= $curtiu ? 'curtido' : '' ?>" onclick="curtirPostRecente(<?= $id_post ?>, this)" title="<?= $curtiu ? 'Descurtir post' : 'Curtir post' ?>">
+                      <button type="button" class="post-action btn-curtir-action <?= $curtiu ? 'curtido' : '' ?>" onclick="event.stopPropagation(); curtirPostRecente(<?= $id_post ?>, this)" title="<?= $curtiu ? 'Descurtir post' : 'Curtir post' ?>">
                         <span class="like-icon"><?= $curtiu ? '❤️' : '🤍' ?></span>
                         <span class="like-count"><?= $total_curtidas ?></span>
                       </button>
-                      <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-action post-comment-action" title="Ver comentários na comunidade">
+
+                      <?php if ($id_usuario_logado > 0 && intval($post['autor_id'] ?? 0) === $id_usuario_logado): ?>
+                        <button type="button" class="post-action post-pin-action" onclick="event.stopPropagation(); fixarPostPerfil(<?= $id_post ?>, this)" title="Desfixar do perfil">
+                          <span>📌</span>
+                          <span>Desfixar</span>
+                        </button>
+                      <?php endif; ?>
+
+                      <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-action post-comment-action" title="Ver comentários na comunidade" onclick="event.stopPropagation();">
                         <span class="comment-icon">💬</span>
                         <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
                       </a>
@@ -396,17 +414,17 @@ if ($id_usuario_logado > 0) {
                       ? htmlspecialchars($post['imagem_comunidade'], ENT_QUOTES, 'UTF-8')
                       : "https://ui-avatars.com/api/?name=" . urlencode($post['nome_comunidade']) . "&background=2b17e0&color=fff";
                   ?>
-                  <article class="post post-card-feed" data-post-id="<?= $id_post ?>">
+                  <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-community-id="<?= $id_comunidade ?>">
                     <div class="post-header">
                       <div class="post-avatar">
-                        <a href="php/comunidade.php?id=<?= $id_comunidade ?>" title="Ver comunidade <?= $nome_comunidade ?>">
+                        <a href="php/comunidade.php?id=<?= $id_comunidade ?>" title="Ver comunidade <?= $nome_comunidade ?>" onclick="event.stopPropagation();">
                           <img src="<?= $img_comunidade ?>" alt="<?= $nome_comunidade ?>">
                         </a>
                       </div>
                       <div class="post-header-info">
                         <div class="post-user-info">
                           <h4>
-                            <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-community-name">
+                            <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-community-name" onclick="event.stopPropagation();">
                               <?= $nome_comunidade ?>
                             </a>
                           </h4>
@@ -424,11 +442,19 @@ if ($id_usuario_logado > 0) {
                     <div class="post-content"><?= $conteudo ?></div>
 
                     <div class="post-actions">
-                      <button type="button" class="post-action btn-curtir-action <?= $curtiu ? 'curtido' : '' ?>" onclick="curtirPostRecente(<?= $id_post ?>, this)" title="<?= $curtiu ? 'Descurtir post' : 'Curtir post' ?>">
+                      <button type="button" class="post-action btn-curtir-action <?= $curtiu ? 'curtido' : '' ?>" onclick="event.stopPropagation(); curtirPostRecente(<?= $id_post ?>, this)" title="<?= $curtiu ? 'Descurtir post' : 'Curtir post' ?>">
                         <span class="like-icon"><?= $curtiu ? '❤️' : '🤍' ?></span>
                         <span class="like-count"><?= $total_curtidas ?></span>
                       </button>
-                      <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-action post-comment-action" title="Ver comentários na comunidade">
+
+                      <?php if ($id_usuario_logado > 0 && intval($post['autor_id'] ?? 0) === $id_usuario_logado): ?>
+                        <button type="button" class="post-action post-pin-action" onclick="event.stopPropagation(); fixarPostPerfil(<?= $id_post ?>, this)" title="<?= intval($usuario_post_fixado) === $id_post ? 'Desfixar do perfil' : 'Fixar no perfil' ?>">
+                          <span><?= intval($usuario_post_fixado) === $id_post ? '📌' : '📍' ?></span>
+                          <span><?= intval($usuario_post_fixado) === $id_post ? 'Desfixar' : 'Fixar' ?></span>
+                        </button>
+                      <?php endif; ?>
+
+                      <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-action post-comment-action" title="Ver comentários na comunidade" onclick="event.stopPropagation();">
                         <span class="comment-icon">💬</span>
                         <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
                       </a>
@@ -621,6 +647,55 @@ if ($id_usuario_logado > 0) {
             }
         });
     }
+
+    async function fixarPostPerfil(idPost, btnElement) {
+        const idUsuarioLogado = parseInt(document.body.dataset.idUsuario, 10) || 0;
+        if (idUsuarioLogado <= 0) {
+            abrirModalAutenticacao(0, "Você precisa estar logado para fixar um post no perfil.");
+            return;
+        }
+
+        if (!btnElement || btnElement.disabled) return;
+        btnElement.disabled = true;
+
+        const csrfToken = "<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>";
+
+        try {
+            const response = await fetch('php/fixar_post.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_post=${idPost}`
+            });
+
+            const data = await response.json();
+            if (data.sucesso) {
+                window.location.reload();
+                return;
+            }
+
+            alert(data.mensagem || 'Não foi possível fixar este post no perfil.');
+        } catch (err) {
+            console.error('Erro ao fixar post no perfil:', err);
+            alert('Erro ao fixar este post no perfil.');
+        } finally {
+            if (btnElement) btnElement.disabled = false;
+        }
+    }
+
+    document.querySelectorAll('.post-card-feed').forEach((postCard) => {
+        postCard.addEventListener('click', function(event) {
+            const isInteractive = event.target.closest('button, a, input, textarea, select, .post-action, .post-pin-action, .post-comment-action, .btn-curtir-action');
+            if (isInteractive) return;
+
+            const idPost = this.dataset.postId;
+            const communityId = this.dataset.communityId;
+            if (idPost && communityId) {
+                window.location.href = `php/post_detalhes.php?id_post=${idPost}`;
+            }
+        });
+    });
 
     // Função assíncrona para curtir/descurtir posts recentes dinamicamente
     async function curtirPostRecente(idPost, btnElement) {

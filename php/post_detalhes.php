@@ -101,6 +101,10 @@ if ($resultado_comentarios) {
                         <span>💬</span>
                         <span><?= intval($post['total_comentarios']) ?></span>
                     </span>
+                    <a href="comunidade.php?id=<?= intval($post['id_comunidade']) ?>" class="post-action" style="text-decoration:none; color:#2563eb; font-weight:700; display:inline-flex; align-items:center; gap:6px;">
+                        <span>🏠</span>
+                        <span>Ir para a comunidade</span>
+                    </a>
                 </div>
             </div>
 
