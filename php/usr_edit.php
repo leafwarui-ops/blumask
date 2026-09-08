@@ -280,14 +280,14 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
                 <!-- Nome de usuário -->
                 <div class="form-group">
                   <label for="nome_usr">Nome de usuario <span class="required-asterisk">*</span></label>
-                  <input id="nome_usr" name="nome_usr" type="text" value="<?= $nomeUsuario ?>" minlength="4" maxlength="20" required>
+                  <input id="nome_usr" name="nome_usr" type="text" value="<?= $nomeUsuario ?>" minlength="4" maxlength="20" placeholder="Mínimo de 4 caracteres" required>
                   <span id="err-nome_usr" class="field-error"></span>
                 </div>
 
                 <!-- Nome de exibição -->
                 <div class="form-group">
                   <label for="nome_exb">Nome de exibição <span class="required-asterisk">*</span></label>
-                  <input id="nome_exb" name="nome_exb" type="text" value="<?= $nomeExibicao ?>" minlength="2" maxlength="10" required>
+                  <input id="nome_exb" name="nome_exb" type="text" value="<?= $nomeExibicao ?>" minlength="2" maxlength="10" placeholder="Mínimo de 2 caracteres" required>
                   <span id="err-nome_exb" class="field-error"></span>
                 </div>
 
@@ -308,7 +308,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
                 <!-- Nova Senha -->
                 <div class="form-group">
                   <label for="nova_senha">Nova Senha <span style="font-size: 0.8rem; font-weight: normal; color: #666;">(Opcional)</span></label>
-                  <input id="nova_senha" name="nova_senha" type="password" placeholder="Preencha apenas se quiser alterar">
+                  <input id="nova_senha" name="nova_senha" type="password" minlength="8" maxlength="32" placeholder="Mínimo de 8 caracteres (maiúscula e símbolo)">
                   <span id="err-nova_senha" class="field-error"></span>
                 </div>
 
@@ -521,7 +521,8 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
         // 6. Nova Senha (opcional, mas se preenchida deve bater com a regex 8-32, maiúscula, símbolo)
         if (hasNovaSenha) {
           const passRegex = /^(?=.*[A-Z])(?=.*[\W_]).{8,32}$/;
-          if (!passRegex.test(inputNovaSenha.value)) {
+          const atendeRequisitos = passRegex.test(inputNovaSenha.value);
+          if (!atendeRequisitos) {
             isValid = false;
             inputNovaSenha.classList.add("invalid");
             errNovaSenha.textContent = "8-32 caracteres, com maiúscula e símbolo.";

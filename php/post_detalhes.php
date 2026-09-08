@@ -117,7 +117,7 @@ if ($resultado_comentarios) {
                     <form id="formComentarioDetalhe" class="form-comentario">
                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
-                        <textarea name="conteudo" placeholder="Digite seu comentário..." required></textarea>
+                        <textarea name="conteudo" minlength="2" maxlength="2000" placeholder="Digite seu comentário... (mín. 2 caracteres)" required></textarea>
                         <button type="submit">Enviar comentário</button>
                     </form>
                 </div>
@@ -172,6 +172,7 @@ if ($resultado_comentarios) {
 
                 const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
                 if (conteudo.length < 2) {
+                    alert('O comentário deve ter no mínimo 2 caracteres.');
                     return;
                 }
 

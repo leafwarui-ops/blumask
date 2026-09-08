@@ -533,7 +533,7 @@ if ($id_usuario_logado > 0) {
 
           <div class="criar-comunidade-body">
             <div class="criar-comunidade-campos">
-              <input type="text" name="nome" id="input-nome-comunidade" placeholder="Nome da comunidade" minlength="2" maxlength="40" required>
+              <input type="text" name="nome" id="input-nome-comunidade" placeholder="Nome da comunidade (mín. 2 caracteres)" minlength="2" maxlength="40" required>
               <textarea name="descricao" id="input-descricao-comunidade" placeholder="Breve descrição da comunidade..." maxlength="200"></textarea>
             </div>
 
@@ -606,10 +606,10 @@ if ($id_usuario_logado > 0) {
 <!-- Script de Busca em Tempo Real -->
 <script src="js/busca.js?v=<?= time() ?>"></script>
 <!-- Script responsável por construir os inputs (Email/Senha/etc) dinamicamente -->
-<script src="js/login_writter.js"></script>
+<script src="js/login_writter.js?v=<?= time() ?>"></script>
 <?php if (isset($_SESSION['usuario'])): ?>
 <!-- Script para controle e carregamento do Painel de Comunidades -->
-<script src="js/comunidade.js"></script>
+<script src="js/comunidade.js?v=<?= time() ?>"></script>
 <?php endif; ?>
 
 <!-- Script para controle de exibição e alternância de abas do Modal de Autenticação -->

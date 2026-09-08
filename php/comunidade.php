@@ -118,10 +118,10 @@ if ($resultado_count) {
                 <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
 
                 <label for="editarAssunto">Título do post</label>
-                <input type="text" id="editarAssunto" name="assunto" maxlength="150" required>
+                <input type="text" id="editarAssunto" name="assunto" minlength="3" maxlength="150" placeholder="Título do post (mín. 3 caracteres)" required>
 
                 <label for="editarConteudo">Conteúdo</label>
-                <textarea id="editarConteudo" name="conteudo" maxlength="5000" required></textarea>
+                <textarea id="editarConteudo" name="conteudo" minlength="5" maxlength="5000" placeholder="Conteúdo do post (mín. 5 caracteres)" required></textarea>
 
                 <div class="modal-actions">
                     <button type="button" class="modal-btn modal-btn-cancel" onclick="fecharModal()">Cancelar</button>
@@ -134,7 +134,7 @@ if ($resultado_count) {
                 <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
 
                 <label for="editarNomeComunidade">Nome da comunidade</label>
-                <input type="text" id="editarNomeComunidade" name="nome" maxlength="40" required>
+                <input type="text" id="editarNomeComunidade" name="nome" minlength="2" maxlength="40" placeholder="Nome da comunidade (mín. 2 caracteres)" required>
 
                 <label for="editarDescricaoComunidade">Descrição</label>
                 <textarea id="editarDescricaoComunidade" name="descricao" maxlength="200" rows="4"></textarea>
@@ -226,9 +226,9 @@ if ($resultado_count) {
                                 <input type="hidden" name="csrf_token" value="<?php echo isset($_SESSION['csrf_token']) ? htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') : ''; ?>">
                                 <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
                                 
-                                <input type="text" name="assunto" placeholder="Título do post" required>
+                                <input type="text" id="novo-post-assunto" name="assunto" placeholder="Título do post (mín. 3 caracteres)" minlength="3" maxlength="150" required>
                                 
-                                <textarea name="conteudo" placeholder="O que você quer compartilhar?" required></textarea>
+                                <textarea id="novo-post-conteudo" name="conteudo" placeholder="O que você quer compartilhar? (mín. 5 caracteres)" minlength="5" maxlength="5000" required></textarea>
                                 
                                 <button type="submit">Publicar</button>
                             </form>
@@ -301,7 +301,7 @@ if ($resultado_count) {
                                     <form class="form-comentario" data-post-id="<?= $post['id_post'] ?>">
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
-                                        <textarea name="conteudo" rows="3" placeholder="Escreva um comentário..." required></textarea>
+                                        <textarea name="conteudo" rows="3" minlength="2" maxlength="2000" placeholder="Escreva um comentário... (mín. 2 caracteres)" required></textarea>
                                         <button type="submit">Comentar</button>
                                     </form>
                                 </div>
@@ -616,6 +616,7 @@ if ($resultado_count) {
 
                 const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
                 if (conteudo.length < 2) {
+                    alert('O comentário deve ter no mínimo 2 caracteres.');
                     return;
                 }
 
@@ -649,9 +650,11 @@ if ($resultado_count) {
                 const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
 
                 if (assunto.length < 3) {
+                    alert('O título do post deve ter no mínimo 3 caracteres.');
                     return;
                 }
                 if (conteudo.length < 5) {
+                    alert('O conteúdo do post deve ter no mínimo 5 caracteres.');
                     return;
                 }
                 
@@ -665,9 +668,14 @@ if ($resultado_count) {
                 .then(data => {
                     if (data.sucesso) {
                         location.reload();
+                    } else {
+                        alert(data.mensagem || 'Não foi possível publicar o post.');
                     }
                 })
-                .catch(error => console.error('Erro:', error));
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao criar post. Tente novamente.');
+                });
             });
         }
 
@@ -679,7 +687,12 @@ if ($resultado_count) {
                 const assunto = this.querySelector('input[name="assunto"]').value.trim();
                 const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
 
-                if (assunto.length < 3 || conteudo.length < 5) {
+                if (assunto.length < 3) {
+                    document.getElementById('modalMessage').textContent = 'O título do post deve ter no mínimo 3 caracteres.';
+                    return;
+                }
+                if (conteudo.length < 5) {
+                    document.getElementById('modalMessage').textContent = 'O conteúdo do post deve ter no mínimo 5 caracteres.';
                     return;
                 }
 
