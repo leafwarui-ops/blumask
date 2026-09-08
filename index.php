@@ -669,17 +669,12 @@ if ($id_usuario_logado > 0) {
     }
 
     if (login) {
-        login.addEventListener("click", (event) => {
-            const bordas = login.getBoundingClientRect();
-            if (
-                event.clientX < bordas.left ||
-                event.clientX > bordas.right ||
-                event.clientY > bordas.bottom ||
-                event.clientY < bordas.top
-            ) {
-                login.close();
-            }
-        });
+      // Fecha apenas quando o clique for no backdrop do dialog (evita fechar em seleção/drag)
+      login.addEventListener("click", (event) => {
+        if (event.target === login) {
+          login.close();
+        }
+      });
     }
 
     async function fixarPostPerfil(idPost, btnElement) {

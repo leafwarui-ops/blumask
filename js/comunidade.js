@@ -35,15 +35,9 @@ document.addEventListener("DOMContentLoaded", () => {
         dialogCriar.close();
     });
 
-    // Fecha ao clicar fora da caixa da dialog
+    // Fecha ao clicar no backdrop (não fecha ao clicar dentro do conteúdo)
     dialogCriar.addEventListener("click", (event) => {
-        const bordas = dialogCriar.getBoundingClientRect();
-        if (
-            event.clientX < bordas.left ||
-            event.clientX > bordas.right ||
-            event.clientY > bordas.bottom ||
-            event.clientY < bordas.top
-        ) {
+        if (event.target === dialogCriar) {
             dialogCriar.close();
         }
     });

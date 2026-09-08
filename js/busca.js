@@ -347,14 +347,9 @@ document.addEventListener("DOMContentLoaded", () => {
     [dialogUsuario, dialogComunidade].forEach(dialog => {
         if (!dialog) return;
 
+        // Fecha apenas ao clicar no backdrop do dialog
         dialog.addEventListener("click", (event) => {
-            const rect = dialog.getBoundingClientRect();
-            if (
-                event.clientX < rect.left ||
-                event.clientX > rect.right ||
-                event.clientY < rect.top ||
-                event.clientY > rect.bottom
-            ) {
+            if (event.target === dialog) {
                 dialog.close();
             }
         });
