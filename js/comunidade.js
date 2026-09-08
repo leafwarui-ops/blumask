@@ -54,12 +54,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const arquivo = inputImagem.files[0];
         if (!arquivo) return;
 
-        if (arquivo.size > MAX_FILE_SIZE) {
-            alert("A imagem selecionada excede o limite máximo de 30MB.");
-            inputImagem.value = "";
-            resetPreviewImagem();
-            return;
-        }
+        // NOTE: check commented for testing to allow larger uploads temporarily
+        // if (arquivo.size > MAX_FILE_SIZE) {
+        //     alert("A imagem selecionada excede o limite máximo de 30MB.");
+        //     inputImagem.value = "";
+        //     resetPreviewImagem();
+        //     return;
+        // }
 
         const reader = new FileReader();
         reader.onload = function (event) {

@@ -78,10 +78,11 @@ if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === UPLOAD_ERR_OK) {
     $name = $_FILES['imagem']['name'];
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
 
-    if ($size > $max_file_size) {
-        echo json_encode(["sucesso" => false, "mensagem" => "A imagem selecionada excede o limite máximo de 30MB."]);
-        exit;
-    }
+    // NOTE: temporarily disabled size check for testing - allows larger uploads
+    // if ($size > $max_file_size) {
+    //     echo json_encode(["sucesso" => false, "mensagem" => "A imagem selecionada excede o limite máximo de 30MB."]);
+    //     exit;
+    // }
 
     if (!in_array($ext, $extensoes_permitidas)) {
         echo json_encode(["sucesso" => false, "mensagem" => "Formato de imagem inválido. Use JPG, PNG, GIF ou WEBP."]);
