@@ -67,9 +67,8 @@ $descricao = htmlspecialchars($descricao_raw, ENT_QUOTES, 'UTF-8');
 $nome_esc = mysqli_real_escape_string($conn, $nome);
 $descricao_esc = mysqli_real_escape_string($conn, $descricao);
 
-// 6. Processamento de Upload da Imagem (máximo 30MB)
+// 6. Processamento de Upload da Imagem (sem limite de tamanho)
 $imagem_path = null;
-$max_file_size = 31457280; // 30MB
 $extensoes_permitidas = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 
 if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === UPLOAD_ERR_OK) {

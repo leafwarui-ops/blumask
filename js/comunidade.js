@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const listaComunidades = document.getElementById("communities-list");
     const erroMsg = document.getElementById("erro-criar-comunidade");
 
-    const MAX_FILE_SIZE = 31457280; // 30MB
+    // No client-side file size limit for community creation (removed per request)
 
     function resetPreviewImagem() {
         if (!previewImagem) return;

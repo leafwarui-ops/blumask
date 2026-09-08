@@ -539,7 +539,7 @@ if ($id_usuario_logado > 0) {
 
             <div class="criar-comunidade-foto">
               <span>Foto / Ícone:</span>
-              <label for="input-imagem-comunidade" class="avatar-upload" title="Escolher Imagem/GIF (máx 30MB)">
+              <label for="input-imagem-comunidade" class="avatar-upload" title="Escolher Imagem/GIF">
                 <img id="preview-imagem-comunidade" src="" alt="Preview">
                 <svg class="avatar-placeholder-icon" viewBox="0 0 24 24"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>
               </label>
