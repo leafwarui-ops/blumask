@@ -347,9 +347,12 @@ document.addEventListener("DOMContentLoaded", () => {
     [dialogUsuario, dialogComunidade].forEach(dialog => {
         if (!dialog) return;
 
-        // Fecha apenas ao clicar no backdrop do dialog
+        // Fecha apenas quando o pointerdown e o click ocorrerem no backdrop (evita fechar em seleção/drag)
+        let backdropPointerDown = false;
+        dialog.addEventListener('pointerdown', (e) => { backdropPointerDown = (e.target === dialog); });
+        window.addEventListener('pointerup', () => { backdropPointerDown = false; });
         dialog.addEventListener("click", (event) => {
-            if (event.target === dialog) {
+            if (event.target === dialog && backdropPointerDown) {
                 dialog.close();
             }
         });

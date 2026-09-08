@@ -669,9 +669,12 @@ if ($id_usuario_logado > 0) {
     }
 
     if (login) {
-      // Fecha apenas quando o clique for no backdrop do dialog (evita fechar em seleção/drag)
+      // Fecha apenas quando o pointerdown e o click ocorrerem no backdrop (evita fechar em seleção/drag)
+      let loginBackdropPointerDown = false;
+      login.addEventListener('pointerdown', (e) => { loginBackdropPointerDown = (e.target === login); });
+      window.addEventListener('pointerup', () => { loginBackdropPointerDown = false; });
       login.addEventListener("click", (event) => {
-        if (event.target === login) {
+        if (event.target === login && loginBackdropPointerDown) {
           login.close();
         }
       });
