@@ -88,7 +88,11 @@ if ($resultado_comentarios) {
                     </div>
                 </div>
 
-                <div class="post-detail-community"><?= htmlspecialchars($post['nome_comunidade'], ENT_QUOTES, 'UTF-8') ?></div>
+                <div class="post-detail-community">
+                    <a href="comunidade.php?id=<?= intval($post['id_comunidade']) ?>" style="text-decoration:none; color:#2563eb; font-weight:700;">
+                        <?= htmlspecialchars($post['nome_comunidade'], ENT_QUOTES, 'UTF-8') ?>
+                    </a>
+                </div>
                 <h2 class="post-detail-title"><?= htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8') ?></h2>
                 <div class="post-content"><?= htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8') ?></div>
 
@@ -101,10 +105,7 @@ if ($resultado_comentarios) {
                         <span>💬</span>
                         <span><?= intval($post['total_comentarios']) ?></span>
                     </span>
-                    <a href="comunidade.php?id=<?= intval($post['id_comunidade']) ?>" class="post-action" style="text-decoration:none; color:#2563eb; font-weight:700; display:inline-flex; align-items:center; gap:6px;">
-                        <span>🏠</span>
-                        <span>Ir para a comunidade</span>
-                    </a>
+                    <!-- 'Ir para a comunidade' agora acessível clicando no nome da comunidade acima -->
                 </div>
             </div>
 

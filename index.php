@@ -309,7 +309,9 @@ if ($id_usuario_logado > 0) {
           <div class="feed-tab-content active" id="feed-fixados">
             <?php if (!empty($pinned_posts)): ?>
               <div class="posts-feed">
-                <?php foreach ($pinned_posts as $post): ?>
+                <?php 
+                  $authorsCache = [];
+                  foreach ($pinned_posts as $post): ?>
                   <?php 
                     $id_post = intval($post['id_post']);
                     $id_comunidade = intval($post['id_comunidade']);
@@ -325,19 +327,34 @@ if ($id_usuario_logado > 0) {
                     $img_comunidade = !empty($post['imagem_comunidade'])
                       ? htmlspecialchars($post['imagem_comunidade'], ENT_QUOTES, 'UTF-8')
                       : "https://ui-avatars.com/api/?name=" . urlencode($post['nome_comunidade']) . "&background=2b17e0&color=fff";
+
+                    // Obter informações do autor (avatar e nome) — cache simples
+                    $autor_id = intval($post['autor_id'] ?? 0);
+                    $authorName = $nome_comunidade;
+                    $authorAvatar = $img_comunidade;
+                    if ($autor_id > 0) {
+                        if (!isset($authorsCache[$autor_id])) {
+                            $resA = mysqli_query($conn, "SELECT nome_de_exibicao, nome_de_usuario, foto_perfil FROM usuario WHERE id_usuario = $autor_id LIMIT 1");
+                            $authorsCache[$autor_id] = ($resA && mysqli_num_rows($resA) > 0) ? mysqli_fetch_assoc($resA) : null;
+                        }
+                        if (!empty($authorsCache[$autor_id])) {
+                            $authorName = htmlspecialchars($authorsCache[$autor_id]['nome_de_exibicao'] ?? $authorsCache[$autor_id]['nome_de_usuario'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
+                            $authorAvatar = !empty($authorsCache[$autor_id]['foto_perfil']) ? htmlspecialchars($authorsCache[$autor_id]['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($authorName) . "&background=random";
+                        }
+                    }
                   ?>
                   <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-community-id="<?= $id_comunidade ?>">
                     <div class="post-header">
                       <div class="post-avatar">
-                        <a href="php/comunidade.php?id=<?= $id_comunidade ?>" title="Ver comunidade <?= $nome_comunidade ?>" onclick="event.stopPropagation();">
-                          <img src="<?= $img_comunidade ?>" alt="<?= $nome_comunidade ?>">
+                        <a href="php/user_view.php?id=<?= $autor_id ?>" title="Ver perfil de <?= $authorName ?>" onclick="event.stopPropagation();">
+                          <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>">
                         </a>
                       </div>
                       <div class="post-header-info">
                         <div class="post-user-info">
                           <h4>
-                            <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-community-name" onclick="event.stopPropagation();">
-                              <?= $nome_comunidade ?>
+                            <a href="php/user_view.php?id=<?= $autor_id ?>" class="post-community-name" onclick="event.stopPropagation();">
+                              <?= $authorName ?>
                             </a>
                           </h4>
                         </div>
@@ -397,7 +414,9 @@ if ($id_usuario_logado > 0) {
           <div class="feed-tab-content" id="feed-recentes" style="display: none;">
             <?php if (!empty($recent_posts)): ?>
               <div class="posts-feed">
-                <?php foreach ($recent_posts as $post): ?>
+                <?php 
+                  // Reutiliza o cache de autores
+                  foreach ($recent_posts as $post): ?>
                   <?php 
                     $id_post = intval($post['id_post']);
                     $id_comunidade = intval($post['id_comunidade']);
@@ -413,19 +432,34 @@ if ($id_usuario_logado > 0) {
                     $img_comunidade = !empty($post['imagem_comunidade'])
                       ? htmlspecialchars($post['imagem_comunidade'], ENT_QUOTES, 'UTF-8')
                       : "https://ui-avatars.com/api/?name=" . urlencode($post['nome_comunidade']) . "&background=2b17e0&color=fff";
+
+                    // Obter informações do autor (avatar e nome) — usa $authorsCache
+                    $autor_id = intval($post['autor_id'] ?? 0);
+                    $authorName = $nome_comunidade;
+                    $authorAvatar = $img_comunidade;
+                    if ($autor_id > 0) {
+                        if (!isset($authorsCache[$autor_id])) {
+                            $resA = mysqli_query($conn, "SELECT nome_de_exibicao, nome_de_usuario, foto_perfil FROM usuario WHERE id_usuario = $autor_id LIMIT 1");
+                            $authorsCache[$autor_id] = ($resA && mysqli_num_rows($resA) > 0) ? mysqli_fetch_assoc($resA) : null;
+                        }
+                        if (!empty($authorsCache[$autor_id])) {
+                            $authorName = htmlspecialchars($authorsCache[$autor_id]['nome_de_exibicao'] ?? $authorsCache[$autor_id]['nome_de_usuario'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
+                            $authorAvatar = !empty($authorsCache[$autor_id]['foto_perfil']) ? htmlspecialchars($authorsCache[$autor_id]['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($authorName) . "&background=random";
+                        }
+                    }
                   ?>
                   <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-community-id="<?= $id_comunidade ?>">
                     <div class="post-header">
                       <div class="post-avatar">
-                        <a href="php/comunidade.php?id=<?= $id_comunidade ?>" title="Ver comunidade <?= $nome_comunidade ?>" onclick="event.stopPropagation();">
-                          <img src="<?= $img_comunidade ?>" alt="<?= $nome_comunidade ?>">
+                        <a href="php/user_view.php?id=<?= $autor_id ?>" title="Ver perfil de <?= $authorName ?>" onclick="event.stopPropagation();">
+                          <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>">
                         </a>
                       </div>
                       <div class="post-header-info">
                         <div class="post-user-info">
                           <h4>
-                            <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-community-name" onclick="event.stopPropagation();">
-                              <?= $nome_comunidade ?>
+                            <a href="php/user_view.php?id=<?= $autor_id ?>" class="post-community-name" onclick="event.stopPropagation();">
+                              <?= $authorName ?>
                             </a>
                           </h4>
                         </div>

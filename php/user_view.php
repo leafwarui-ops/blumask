@@ -276,15 +276,15 @@ function userAvatar($user) {
                     <article class="post post-card-feed" data-post-id="<?= $id_post ?>">
                       <div class="post-header">
                         <div class="post-avatar">
-                          <a href="comunidade.php?id=<?= $id_comunidade ?>" title="Ver comunidade <?= $nome_comunidade ?>">
-                            <img src="<?= $img_comunidade ?>" alt="<?= $nome_comunidade ?>">
+                          <a href="user_view.php?id=<?= $profileUserId ?>" title="Ver perfil de <?= $profileName ?>">
+                            <img src="<?= $profileAvatar ?>" alt="<?= $profileName ?>">
                           </a>
                         </div>
                         <div class="post-header-info">
                           <div class="post-user-info">
                             <h4>
-                              <a href="comunidade.php?id=<?= $id_comunidade ?>" class="post-community-name">
-                                <?= $nome_comunidade ?>
+                              <a href="user_view.php?id=<?= $profileUserId ?>" class="post-community-name">
+                                <?= $profileName ?>
                               </a>
                             </h4>
                           </div>
@@ -353,15 +353,15 @@ function userAvatar($user) {
                     <article class="post post-card-feed" data-post-id="<?= $id_post ?>">
                       <div class="post-header">
                         <div class="post-avatar">
-                          <a href="comunidade.php?id=<?= $id_comunidade ?>" title="Ver comunidade <?= $nome_comunidade ?>">
-                            <img src="<?= $img_comunidade ?>" alt="<?= $nome_comunidade ?>">
+                          <a href="user_view.php?id=<?= $profileUserId ?>" title="Ver perfil de <?= $profileName ?>">
+                            <img src="<?= $profileAvatar ?>" alt="<?= $profileName ?>">
                           </a>
                         </div>
                         <div class="post-header-info">
                           <div class="post-user-info">
                             <h4>
-                              <a href="comunidade.php?id=<?= $id_comunidade ?>" class="post-community-name">
-                                <?= $nome_comunidade ?>
+                              <a href="user_view.php?id=<?= $profileUserId ?>" class="post-community-name">
+                                <?= $profileName ?>
                               </a>
                             </h4>
                           </div>
