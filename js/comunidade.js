@@ -35,17 +35,20 @@ document.addEventListener("DOMContentLoaded", () => {
         dialogCriar.close();
     });
 
-    // Fecha ao clicar no backdrop (não fecha ao clicar dentro do conteúdo)
-    dialogCriar.addEventListener("click", (event) => {
-            if (event.target === dialogCriar && backdropPointerDown) {
-                dialogCriar.close();
-            }
+    // Fecha ao clicar no backdrop: só fecha se o pointerdown também tiver ocorrido no backdrop
+    // ou se o pointerdown não começou dentro do conteúdo do dialog.
+    let pointerDownInsideContent = false;
+    let pointerDownOnBackdrop = false;
+    document.addEventListener('pointerdown', (e) => {
+        pointerDownOnBackdrop = (e.target === dialogCriar);
+        pointerDownInsideContent = (e.target.closest && e.target.closest('dialog') === dialogCriar && e.target !== dialogCriar);
     });
-
-        // Fecha apenas quando o pointerdown e o click ocorrerem no backdrop (evita fechar em seleção/drag)
-        let backdropPointerDown = false;
-        dialogCriar.addEventListener('pointerdown', (e) => { backdropPointerDown = (e.target === dialogCriar); });
-        window.addEventListener('pointerup', () => { backdropPointerDown = false; });
+    window.addEventListener('pointerup', () => { pointerDownInsideContent = false; pointerDownOnBackdrop = false; });
+    dialogCriar.addEventListener("click", (event) => {
+        if (event.target === dialogCriar && (pointerDownOnBackdrop || !pointerDownInsideContent)) {
+            dialogCriar.close();
+        }
+    });
     // Preview de Imagem (com checagem de max 30MB)
     inputImagem.addEventListener("change", () => {
         const arquivo = inputImagem.files[0];

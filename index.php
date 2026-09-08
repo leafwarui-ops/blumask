@@ -669,12 +669,17 @@ if ($id_usuario_logado > 0) {
     }
 
     if (login) {
-      // Fecha apenas quando o pointerdown e o click ocorrerem no backdrop (evita fechar em seleção/drag)
-      let loginBackdropPointerDown = false;
-      login.addEventListener('pointerdown', (e) => { loginBackdropPointerDown = (e.target === login); });
-      window.addEventListener('pointerup', () => { loginBackdropPointerDown = false; });
+      // Fecha ao clicar no backdrop: só fecha se o pointerdown também tiver ocorrido no backdrop
+      // ou se o pointerdown não começou dentro do conteúdo do dialog.
+      let loginPointerDownInsideContent = false;
+      let loginPointerDownOnBackdrop = false;
+      document.addEventListener('pointerdown', (e) => {
+          loginPointerDownOnBackdrop = (e.target === login);
+          loginPointerDownInsideContent = (e.target.closest && e.target.closest('dialog') === login && e.target !== login);
+      });
+      window.addEventListener('pointerup', () => { loginPointerDownInsideContent = false; loginPointerDownOnBackdrop = false; });
       login.addEventListener("click", (event) => {
-        if (event.target === login && loginBackdropPointerDown) {
+        if (event.target === login && (loginPointerDownOnBackdrop || !loginPointerDownInsideContent)) {
           login.close();
         }
       });
