@@ -21,6 +21,32 @@ hit_rate_limit('search_query');
 
 global $conn;
 
+function normalize_search_asset_path($value) {
+    if (empty($value)) {
+        return '';
+    }
+
+    $path = trim((string) $value);
+
+    if (preg_match('#^(https?:)?//#i', $path) || stripos($path, 'data:') === 0) {
+        return $path;
+    }
+
+    $path = preg_replace('#^/+|^\./|^\.\./#', '', $path);
+    $path = ltrim($path, '/');
+
+    if ($path === '') {
+        return '';
+    }
+
+    $absolutePath = __DIR__ . '/../' . $path;
+    if (!file_exists($absolutePath) || !is_file($absolutePath)) {
+        return '';
+    }
+
+    return $path;
+}
+
 // 2. Leitura e Sanitização dos Parâmetros GET
 $termo_raw = trim($_GET['q'] ?? '');
 $tipo_raw  = trim($_GET['tipo'] ?? 'todos');
@@ -71,8 +97,10 @@ if ($tipo === 'todos' || $tipo === 'usuarios') {
     if ($res_usuarios) {
         while ($row = mysqli_fetch_assoc($res_usuarios)) {
             $nome_exb = htmlspecialchars($row['nome_de_exibicao'] ?? '', ENT_QUOTES, 'UTF-8');
-            $foto = $row['foto_perfil'] ? htmlspecialchars($row['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($nome_exb ?: 'User') . "&background=random";
-            $banner = $row['banner'] ? htmlspecialchars($row['banner'], ENT_QUOTES, 'UTF-8') : null;
+            $foto_raw = normalize_search_asset_path($row['foto_perfil'] ?? '');
+            $foto = $foto_raw !== '' ? htmlspecialchars($foto_raw, ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($nome_exb ?: 'User') . "&background=random";
+            $banner_raw = normalize_search_asset_path($row['banner'] ?? '');
+            $banner = $banner_raw !== '' ? htmlspecialchars($banner_raw, ENT_QUOTES, 'UTF-8') : null;
 
             $usuarios[] = [
                 "id_usuario"       => intval($row['id_usuario']),
@@ -109,7 +137,8 @@ if ($tipo === 'todos' || $tipo === 'comunidades') {
     if ($res_comunidades) {
         while ($row = mysqli_fetch_assoc($res_comunidades)) {
             $nome_com = htmlspecialchars($row['nome'] ?? '', ENT_QUOTES, 'UTF-8');
-            $imagem = $row['imagem'] ? htmlspecialchars($row['imagem'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($nome_com ?: 'Comunidade') . "&background=random";
+            $imagem_raw = normalize_search_asset_path($row['imagem'] ?? '');
+            $imagem = $imagem_raw !== '' ? htmlspecialchars($imagem_raw, ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($nome_com ?: 'Comunidade') . "&background=random";
 
             $comunidades[] = [
                 "id_comunidade" => intval($row['id_comunidade']),

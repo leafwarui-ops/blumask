@@ -1,5 +1,14 @@
 /* ===== Botão "+Criar Comunidade" e Lista de Comunidades ===== */
 
+.communities-panel .panel-header {
+    background: #6d99e4;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.communities-panel .panel-header h2 {
+    color: #ffffff;
+}
+
 .communities-actions {
     margin: 12px 16px;
 }
@@ -37,7 +46,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    background-color: #fff;
+    background-color: #6d99e4;
     border-radius: 20px;
     padding: 8px 14px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.06);
@@ -46,7 +55,7 @@
 }
 
 .community-item a {
-    color: var(--text-dark, #1c1c1c);
+    color: #ffffff;
     text-decoration: none;
     font-weight: 600;
     font-size: 0.9rem;
@@ -61,6 +70,15 @@
 
 .community-item a:hover {
     text-decoration: underline;
+}
+
+.communities-panel .community-item {
+    background-color: #f9fcff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+}
+
+.communities-panel .community-item a {
+    color: #1c1c1c;
 }
 
 .community-avatar {
@@ -251,7 +269,7 @@ html {
 }
 
 body {
-    background-color: #e8f0f8;
+    background: linear-gradient(180deg, #b9d7ff 0%, #b9d7ff 100%);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -280,22 +298,90 @@ footer.bottombar {
     margin-top: auto;
 }
 
+.community-back-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+    text-decoration: none;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.community-back-btn:hover {
+    background: rgba(255, 255, 255, 0.28);
+    transform: translateX(-2px);
+}
+
+.community-back-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 .search-container {
-    width: 100%;
+    position: relative;
+    width: min(100%, 760px);
     max-width: none;
-    margin: 30px 0;
+    margin: 30px auto;
     padding: 0 20px;
 }
 
-.search-bar {
-    background: white;
-    border-radius: 50px;
-    padding: 15px 25px;
+.search-bar-interactive {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 12px 18px;
     display: flex;
     align-items: center;
-    gap: 15px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    font-size: 18px;
+    gap: 12px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    position: relative;
+}
+
+.search-bar {
+    background: #ffffff;
+    border-radius: 28px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+}
+
+.search-results-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(720px, 78vw);
+    max-width: 720px;
+    background: rgba(255, 255, 255, 0.98);
+    border-radius: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.14);
+    max-height: 340px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.search-results-dropdown.show {
+    display: block;
+}
+
+.search-bar svg {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
 }
 
 .search-bar input {
@@ -304,10 +390,11 @@ footer.bottombar {
     flex: 1;
     font-size: 16px;
     color: #333;
+    background: transparent;
 }
 
 .search-bar input::placeholder {
-    color: #999;
+    color: #666;
 }
 
 .content-wrapper {
@@ -321,7 +408,7 @@ footer.bottombar {
 }
 
 .comunidade-card {
-    background: linear-gradient(135deg, #a8c5ff 0%, #d4a5ff 100%);
+    background: #d0eefb;
     border-radius: 20px;
     padding: 25px;
     text-align: center;
@@ -345,7 +432,7 @@ footer.bottombar {
 
 .comunidade-card h2 {
     margin: 15px 0 10px;
-    color: #1a1a1a;
+    color: #1f2f4d;
     font-size: 22px;
     line-height: 1.2;
     max-width: 100%;
@@ -356,7 +443,7 @@ footer.bottombar {
 }
 
 .comunidade-card .descricao {
-    color: #333;
+    color: rgba(19, 33, 53, 0.9);
     font-size: 14px;
     line-height: 1.4;
     margin-bottom: 15px;
@@ -402,37 +489,41 @@ footer.bottombar {
 }
 
 .btn-admin {
-    background-color: rgba(255, 255, 255, 0.3);
-    color: #1a1a1a;
-    border: none;
+    background-color: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.32);
     padding: 8px 16px;
-    border-radius: 8px;
+    border-radius: 10px;
     cursor: pointer;
     font-size: 13px;
-    font-weight: 600;
-    transition: all 0.3s ease;
+    font-weight: 700;
+    transition: all 0.25s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
 }
 
 .btn-admin:hover {
-    background-color: rgba(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.35);
+    transform: translateY(-1px);
 }
 
 .btn-admin-edit {
-    background-color: rgba(37, 99, 235, 0.2);
-    color: #1976d2;
+    background-color: rgba(37, 99, 235, 0.9);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.18);
 }
 
 .btn-admin-edit:hover {
-    background-color: rgba(37, 99, 235, 0.4);
+    background-color: rgba(29, 78, 216, 1);
 }
 
 .btn-admin-delete {
-    background-color: rgba(255, 59, 48, 0.3);
-    color: #c41c3b;
+    background-color: rgba(220, 38, 38, 0.92);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 .btn-admin-delete:hover {
-    background-color: rgba(255, 59, 48, 0.6);
+    background-color: rgba(185, 28, 28, 1);
 }
 
 .posts-section h3 {
@@ -445,19 +536,21 @@ footer.bottombar {
 }
 
 .btn-novo-post {
-    background-color: #2563eb;
-    color: white;
+    background: var(--accent-blue, #2b17e0);
+    color: #ffffff;
     border: none;
     padding: 8px 16px;
-    border-radius: 8px;
+    border-radius: 12px;
     cursor: pointer;
-    font-weight: bold;
+    font-weight: 700;
     font-size: 14px;
-    transition: background 0.3s;
+    transition: filter 0.2s ease, transform 0.2s ease;
+    box-shadow: 0 4px 10px rgba(43, 23, 224, 0.2);
 }
 
 .btn-novo-post:hover {
-    background-color: #1d4ed8;
+    filter: brightness(1.08);
+    transform: translateY(-1px);
 }
 
 .post {
@@ -983,27 +1076,28 @@ footer.bottombar {
 }
 
 .modal-content {
-    background: white;
-    border-radius: 16px;
-    padding: 30px;
+    background: #d0eefb;
+    border: none;
+    border-radius: 24px;
+    padding: 24px;
     max-width: 500px;
     width: 90%;
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
     animation: slideUp 0.3s ease;
 }
 
 .modal-header {
-    font-size: 20px;
+    font-size: 1.3rem;
     font-weight: 700;
-    color: #1a1a1a;
+    color: #1c1c1c;
     margin-bottom: 10px;
 }
 
 .modal-message {
-    color: #666;
-    font-size: 15px;
+    color: #334155;
+    font-size: 0.95rem;
     line-height: 1.5;
-    margin-bottom: 25px;
+    margin-bottom: 18px;
 }
 
 .modal-form {
@@ -1021,13 +1115,20 @@ footer.bottombar {
 .modal-form textarea {
     width: 100%;
     box-sizing: border-box;
-    border: 1px solid #d1d5db;
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 18px;
+    border: 1px solid #c7d2fe;
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
     font: inherit;
     resize: vertical;
     background: #fff;
+    outline: none;
+}
+
+.modal-form input:focus,
+.modal-form textarea:focus {
+    border-color: var(--accent-blue, #2b17e0);
+    box-shadow: 0 0 0 2px rgba(43, 23, 224, 0.12);
 }
 
 .modal-form textarea {
@@ -1041,25 +1142,26 @@ footer.bottombar {
 }
 
 .modal-btn {
-    padding: 10px 20px;
+    padding: 10px 18px;
     border: none;
-    border-radius: 8px;
+    border-radius: 12px;
     cursor: pointer;
-    font-weight: 600;
-    transition: all 0.3s ease;
+    font-weight: 700;
+    transition: all 0.25s ease;
 }
 
 .modal-btn-cancel {
-    background: #e0e0e0;
-    color: #333;
+    background: #ffffff;
+    color: #1f2937;
+    border: 1px solid rgba(15, 23, 42, 0.12);
 }
 
 .modal-btn-cancel:hover {
-    background: #d0d0d0;
+    background: #f3f4f6;
 }
 
 .modal-btn-confirm {
-    background: #2563eb;
+    background: var(--accent-blue, #2b17e0);
     color: white;
 }
 
@@ -1068,12 +1170,12 @@ footer.bottombar {
 }
 
 .modal-btn-danger {
-    background: #d93025;
+    background: #dc2626;
     color: white;
 }
 
 .modal-btn-danger:hover {
-    background: #c41c3b;
+    background: #b91c1c;
 }
 
 @keyframes fadeIn {

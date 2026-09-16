@@ -84,6 +84,37 @@ foreach ($posts as $post) {
     ];
 }
 
+function resolve_avatar_url($foto_perfil, $nome_exibicao) {
+    $nome = trim((string) ($nome_exibicao ?? 'User'));
+    $fallback = 'https://ui-avatars.com/api/?name=' . urlencode($nome) . '&background=random';
+
+    if (empty($foto_perfil)) {
+        return $fallback;
+    }
+
+    $path = trim((string) $foto_perfil);
+
+    if (preg_match('#^(https?:)?//#i', $path) || preg_match('#^data:#i', $path)) {
+        return htmlspecialchars($path, ENT_QUOTES, 'UTF-8');
+    }
+
+    if (str_starts_with($path, '/')) {
+        $relativePath = ltrim($path, '/');
+        if (file_exists(__DIR__ . '/../' . $relativePath) && is_file(__DIR__ . '/../' . $relativePath)) {
+            return htmlspecialchars($path, ENT_QUOTES, 'UTF-8');
+        }
+        return $fallback;
+    }
+
+    $normalized = ltrim($path, './');
+    $absolutePath = __DIR__ . '/../' . $normalized;
+    if (file_exists($absolutePath) && is_file($absolutePath)) {
+        return htmlspecialchars('../' . $normalized, ENT_QUOTES, 'UTF-8');
+    }
+
+    return $fallback;
+}
+
 // Contar membros
 $sql_count_membros = "SELECT COUNT(*) as total FROM membro_comunidade WHERE id_comunidade = $id_comunidade";
 $resultado_count = mysqli_query($conn, $sql_count_membros);
@@ -103,6 +134,7 @@ if ($resultado_count) {
     <title><?= htmlspecialchars($comunidade['nome'], ENT_QUOTES, 'UTF-8') ?> - BluMask</title>
     <link rel="icon" type="image/webp" href="../style/blumaskWhiteLogo.webp">
     <link rel="stylesheet" href="../style/index_style.css">
+    <link rel="stylesheet" href="../style/busca_style.css?v=<?= time() ?>">
     <link rel="stylesheet" href="../style/comunidade_style.css?v=<?= time() ?>">
 </head>
 <body>
@@ -133,14 +165,28 @@ if ($resultado_count) {
                 <input type="hidden" name="csrf_token" value="<?php echo isset($_SESSION['csrf_token']) ? htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') : ''; ?>">
                 <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
 
-                <label for="editarNomeComunidade">Nome da comunidade</label>
-                <input type="text" id="editarNomeComunidade" name="nome" minlength="2" maxlength="40" placeholder="Nome da comunidade (mín. 2 caracteres)" required>
+                <div class="criar-comunidade-body" style="margin-bottom: 12px;">
+                    <div class="criar-comunidade-campos">
+                        <div>
+                            <label for="editarNomeComunidade">Nome da comunidade</label>
+                            <input type="text" id="editarNomeComunidade" name="nome" minlength="2" maxlength="40" placeholder="Nome da comunidade (mín. 2 caracteres)" required>
+                        </div>
 
-                <label for="editarDescricaoComunidade">Descrição</label>
-                <textarea id="editarDescricaoComunidade" name="descricao" maxlength="200" rows="4"></textarea>
+                        <div>
+                            <label for="editarDescricaoComunidade">Descrição</label>
+                            <textarea id="editarDescricaoComunidade" name="descricao" maxlength="200" rows="4"></textarea>
+                        </div>
+                    </div>
 
-                <label for="editarImagemComunidade">Nova imagem da comunidade</label>
-                <input type="file" id="editarImagemComunidade" name="imagem" accept="image/jpeg,image/png,image/gif,image/webp">
+                    <div class="criar-comunidade-foto" style="align-items: center; justify-content: center;">
+                        <span>Foto / Ícone:</span>
+                        <label for="editarImagemComunidade" class="avatar-upload" title="Escolher imagem da comunidade" style="width:72px; height:72px; margin-top: 4px; display: flex; align-items: center; justify-content: center;">
+                            <img id="preview-imagem-comunidade-editar" src="" alt="Preview da comunidade">
+                            <svg class="avatar-placeholder-icon" viewBox="0 0 24 24"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>
+                        </label>
+                        <input type="file" id="editarImagemComunidade" name="imagem" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" hidden>
+                    </div>
+                </div>
 
                 <div class="modal-actions">
                     <button type="button" class="modal-btn modal-btn-cancel" onclick="fecharModal()">Cancelar</button>
@@ -155,25 +201,37 @@ if ($resultado_count) {
         </div>
     </div>
     <div class="page">
-        <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100;">
+        <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9; border-bottom: 1px solid rgba(255,255,255,0.2); position: sticky; top: 0; z-index: 100;">
             <div style="display: flex; align-items: center; gap: 12px;">
-                <a href="../index.php" style="text-decoration: none; display: flex; align-items: center; gap: 8px; color: #333;">
+                <a href="../index.php" class="community-back-btn" title="Voltar para a página inicial" aria-label="Voltar para a página inicial">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18L9 12L15 6"/></svg>
+                </a>
+                <a href="../index.php" style="text-decoration: none; display: flex; align-items: center; gap: 8px; color: #fff;">
                     <img src="../style/blumaskBlueLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
-                    <h1 style="margin: 0; font-size: 20px;">BluMask</h1>
+                    <h1 style="margin: 0; font-size: 20px; color: #fff;">BluMask</h1>
                 </a>
             </div>
             <?php if (isset($_SESSION['usuario'])): ?>
-                <a href="../index.php?logout=1" style="text-decoration: none; color: #ff4d4d; font-weight: bold; font-size: 14px;">Sair</a>
+                <a href="../index.php?logout=1" class="topbar-logout">Sair</a>
             <?php endif; ?>
         </header>
 
         <main>
             <!-- BARRA DE BUSCA -->
             <div class="search-container">
-                <div class="search-bar">
-                    <span style="font-size: 24px;">🔍</span>
-                    <input type="text" placeholder="Procurando por Algo?" id="searchInput">
+                <div class="search-bar-interactive">
+                    <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2.5">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="input-busca" class="search-input" placeholder="Procurando por Algo? (usuários, comunidades...)" autocomplete="off">
+                    <div class="search-actions">
+                        <div class="search-spinner" id="busca-spinner" title="Buscando..."></div>
+                        <button type="button" class="btn-clear-search" id="btn-limpar-busca" title="Limpar busca">&times;</button>
+                    </div>
                 </div>
+
+                <div class="search-results-dropdown" id="busca-resultados-dropdown"></div>
             </div>
 
             <!-- CONTEÚDO PRINCIPAL -->
@@ -242,7 +300,7 @@ if ($resultado_count) {
                                 <div class="post-header">
                                     <a href="user_view.php?id=<?= (int) $post['id_usuario'] ?>" class="post-author-link" onclick="event.stopPropagation();" aria-label="Ver perfil de <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>">
                                         <div class="post-avatar">
-                                            <img src="<?= !empty($post['foto_perfil']) ? htmlspecialchars($post['foto_perfil'], ENT_QUOTES, 'UTF-8') : 'https://ui-avatars.com/api/?name=' . urlencode(htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8')) . '&background=random'; ?>" alt="Avatar">
+                                            <img src="<?= resolve_avatar_url($post['foto_perfil'] ?? null, $post['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar">
                                         </div>
                                     </a>
                                     <div class="post-header-info">
@@ -326,6 +384,7 @@ if ($resultado_count) {
         </main>
     </div>
 
+    <script src="../js/busca.js?v=<?= time() ?>"></script>
     <script>
         const postsMap = <?php echo json_encode($postsMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         let csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
@@ -719,6 +778,37 @@ if ($resultado_count) {
             });
         }
 
+        const editarImagemInput = document.getElementById('editarImagemComunidade');
+        const editarImagemPreview = document.getElementById('preview-imagem-comunidade-editar');
+        const editarImagemUpload = editarImagemPreview?.closest('.avatar-upload');
+
+        if (editarImagemInput && editarImagemPreview && editarImagemUpload) {
+            editarImagemInput.addEventListener('change', function() {
+                const file = this.files && this.files[0];
+                if (!file) {
+                    editarImagemPreview.src = '';
+                    editarImagemUpload.classList.remove('has-image');
+                    return;
+                }
+
+                const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'];
+                if (!validTypes.includes(file.type) && !(file.name && /\.(jpg|jpeg|jfif|png|gif|webp|avif)$/i.test(file.name))) {
+                    alert('Formato de imagem inválido. Use JPG, JPEG, JFIF, PNG, GIF, WEBP ou AVIF.');
+                    this.value = '';
+                    editarImagemPreview.src = '';
+                    editarImagemUpload.classList.remove('has-image');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    editarImagemPreview.src = e.target.result;
+                    editarImagemUpload.classList.add('has-image');
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
         const formEditarComunidade = document.getElementById('formEditarComunidade');
         if (formEditarComunidade) {
             formEditarComunidade.addEventListener('submit', function(e) {
@@ -765,19 +855,7 @@ if ($resultado_count) {
             });
         }
 
-        // ===== SEARCH FUNCTION =====
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.addEventListener('input', function(e) {
-                const query = e.target.value.toLowerCase();
-                const posts = document.querySelectorAll('.post');
-                
-                posts.forEach(post => {
-                    const content = post.textContent.toLowerCase();
-                    post.style.display = content.includes(query) ? 'block' : 'none';
-                });
-            });
-        }
+        // Busca da comunidade usa o mesmo dropdown do index, conforme o layout padrão do site.
     </script>
 </body>
 </html>

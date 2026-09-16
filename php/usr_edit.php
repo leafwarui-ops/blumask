@@ -112,7 +112,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         // Max file size: 30MB (31457280 bytes)
         $max_file_size = 31457280;
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        $allowed_extensions = ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'avif'];
 
         // 7. Upload do Banner (se enviado)
         $uploaded_banner_path = $bannerPath;
@@ -125,7 +125,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if ($b_size > $max_file_size) {
                 $error_message = "A imagem do banner excede o limite máximo de 30MB.";
             } elseif (!in_array($b_ext, $allowed_extensions)) {
-                $error_message = "Formato de imagem de banner inválido. Use JPG, PNG, GIF ou WEBP.";
+                $error_message = "Formato de imagem de banner inválido. Use JPG, JPEG, JFIF, PNG, GIF, WEBP ou AVIF.";
             } elseif (@getimagesize($b_tmp) === false) {
                 $error_message = "O arquivo enviado para o banner não é uma imagem válida.";
             } else {
@@ -155,7 +155,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if ($a_size > $max_file_size) {
                 $error_message = "A imagem de perfil excede o limite máximo de 30MB.";
             } elseif (!in_array($a_ext, $allowed_extensions)) {
-                $error_message = "Formato de foto de perfil inválido. Use JPG, PNG, GIF ou WEBP.";
+                $error_message = "Formato de foto de perfil inválido. Use JPG, JPEG, JFIF, PNG, GIF, WEBP ou AVIF.";
             } elseif (@getimagesize($a_tmp) === false) {
                 $error_message = "O arquivo enviado para foto de perfil não é uma imagem válida.";
             } else {
@@ -233,7 +233,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
     <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px;">
       <a href="../index.php" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;">
         <img src="../style/blumaskBlueLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
-        <h1 style="margin: 0;">BluMask</h1>
+        <h1 style="margin: 0; font-size: 20px;">BluMask</h1>
       </a>
     </header>
 
@@ -269,8 +269,8 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
           <form method="post" action="" enctype="multipart/form-data" id="edit-profile-form">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
             <!-- INPUTS ESCONDIDOS DE FILE -->
-            <input type="file" name="banner" id="banner-input" accept="image/*,.gif" style="display: none;">
-            <input type="file" name="avatar" id="avatar-input" accept="image/*,.gif" style="display: none;">
+            <input type="file" name="banner" id="banner-input" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" style="display: none;">
+            <input type="file" name="avatar" id="avatar-input" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" style="display: none;">
 
             <div class="edit-form-grid">
               
@@ -375,6 +375,23 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
       const avatarPreview = document.getElementById("avatar-preview");
 
       const MAX_FILE_SIZE = 31457280; // 30MB
+      const allowedExtensions = ["jpg", "jpeg", "jfif", "png", "gif", "webp", "avif"];
+
+      function isAllowedImageFile(file) {
+        if (!file) return false;
+        const fileName = file.name.toLowerCase();
+        const extension = fileName.split(".").pop();
+        const mime = file.type ? file.type.toLowerCase() : "";
+        const allowedMimeTypes = [
+          "image/jpeg",
+          "image/png",
+          "image/gif",
+          "image/webp",
+          "image/avif"
+        ];
+
+        return allowedMimeTypes.includes(mime) || allowedExtensions.includes(extension);
+      }
 
       // Valores Iniciais para detectar se houve alteração na página
       const initialNomeUsr   = inputNomeUsr.value.trim();
@@ -395,6 +412,11 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
             this.value = "";
             return;
           }
+          if (!isAllowedImageFile(file)) {
+            alert("Formato de banner inválido. Use JPG, JPEG, JFIF, PNG, GIF, WEBP ou AVIF.");
+            this.value = "";
+            return;
+          }
           const reader = new FileReader();
           reader.onload = function (e) {
             bannerPreview.style.backgroundImage = `url('${e.target.result}')`;
@@ -412,6 +434,11 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
         if (file) {
           if (file.size > MAX_FILE_SIZE) {
             alert("A foto de perfil selecionada excede o limite máximo de 30MB.");
+            this.value = "";
+            return;
+          }
+          if (!isAllowedImageFile(file)) {
+            alert("Formato de foto de perfil inválido. Use JPG, JPEG, JFIF, PNG, GIF, WEBP ou AVIF.");
             this.value = "";
             return;
           }

@@ -203,10 +203,10 @@ if ($id_usuario_logado > 0) {
   <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px;">
     <div style="display: flex; align-items: center; gap: 12px;">
       <img src="style/blumaskBlueLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
-      <h1 style="margin: 0;">BluMask</h1>
+      <h1 style="margin: 0; font-size: 20px;">BluMask</h1>
     </div>
     <?php if (isset($_SESSION['usuario'])): ?>
-        <a href="?logout=1" style="text-decoration: none; color: #ff4d4d; font-weight: bold; font-size: 14px;">Sair</a>
+        <a href="?logout=1" class="topbar-logout">Sair</a>
     <?php endif; ?>
   </header>
 
@@ -543,7 +543,7 @@ if ($id_usuario_logado > 0) {
                 <img id="preview-imagem-comunidade" src="" alt="Preview">
                 <svg class="avatar-placeholder-icon" viewBox="0 0 24 24"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>
               </label>
-              <input type="file" id="input-imagem-comunidade" name="imagem" accept="image/*,.gif" hidden>
+              <input type="file" id="input-imagem-comunidade" name="imagem" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" hidden>
             </div>
           </div>
 

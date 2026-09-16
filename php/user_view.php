@@ -125,12 +125,37 @@ function safeText($value) {
     return htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
-function userAvatar($user) {
-    if (!empty($user['foto_perfil'])) {
-        return htmlspecialchars($user['foto_perfil'], ENT_QUOTES, 'UTF-8');
+function resolve_asset_url($path, $fallback = null) {
+    $value = trim((string) ($path ?? ''));
+
+    if ($value === '') {
+        return $fallback ?? '';
     }
 
+    if (preg_match('#^(https?:)?//#i', $value) || stripos($value, 'data:') === 0) {
+        return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    }
+
+    $normalized = ltrim($value, './');
+    $absolutePath = __DIR__ . '/../' . $normalized;
+    if (file_exists($absolutePath) && is_file($absolutePath)) {
+        return htmlspecialchars('../' . $normalized, ENT_QUOTES, 'UTF-8');
+    }
+
+    if (strpos($value, '/') === 0) {
+        return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    }
+
+    return $fallback ?? htmlspecialchars('../' . $normalized, ENT_QUOTES, 'UTF-8');
+}
+
+function userAvatar($user) {
     $nome = $user['nome_de_exibicao'] ?? $user['nome_de_usuario'] ?? 'User';
+
+    if (!empty($user['foto_perfil'])) {
+        return resolve_asset_url($user['foto_perfil'], "https://ui-avatars.com/api/?name=" . urlencode($nome) . "&background=random");
+    }
+
     return "https://ui-avatars.com/api/?name=" . urlencode($nome) . "&background=random";
 }
 ?>
@@ -148,22 +173,22 @@ function userAvatar($user) {
 </head>
 <body data-id-usuario="<?= isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0 ?>">
   <div class="page">
-    <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px;">
+    <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9;">
       <div style="display: flex; align-items: center; gap: 12px; cursor: pointer;" onclick="window.location.href='../index.php'">
         <img src="../style/blumaskBlueLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
-        <h1 style="margin: 0;">BluMask</h1>
+        <h1 style="margin: 0; font-size: 20px; color: #fff;">BluMask</h1>
       </div>
       <div class="topbar-actions" style="display: flex; align-items: center; gap: 12px;">
         <?php if ($loggedUser): ?>
           <?php
             $headerAvatar = !empty($loggedUser['foto_perfil'])
-              ? htmlspecialchars($loggedUser['foto_perfil'], ENT_QUOTES, 'UTF-8')
+              ? resolve_asset_url($loggedUser['foto_perfil'], "https://ui-avatars.com/api/?name=" . urlencode(($loggedUser['nome_de_exibicao'] ?? $loggedUser['nome_de_usuario'] ?? 'User')) . "&background=random")
               : "https://ui-avatars.com/api/?name=" . urlencode(($loggedUser['nome_de_exibicao'] ?? $loggedUser['nome_de_usuario'] ?? 'User')) . "&background=random";
           ?>
           <button class="profile-avatar-button" type="button" onclick="window.location.href='../index.php'" title="Voltar para o início" aria-label="Voltar para o início">
             <img src="<?= $headerAvatar ?>" alt="Foto do perfil">
           </button>
-          <a href="../index.php?logout=1" style="text-decoration: none; color: #ff4d4d; font-weight: bold; font-size: 14px;">Sair</a>
+          <a href="../index.php?logout=1" class="topbar-logout">Sair</a>
         <?php endif; ?>
       </div>
     </header>
@@ -175,7 +200,9 @@ function userAvatar($user) {
             $profileName = safeText($profileUser['nome_de_exibicao'] ?? '');
             $profileHandle = safeText($profileUser['nome_de_usuario'] ?? '');
             $profileBio = safeText($profileUser['descricao'] ?? '');
-            $profileAvatar = !empty($profileUser['foto_perfil']) ? htmlspecialchars($profileUser['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode(($profileUser['nome_de_exibicao'] ?? $profileUser['nome_de_usuario'] ?? 'User')) . "&background=random";
+            $profileAvatar = !empty($profileUser['foto_perfil'])
+              ? resolve_asset_url($profileUser['foto_perfil'], "https://ui-avatars.com/api/?name=" . urlencode(($profileUser['nome_de_exibicao'] ?? $profileUser['nome_de_usuario'] ?? 'User')) . "&background=random")
+              : "https://ui-avatars.com/api/?name=" . urlencode(($profileUser['nome_de_exibicao'] ?? $profileUser['nome_de_usuario'] ?? 'User')) . "&background=random";
           ?>
           <div class="profile-header">
             <div class="profile-avatar-wrap">
@@ -411,7 +438,9 @@ function userAvatar($user) {
             <?php foreach ($communityList as $community): ?>
               <?php
                 $communityName = safeText($community['nome'] ?? 'Comunidade');
-                $communityImage = !empty($community['imagem']) ? htmlspecialchars($community['imagem'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($community['nome'] ?? 'Comunidade') . "&background=random";
+                $communityImage = !empty($community['imagem'])
+                  ? resolve_asset_url($community['imagem'], "https://ui-avatars.com/api/?name=" . urlencode($community['nome'] ?? 'Comunidade') . "&background=random")
+                  : "https://ui-avatars.com/api/?name=" . urlencode($community['nome'] ?? 'Comunidade') . "&background=random";
               ?>
               <a href="comunidade.php?id=<?= intval($community['id_comunidade']) ?>" class="community-item" title="Entrar na comunidade <?= $communityName ?>">
                 <img src="<?= $communityImage ?>" alt="<?= $communityName ?>" class="community-avatar-mini">

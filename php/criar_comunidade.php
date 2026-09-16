@@ -115,7 +115,7 @@ $descricao_esc = mysqli_real_escape_string($conn, $descricao);
 // ============================================================================
 
 $imagem_path = null;
-$extensoes_permitidas = ['jpg', 'jpeg', 'png', 'gif', 'webp']; // Formatos de imagem aceitos
+$extensoes_permitidas = ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'avif']; // Formatos de imagem aceitos
 
 // Verifica se um arquivo de imagem foi enviado e sem erros de upload
 if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === UPLOAD_ERR_OK) {
@@ -127,7 +127,7 @@ if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === UPLOAD_ERR_OK) {
 
     // Valida se a extensão está na lista de permitidas
     if (!in_array($ext, $extensoes_permitidas)) {
-        echo json_encode(["sucesso" => false, "mensagem" => "Formato de imagem inválido. Use JPG, PNG, GIF ou WEBP."]);
+        echo json_encode(["sucesso" => false, "mensagem" => "Formato de imagem inválido. Use JPG, JPEG, JFIF, PNG, GIF, WEBP ou AVIF."]);
         exit;
     }
 

@@ -19,6 +19,29 @@ document.addEventListener("DOMContentLoaded", () => {
     const communityEndpoint = isInsidePhpFolder ? "comunidade.php" : "php/comunidade.php";
     const profileEditEndpoint = isInsidePhpFolder ? "usr_edit.php" : "php/usr_edit.php";
 
+    function normalizarUrlImagem(path) {
+        if (!path) return "";
+        const raw = String(path).trim();
+
+        if (/^(https?:)?\/\//i.test(raw) || /^data:/i.test(raw)) {
+            return raw;
+        }
+
+        let clean = raw.replace(/^\/+/, "").replace(/^\.\//, "").replace(/^\.\.\//, "");
+
+        if (clean === "") return "";
+
+        if (clean.startsWith("uploads/") || clean.startsWith("avatars/") || clean.startsWith("banners/") || clean.startsWith("style/") || clean.startsWith("php/") || clean.startsWith("js/")) {
+            return isInsidePhpFolder ? `../${clean}` : clean;
+        }
+
+        if (clean.startsWith("../") || clean.startsWith("./")) {
+            return clean;
+        }
+
+        return isInsidePhpFolder ? `../${clean}` : clean;
+    }
+
     // ========================================================================
     // SEÇÃO 1: CAPTURA DE ELEMENTOS DO DOM
     // ========================================================================
@@ -223,11 +246,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (dados.usuarios && dados.usuarios.length > 0) {
             // Cria container para seção de usuários
             const secaoUsr = document.createElement("div");
-            secaoUsr.className = "search-section";
+            secaoUsr.className = "search-section search-section-usuarios";
             secaoUsr.innerHTML = `
-                <div class="search-section-header">
+                <div class="search-section-header" style="background:#edf2ff; color:#4b5f82; border-radius:12px;">
                     <span>Usuários</span>
-                    <span class="search-section-count">${dados.usuarios.length}</span>
+                    <span class="search-section-count" style="background:rgba(255,255,255,0.5); color:#4b5f82;">${dados.usuarios.length}</span>
                 </div>
                 <ul class="search-items-list" id="lista-usuarios-busca"></ul>
             `;
@@ -248,8 +271,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const descSnippet = user.descricao ? escapeHtml(user.descricao) : "Sem descrição no perfil.";
 
                 // Monta HTML do item
+                const avatarUsuario = normalizarUrlImagem(user.foto_perfil || "");
+
                 li.innerHTML = `
-                    <img class="search-item-avatar" src="${escapeHtml(user.foto_perfil)}" alt="${escapeHtml(user.nome_de_exibicao)}">
+                    <img class="search-item-avatar" src="${escapeHtml(avatarUsuario)}" alt="${escapeHtml(user.nome_de_exibicao)}">
                     <div class="search-item-info">
                         <div class="search-item-title-row">
                             <span class="search-item-title">${nomeExibicaoDestacado}</span>
@@ -275,11 +300,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (dados.comunidades && dados.comunidades.length > 0) {
             // Cria container para seção de comunidades
             const secaoComu = document.createElement("div");
-            secaoComu.className = "search-section";
+            secaoComu.className = "search-section search-section-comunidades";
             secaoComu.innerHTML = `
-                <div class="search-section-header">
+                <div class="search-section-header" style="background:#6d99e4; color:#ffffff; border-radius:12px;">
                     <span>Comunidades</span>
-                    <span class="search-section-count">${dados.comunidades.length}</span>
+                    <span class="search-section-count" style="background:rgba(255,255,255,0.22); color:#ffffff;">${dados.comunidades.length}</span>
                 </div>
                 <ul class="search-items-list" id="lista-comunidades-busca"></ul>
             `;
@@ -300,8 +325,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const qtdMembros = comu.total_membros === 1 ? "1 membro" : `${comu.total_membros} membros`;
 
                 // Monta HTML do item
+                const avatarComu = normalizarUrlImagem(comu.imagem || "");
+
                 li.innerHTML = `
-                    <img class="search-item-avatar" src="${escapeHtml(comu.imagem)}" alt="${escapeHtml(comu.nome)}">
+                    <img class="search-item-avatar" src="${escapeHtml(avatarComu)}" alt="${escapeHtml(comu.nome)}">
                     <div class="search-item-info">
                         <div class="search-item-title-row">
                             <span class="search-item-title">${nomeComuDestacado}</span>
