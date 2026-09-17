@@ -2,6 +2,7 @@
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
+require_once __DIR__ . "/media.php";
 
 // Obtém o ID da comunidade da URL
 $id_comunidade = intval($_GET['id'] ?? 0);
@@ -81,33 +82,11 @@ foreach ($posts as $post) {
 
 function resolve_avatar_url($foto_perfil, $nome_exibicao) {
     $nome = trim((string) ($nome_exibicao ?? 'User'));
-    $fallback = 'https://ui-avatars.com/api/?name=' . urlencode($nome) . '&background=random';
+    return resolve_media_url($foto_perfil, generated_avatar_url($nome), '../');
+}
 
-    if (empty($foto_perfil)) {
-        return $fallback;
-    }
-
-    $path = trim((string) $foto_perfil);
-
-    if (preg_match('#^(https?:)?//#i', $path) || preg_match('#^data:#i', $path)) {
-        return htmlspecialchars($path, ENT_QUOTES, 'UTF-8');
-    }
-
-    if (str_starts_with($path, '/')) {
-        $relativePath = ltrim($path, '/');
-        if (file_exists(__DIR__ . '/../' . $relativePath) && is_file(__DIR__ . '/../' . $relativePath)) {
-            return htmlspecialchars($path, ENT_QUOTES, 'UTF-8');
-        }
-        return $fallback;
-    }
-
-    $normalized = ltrim($path, './');
-    $absolutePath = __DIR__ . '/../' . $normalized;
-    if (file_exists($absolutePath) && is_file($absolutePath)) {
-        return htmlspecialchars('../' . $normalized, ENT_QUOTES, 'UTF-8');
-    }
-
-    return $fallback;
+function resolve_community_image_url($path, $name) {
+    return resolve_media_url($path, generated_avatar_url($name), '../');
 }
 
 // Contar membros
@@ -201,6 +180,7 @@ if ($resultado_count) {
             <div class="modal-message">Para seguir esta comunidade, você precisa estar logado.</div>
             <div class="modal-actions">
                 <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharPopupLoginComunidade()">Entendi</button>
+                <button type="button" class="modal-btn modal-btn-confirm" onclick="abrirLoginComunidade()">Entrar</button>
             </div>
         </div>
     </div>
@@ -211,9 +191,22 @@ if ($resultado_count) {
             <div class="modal-message">Você precisa seguir esta comunidade para publicar posts e comentar.</div>
             <div class="modal-actions">
                 <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharPopupSeguirComunidade()">Entendi</button>
+                <button type="button" class="modal-btn modal-btn-confirm" onclick="abrirLoginComunidade()">Entrar</button>
             </div>
         </div>
     </div>
+
+    <dialog id="login-box">
+        <form id="popup-form" action="../index.php" method="post">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '../index.php', ENT_QUOTES, 'UTF-8') ?>">
+            <div class="dialog-tabs">
+                <button type="button" id="btn-entrar-dialog">entrar</button>
+                <button type="button" id="btn-cadastrar-dialog">cadastrar</button>
+            </div>
+            <div id="pop-div"></div>
+        </form>
+    </dialog>
 
     <div class="page">
         <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9; border-bottom: 1px solid rgba(255,255,255,0.2); position: sticky; top: 0; z-index: 100;">
@@ -254,13 +247,7 @@ if ($resultado_count) {
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18L9 12L15 6"/></svg>
                     </button>
 
-                    <?php if (!empty($comunidade['imagem'])): ?>
-                        <img src="../<?= htmlspecialchars($comunidade['imagem'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($comunidade['nome'], ENT_QUOTES, 'UTF-8') ?>">
-                    <?php else: ?>
-                        <div style="width: 120px; height: 120px; background: #555; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; color: white; border: 4px solid white;">
-                            Sem imagem
-                        </div>
-                    <?php endif; ?>
+                    <img src="<?= resolve_community_image_url($comunidade['imagem'] ?? null, $comunidade['nome']) ?>" alt="<?= htmlspecialchars($comunidade['nome'], ENT_QUOTES, 'UTF-8') ?>">
 
                     <h2><?= htmlspecialchars($comunidade['nome'], ENT_QUOTES, 'UTF-8') ?></h2>
                     <p class="descricao"><?= htmlspecialchars($comunidade['descricao'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
@@ -429,6 +416,7 @@ if ($resultado_count) {
     </div>
 
     <script src="../js/busca.js?v=<?= time() ?>"></script>
+    <script src="../js/login_writter.js?v=<?= time() ?>"></script>
     <script>
         const postsMap = <?php echo json_encode($postsMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         const ehMembro = <?= $eh_membro ? 'true' : 'false' ?>;
@@ -458,6 +446,33 @@ if ($resultado_count) {
             if (!modal) return;
             modal.classList.remove('ativo');
         }
+
+        const loginCommunityDialog = document.getElementById('login-box');
+        const loginCommunityContent = document.getElementById('pop-div');
+        const loginCommunityEnter = document.getElementById('btn-entrar-dialog');
+        const loginCommunityRegister = document.getElementById('btn-cadastrar-dialog');
+
+        function marcarAbaLoginComunidade(ativa) {
+            loginCommunityEnter?.classList.toggle('active-tab', ativa === 'entrar');
+            loginCommunityRegister?.classList.toggle('active-tab', ativa === 'cadastrar');
+        }
+
+        function abrirLoginComunidade(modo = 0) {
+            if (!loginCommunityDialog || !loginCommunityContent) return;
+            const modoCadastro = modo === 1 || modo === '1' || modo === 'cadastrar';
+            loginCommunityContent.innerHTML = '';
+            trocar(modoCadastro ? 1 : 0, loginCommunityContent);
+            marcarAbaLoginComunidade(modoCadastro ? 'cadastrar' : 'entrar');
+            document.querySelectorAll('.modal-overlay.ativo').forEach((modal) => modal.classList.remove('ativo'));
+            if (!loginCommunityDialog.open) loginCommunityDialog.showModal();
+        }
+
+        loginCommunityEnter?.addEventListener('click', () => abrirLoginComunidade(0));
+        loginCommunityRegister?.addEventListener('click', () => abrirLoginComunidade(1));
+
+        loginCommunityDialog?.addEventListener('click', (event) => {
+            if (event.target === loginCommunityDialog) loginCommunityDialog.close();
+        });
 
         document.getElementById('loginCommunityModal')?.addEventListener('click', function(e) {
             if (e.target === this) {
@@ -654,6 +669,7 @@ if ($resultado_count) {
                         <div class="modal-message">Você precisa estar logado para curtir posts.</div>
                         <div class="modal-actions">
                             <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharAvisoLoginCurtida()">Entendi</button>
+                            <button type="button" class="modal-btn modal-btn-confirm" onclick="abrirLoginComunidade()">Entrar</button>
                         </div>
                     </div>`;
                 modal.addEventListener('click', (event) => {
@@ -680,6 +696,7 @@ if ($resultado_count) {
                         <div class="modal-message">Você precisa estar logado para comentar posts.</div>
                         <div class="modal-actions">
                             <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharAvisoLoginComentario()">Entendi</button>
+                            <button type="button" class="modal-btn modal-btn-confirm" onclick="abrirLoginComunidade()">Entrar</button>
                         </div>
                     </div>`;
                 modal.addEventListener('click', (event) => {

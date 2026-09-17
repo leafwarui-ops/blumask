@@ -2,6 +2,40 @@
 require_once "php/security_headers.php";
 require_once "php/rate_limit.php";
 include "php/bd.php";
+require_once "php/media.php";
+require_once "php/profile_pins.php";
+ensure_profile_pin_tables($conn);
+
+function get_login_redirect_target() {
+  $target = trim((string) ($_POST['return_to'] ?? ''));
+  if ($target === '' || strpos($target, '\\') !== false || strpos($target, '//') === 0) {
+    return 'index.php';
+  }
+
+  $parts = parse_url($target);
+  if ($parts === false || isset($parts['scheme']) || isset($parts['host']) || isset($parts['user']) || isset($parts['pass'])) {
+    return 'index.php';
+  }
+
+  return $target;
+}
+
+if (isset($_SESSION['usuario']['id_usuario'])) {
+  $session_user_id = intval($_SESSION['usuario']['id_usuario']);
+  $session_user_result = mysqli_query($conn, "SELECT * FROM usuario WHERE id_usuario = $session_user_id LIMIT 1");
+  if ($session_user_result && mysqli_num_rows($session_user_result) > 0) {
+    $_SESSION['usuario'] = mysqli_fetch_assoc($session_user_result);
+  }
+}
+
+function resolve_index_avatar_url($foto_perfil, $nome_exibicao) {
+    $nome = trim((string) ($nome_exibicao ?? 'User'));
+    return resolve_media_url($foto_perfil, generated_avatar_url($nome));
+}
+
+  function resolve_index_asset_url($path, $fallback = '') {
+    return resolve_media_url($path, $fallback);
+  }
 
 // Lógica de Sair (Logout)
 if (isset($_GET['logout'])) {
@@ -35,11 +69,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 
                 if ($result && mysqli_num_rows($result) > 0) {
                     $user = mysqli_fetch_assoc($result);
-                    if (password_verify($senha, $user['senha'])) {
+                  $usuario_deletado = trim((string) ($user['nome_de_exibicao'] ?? '')) === 'Usuário deletado'
+                    || stripos((string) ($user['nome_de_usuario'] ?? ''), 'usuario_deletado_') === 0;
+
+                  if (!$usuario_deletado && password_verify($senha, $user['senha'])) {
                         reset_rate_limit('login_attempt');
                         session_regenerate_id(true);
                         $_SESSION['usuario'] = $user;
-                        header("Location: index.php");
+                        header("Location: " . get_login_redirect_target());
                         exit;
                     } else {
                         hit_rate_limit('login_attempt');
@@ -101,7 +138,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             $result = mysqli_query($conn, $sql_fetch);
                             session_regenerate_id(true);
                             $_SESSION['usuario'] = mysqli_fetch_assoc($result);
-                            header("Location: index.php");
+                            header("Location: " . get_login_redirect_target());
                             exit;
                         } else {
                             hit_rate_limit('register_attempt');
@@ -121,15 +158,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 // Consulta de Posts Recentes para o Feed
 // -------------------------------------------------------------
 $id_usuario_logado = isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0;
-$usuario_post_fixado = null;
-if ($id_usuario_logado > 0) {
-    $res_usuario_fixado = mysqli_query($conn, "SELECT id_post_fixado FROM usuario WHERE id_usuario = $id_usuario_logado LIMIT 1");
-    if ($res_usuario_fixado && mysqli_num_rows($res_usuario_fixado) > 0) {
-        $usuario_fixado_row = mysqli_fetch_assoc($res_usuario_fixado);
-        $usuario_post_fixado = intval($usuario_fixado_row['id_post_fixado'] ?? 0);
-    }
+$profile_comment_pin_column = mysqli_query($conn, "SHOW COLUMNS FROM usuario LIKE 'id_comentario_fixado'");
+if ($profile_comment_pin_column && mysqli_num_rows($profile_comment_pin_column) === 0) {
+  mysqli_query($conn, "ALTER TABLE usuario ADD COLUMN id_comentario_fixado INT NULL");
 }
-
 $sql_recent_posts = "SELECT 
     p.id_post,
     p.id_comunidade,
@@ -168,7 +200,7 @@ if ($id_usuario_logado > 0) {
   }
 
   // buscar comentários feitos pelo usuário
-  $sql_recent_comments = "SELECT c.id_comentario, c.id_post, c.conteudo, c.data_comentario, p.assunto, p.id_comunidade, p.id_usuario AS post_autor_id, p.conteudo AS post_conteudo FROM comentario c INNER JOIN post p ON c.id_post = p.id_post WHERE c.id_usuario = $id_usuario_logado ORDER BY c.data_comentario DESC, c.id_comentario DESC LIMIT 30";
+  $sql_recent_comments = "SELECT c.id_comentario, c.id_post, c.conteudo, c.data_comentario, p.assunto, p.id_comunidade, p.id_usuario AS post_autor_id, p.conteudo AS post_conteudo, p.id_comentario_fixado, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil FROM comentario c INNER JOIN post p ON c.id_post = p.id_post INNER JOIN usuario u ON u.id_usuario = c.id_usuario WHERE c.id_usuario = $id_usuario_logado ORDER BY c.data_comentario DESC, c.id_comentario DESC LIMIT 30";
   $res_recent_comments = mysqli_query($conn, $sql_recent_comments);
   if ($res_recent_comments) {
     while ($c = mysqli_fetch_assoc($res_recent_comments)) {
@@ -184,6 +216,7 @@ if ($id_usuario_logado > 0) {
 
 // 2. Post Fixado pelo Próprio Usuário
 $pinned_posts = [];
+$pinned_comment_items = [];
 if ($id_usuario_logado > 0) {
     $sql_pinned_posts = "SELECT 
         p.id_post,
@@ -197,16 +230,42 @@ if ($id_usuario_logado > 0) {
         (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) AS total_curtidas,
         (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) AS total_comentarios,
         (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario_logado) AS curtiu
-    FROM usuario u
-    INNER JOIN post p ON p.id_post = u.id_post_fixado
+    FROM perfil_post_fixado pf
+    INNER JOIN post p ON p.id_post = pf.id_post
     INNER JOIN comunidade c ON p.id_comunidade = c.id_comunidade
-    WHERE u.id_usuario = $id_usuario_logado AND u.id_post_fixado IS NOT NULL
-    LIMIT 1";
+    WHERE pf.id_usuario = $id_usuario_logado AND p.id_usuario = $id_usuario_logado
+    ORDER BY pf.data_fixacao DESC";
 
     $res_pinned_posts = mysqli_query($conn, $sql_pinned_posts);
     if ($res_pinned_posts) {
         while ($pin_row = mysqli_fetch_assoc($res_pinned_posts)) {
             $pinned_posts[] = $pin_row;
+        }
+    }
+
+    $sql_pinned_comments = "SELECT
+        c.id_comentario,
+        c.id_post,
+        c.id_usuario,
+        c.conteudo,
+        c.data_comentario,
+        p.id_comunidade,
+        p.assunto,
+        p.id_usuario AS post_autor_id,
+        u.nome_de_exibicao,
+        u.nome_de_usuario,
+        u.foto_perfil
+      FROM perfil_comentario_fixado pf
+      INNER JOIN comentario c ON c.id_comentario = pf.id_comentario
+      INNER JOIN post p ON p.id_post = c.id_post
+      INNER JOIN usuario u ON u.id_usuario = c.id_usuario
+      WHERE pf.id_usuario = $id_usuario_logado
+    ORDER BY pf.data_fixacao DESC";
+
+    $res_pinned_comments = mysqli_query($conn, $sql_pinned_comments);
+    if ($res_pinned_comments) {
+        while ($pin_comment_row = mysqli_fetch_assoc($res_pinned_comments)) {
+            $pinned_comment_items[] = $pin_comment_row;
         }
     }
 }
@@ -249,8 +308,10 @@ if ($id_usuario_logado > 0) {
           $bannerUrl     = !empty($user['banner']) ? htmlspecialchars($user['banner'], ENT_QUOTES, 'UTF-8') : '';
           
           // Utiliza a foto de perfil salva no banco; caso não exista, gera um avatar dinâmico com as iniciais
-          $avatarUrl = !empty($user['foto_perfil']) ? htmlspecialchars($user['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($nome_exibicao) . "&background=random";
-          $bannerStyle = !empty($bannerUrl) ? "background-image: url('$bannerUrl'); background-size: cover; background-position: center;" : "";
+          $avatarFallback = "https://ui-avatars.com/api/?name=" . urlencode($nome_exibicao) . "&background=random";
+          $avatarUrl = resolve_index_avatar_url($user['foto_perfil'] ?? null, $avatarFallback);
+          $bannerUrl = resolve_index_asset_url($user['banner'] ?? null);
+          $bannerStyle = $bannerUrl !== '' ? "background-image: url('$bannerUrl'); background-size: cover; background-position: center;" : "";
       ?>
       <div class="panel-header" style="height: 100px; position: relative; <?= $bannerStyle ?>">
         <div class="avatar" style="position: absolute; bottom: -35px; left: 50%; transform: translateX(-50%); width: 70px; height: 70px; border-radius: 50%; border: 4px solid #fff; overflow: hidden; background: #333;">
@@ -329,11 +390,17 @@ if ($id_usuario_logado > 0) {
               Últimos Posts
             </button>
           </div>
+          <div class="feed-search">
+            <button type="button" class="feed-search-toggle" id="feed-search-toggle" aria-label="Procurar por posts" title="Procurar por posts">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 5 5"></path></svg>
+            </button>
+            <input type="search" id="feed-search-input" placeholder="Procurando por posts?" autocomplete="off">
+          </div>
         </div>
         <div class="last-post-body">
           <!-- Aba 1: Fixados (Padrão) -->
           <div class="feed-tab-content active" id="feed-fixados">
-            <?php if (!empty($pinned_posts)): ?>
+            <?php if (!empty($pinned_posts) || !empty($pinned_comment_items)): ?>
               <div class="posts-feed">
                 <?php 
                   $authorsCache = [];
@@ -368,12 +435,15 @@ if ($id_usuario_logado > 0) {
                         if (!empty($authorsCache[$autor_id])) {
                             $authorName = htmlspecialchars($authorsCache[$autor_id]['nome_de_exibicao'] ?? $authorsCache[$autor_id]['nome_de_usuario'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
                             $authorHandle = htmlspecialchars($authorsCache[$autor_id]['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
-                            $authorAvatar = !empty($authorsCache[$autor_id]['foto_perfil']) ? htmlspecialchars($authorsCache[$autor_id]['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($authorName) . "&background=random";
+                            $authorAvatar = resolve_index_avatar_url($authorsCache[$autor_id]['foto_perfil'] ?? null, $authorsCache[$autor_id]['nome_de_exibicao'] ?? $authorsCache[$autor_id]['nome_de_usuario'] ?? 'Usuário');
                             $authorIsDeleted = $authorName === 'Usuário deletado' || strpos($authorHandle, 'usuario_deletado_') === 0;
                         }
                     }
                   ?>
                   <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-community-id="<?= $id_comunidade ?>">
+                    <div class="feed-item-badge" style="display:inline-block; margin-bottom:10px; padding:4px 8px; border-radius:999px; background:#e8e2ff; color:#3b2d85; font-size:11px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;">
+                      Post fixado
+                    </div>
                     <div class="post-header">
                       <div class="post-avatar">
                         <?php if ($authorIsDeleted): ?>
@@ -431,37 +501,46 @@ if ($id_usuario_logado > 0) {
                         <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
                       </a>
                     </div>
-                    <?php
-                      // Carrega os últimos 2 comentários para exibição rápida no feed
-                      $preview_comments = [];
-                      $res_c = mysqli_query($conn, "SELECT c.id_comentario, c.id_usuario, c.conteudo, c.data_comentario, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil FROM comentario c LEFT JOIN usuario u ON c.id_usuario = u.id_usuario WHERE c.id_post = $id_post ORDER BY c.data_comentario DESC, c.id_comentario DESC LIMIT 2");
-                      if ($res_c) {
-                        while ($r = mysqli_fetch_assoc($res_c)) $preview_comments[] = $r;
-                      }
-                    ?>
+                  </article>
+                <?php endforeach; ?>
 
-                    <?php if (count($preview_comments) > 0): ?>
-                      <div class="post-comments-preview">
-                        <?php foreach ($preview_comments as $comentario): ?>
-                          <div class="comment-item comment-preview">
-                            <?php $avatar = !empty($comentario['foto_perfil']) ? htmlspecialchars($comentario['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($comentario['nome_de_exibicao'] ?? 'Usuário') . "&background=random"; ?>
-                            <a href="php/user_view.php?id=<?= intval(
-                              $comentario['id_usuario']
-                            ) ?>" class="comment-avatar">
-                              <img src="<?= $avatar ?>" alt="<?= htmlspecialchars($comentario['nome_de_exibicao'] ?? 'Usuário', ENT_QUOTES, 'UTF-8') ?>">
-                            </a>
-                            <div class="comment-body">
-                              <div class="comment-meta">
-                                <a href="php/user_view.php?id=<?= intval($comentario['id_usuario']) ?>" style="text-decoration:none; color:inherit;"><strong><?= htmlspecialchars($comentario['nome_de_exibicao'] ?? 'Usuário', ENT_QUOTES, 'UTF-8') ?></strong></a>
-                                <span>@<?= htmlspecialchars($comentario['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
-                                <time><?= date('d/m/Y', strtotime($comentario['data_comentario'])) ?></time>
-                              </div>
-                              <p class="comment-content"><?= nl2br(htmlspecialchars($comentario['conteudo'], ENT_QUOTES, 'UTF-8')) ?></p>
-                            </div>
-                          </div>
-                        <?php endforeach; ?>
+                <?php foreach ($pinned_comment_items as $comment): ?>
+                  <?php
+                    $comment_id = intval($comment['id_comentario']);
+                    $comment_post_id = intval($comment['id_post']);
+                    $comment_avatar = resolve_index_avatar_url($comment['foto_perfil'] ?? null, $comment['nome_de_exibicao'] ?? 'Usuário');
+                    $comment_author_name = htmlspecialchars($comment['nome_de_exibicao'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
+                    $comment_author_handle = htmlspecialchars($comment['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
+                    $comment_assunto = htmlspecialchars($comment['assunto'] ?? '', ENT_QUOTES, 'UTF-8');
+                    $comment_conteudo = htmlspecialchars($comment['conteudo'], ENT_QUOTES, 'UTF-8');
+                    $comment_date = date('d/m/Y', strtotime($comment['data_comentario']));
+                  ?>
+                  <article class="post post-card-feed comment-entry" data-post-id="<?= $comment_post_id ?>" data-comment-id="<?= $comment_id ?>">
+                    <div class="feed-item-badge" style="display:inline-block; margin-bottom:10px; padding:4px 8px; border-radius:999px; background:#e0f2fe; color:#0f4c81; font-size:11px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;">
+                      Comentário fixado
+                    </div>
+                    <div class="post-header">
+                      <div class="post-avatar">
+                        <a href="php/user_view.php?id=<?= intval($comment['id_usuario']) ?>" title="Ver perfil de <?= $comment_author_name ?>" onclick="event.stopPropagation();">
+                          <img src="<?= $comment_avatar ?>" alt="<?= $comment_author_name ?>" style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%;">
+                        </a>
                       </div>
-                    <?php endif; ?>
+                      <div class="post-header-info">
+                        <div class="post-user-info">
+                          <h4><a href="php/user_view.php?id=<?= intval($comment['id_usuario']) ?>" onclick="event.stopPropagation();" style="text-decoration:none; color:inherit;"><?= $comment_author_name ?></a></h4>
+                          <?php if ($comment_author_handle !== ''): ?><div class="post-user-handle"><a href="php/user_view.php?id=<?= intval($comment['id_usuario']) ?>" onclick="event.stopPropagation();" style="text-decoration:none; color:inherit;">@<?= $comment_author_handle ?></a></div><?php endif; ?>
+                          <?php if ($comment_assunto !== ''): ?><div class="post-user-handle">Em: <?= $comment_assunto ?></div><?php endif; ?>
+                        </div>
+                        <div class="post-date"><?= $comment_date ?></div>
+                      </div>
+                    </div>
+                    <div class="post-content"><?= nl2br($comment_conteudo) ?></div>
+                    <div class="post-actions">
+                      <button type="button" class="post-action post-pin-action" onclick="event.stopPropagation(); fixarComentarioRecente(<?= $comment_post_id ?>, <?= $comment_id ?>, this)" title="Desfixar comentário">
+                        <span>📌</span>
+                        <span>Desfixar</span>
+                      </button>
+                    </div>
                   </article>
                 <?php endforeach; ?>
               </div>
@@ -529,11 +608,14 @@ if ($id_usuario_logado > 0) {
                           if (!empty($authorsCache[$autor_id])) {
                               $authorName = htmlspecialchars($authorsCache[$autor_id]['nome_de_exibicao'] ?? $authorsCache[$autor_id]['nome_de_usuario'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
                               $authorHandle = htmlspecialchars($authorsCache[$autor_id]['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
-                              $authorAvatar = !empty($authorsCache[$autor_id]['foto_perfil']) ? htmlspecialchars($authorsCache[$autor_id]['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($authorName) . "&background=random";
+                              $authorAvatar = resolve_index_avatar_url($authorsCache[$autor_id]['foto_perfil'] ?? null, $authorsCache[$autor_id]['nome_de_exibicao'] ?? $authorsCache[$autor_id]['nome_de_usuario'] ?? 'Usuário');
                           }
                       }
                 ?>
                   <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-community-id="<?= $id_comunidade ?>">
+                    <div class="feed-item-badge" style="display:inline-block; margin-bottom:10px; padding:4px 8px; border-radius:999px; background:#e8e2ff; color:#3b2d85; font-size:11px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;">
+                      Post
+                    </div>
                     <div class="post-header">
                       <div class="post-avatar">
                         <a href="php/user_view.php?id=<?= $autor_id ?>" title="Ver perfil de <?= $authorName ?>" onclick="event.stopPropagation();">
@@ -569,6 +651,14 @@ if ($id_usuario_logado > 0) {
                         <span class="like-count"><?= $total_curtidas ?></span>
                       </button>
 
+                      <?php $postJaFixado = false; ?>
+                      <?php $pin_check = mysqli_query($conn, "SELECT 1 FROM perfil_post_fixado WHERE id_usuario = $id_usuario_logado AND id_post = $id_post LIMIT 1"); ?>
+                      <?php $postJaFixado = $pin_check && mysqli_num_rows($pin_check) > 0; ?>
+                      <button type="button" class="post-action post-pin-action" onclick="event.stopPropagation(); fixarPostPerfil(<?= $id_post ?>, this)" title="<?= $postJaFixado ? 'Desfixar do perfil' : 'Fixar no perfil' ?>">
+                        <span>📌</span>
+                        <span><?= $postJaFixado ? 'Desfixar' : 'Fixar' ?></span>
+                      </button>
+
                       <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-action post-comment-action" title="Ver comentários na comunidade" onclick="event.stopPropagation();">
                         <span class="comment-icon">💬</span>
                         <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
@@ -583,17 +673,24 @@ if ($id_usuario_logado > 0) {
                       $data_formatada = date('d/m/Y', strtotime($c['data_comentario']));
                       $comentario_conteudo = htmlspecialchars($c['conteudo'], ENT_QUOTES, 'UTF-8');
                       $post_assunto = htmlspecialchars($c['assunto'] ?? '', ENT_QUOTES, 'UTF-8');
+                      $commentUserName = htmlspecialchars($c['nome_de_exibicao'] ?? ($_SESSION['usuario']['nome_de_exibicao'] ?? 'Você'), ENT_QUOTES, 'UTF-8');
+                      $commentUserHandle = htmlspecialchars($c['nome_de_usuario'] ?? ($_SESSION['usuario']['nome_de_usuario'] ?? ''), ENT_QUOTES, 'UTF-8');
+                      $commentAvatar = resolve_index_avatar_url($c['foto_perfil'] ?? ($_SESSION['usuario']['foto_perfil'] ?? null), $c['nome_de_exibicao'] ?? ($_SESSION['usuario']['nome_de_exibicao'] ?? 'Você'));
                 ?>
-                  <article class="post post-card-feed comment-entry" data-post-id="<?= $id_post ?>">
+                  <article class="post post-card-feed comment-entry" data-post-id="<?= $id_post ?>" data-comment-id="<?= intval($c['id_comentario']) ?>">
+                    <div class="feed-item-badge" style="display:inline-block; margin-bottom:10px; padding:4px 8px; border-radius:999px; background:#e0f2fe; color:#0f4c81; font-size:11px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;">
+                      Comentário
+                    </div>
                     <div class="post-header">
                       <div class="post-avatar">
-                        <a href="php/post_detalhes.php?id_post=<?= $id_post ?>" title="Abrir post" onclick="event.stopPropagation();">
-                          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#2563eb" stroke-width="1.8"><circle cx="12" cy="12" r="9"/></svg>
+                        <a href="php/user_view.php?id=<?= $id_usuario_logado ?>" title="Ver perfil" onclick="event.stopPropagation();">
+                          <img src="<?= $commentAvatar ?>" alt="<?= $commentUserName ?>" style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%;">
                         </a>
                       </div>
                       <div class="post-header-info">
                         <div class="post-user-info">
-                          <h4>Comentário seu</h4>
+                          <h4><a href="php/user_view.php?id=<?= $id_usuario_logado ?>" onclick="event.stopPropagation();" style="text-decoration:none; color:inherit;"><?= $commentUserName ?></a></h4>
+                          <?php if ($commentUserHandle !== ''): ?><div class="post-user-handle"><a href="php/user_view.php?id=<?= $id_usuario_logado ?>" onclick="event.stopPropagation();" style="text-decoration:none; color:inherit;">@<?= $commentUserHandle ?></a></div><?php endif; ?>
                           <?php if (!empty($post_assunto)): ?><div class="post-user-handle">Em: <?= $post_assunto ?></div><?php endif; ?>
                         </div>
                         <div class="post-date"><?= $data_formatada ?></div>
@@ -601,7 +698,13 @@ if ($id_usuario_logado > 0) {
                     </div>
                     <div class="post-content"><?= nl2br($comentario_conteudo) ?></div>
                     <div class="post-actions">
-                      <a href="php/post_detalhes.php?id_post=<?= $id_post ?>" class="post-action" onclick="event.stopPropagation();">Ver no contexto</a>
+                      <?php $comentarioJaFixado = false; ?>
+                      <?php $pin_check = mysqli_query($conn, "SELECT 1 FROM perfil_comentario_fixado WHERE id_usuario = $id_usuario_logado AND id_comentario = " . intval($c['id_comentario']) . " LIMIT 1"); ?>
+                      <?php $comentarioJaFixado = $pin_check && mysqli_num_rows($pin_check) > 0; ?>
+                      <button type="button" class="post-action post-pin-action" onclick="event.stopPropagation(); fixarComentarioRecente(<?= $id_post ?>, <?= intval($c['id_comentario']) ?>, this, 'perfil')" title="<?= $comentarioJaFixado ? 'Desfixar comentário do perfil' : 'Fixar comentário no perfil' ?>">
+                        <span>📌</span>
+                        <span><?= $comentarioJaFixado ? 'Desfixar' : 'Fixar' ?></span>
+                      </button>
                     </div>
                   </article>
                 <?php
@@ -816,7 +919,7 @@ if ($id_usuario_logado > 0) {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_post=${idPost}`
+                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_post=${idPost}&destino=perfil`
             });
 
             const data = await response.json();
@@ -840,14 +943,55 @@ if ($id_usuario_logado > 0) {
             if (isInteractive) return;
 
             const idPost = this.dataset.postId;
+            const commentId = this.dataset.commentId;
             const communityId = this.dataset.communityId;
+
+            if (idPost && commentId) {
+                window.location.href = `php/post_detalhes.php?id_post=${idPost}#comment-${commentId}`;
+                return;
+            }
+
             if (idPost && communityId) {
                 window.location.href = `php/post_detalhes.php?id_post=${idPost}`;
             }
         });
     });
 
-      function mostrarAvisoLoginCurtida() {
+      async function fixarComentarioRecente(idPost, idComentario, btnElement, destino = 'perfil') {
+        const idUsuarioLogado = parseInt(document.body.dataset.idUsuario, 10) || 0;
+        if (idUsuarioLogado <= 0) {
+            abrirModalAutenticacao(0, "Você precisa estar logado para fixar comentários.");
+            return;
+        }
+
+        if (!btnElement || btnElement.disabled) return;
+        btnElement.disabled = true;
+
+        const csrfToken = "<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>";
+
+        try {
+            const response = await fetch('php/fixar_comentario.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_post=${idPost}&id_comentario=${idComentario}&destino=${encodeURIComponent(destino)}`
+            });
+
+            const data = await response.json();
+            if (data.sucesso) {
+                window.location.reload();
+                return;
+            }
+
+            alert(data.mensagem || 'Não foi possível fixar este comentário.');
+        } catch (err) {
+            console.error('Erro ao fixar comentário no feed:', err);
+            alert('Erro ao fixar este comentário.');
+        } finally {
+            if (btnElement) btnElement.disabled = false;
+        }
+    }
+
+    function mostrarAvisoLoginCurtida() {
         let modal = document.getElementById('likeLoginModal');
         if (!modal) {
           modal = document.createElement('div');
@@ -939,6 +1083,37 @@ if ($id_usuario_logado > 0) {
             });
         });
     });
+
+      const feedSearchInput = document.getElementById('feed-search-input');
+      const feedSearch = document.querySelector('.feed-search');
+      const feedSearchToggle = document.getElementById('feed-search-toggle');
+      if (feedSearchInput && feedSearch && feedSearchToggle) {
+        feedSearchToggle.addEventListener('click', () => {
+          feedSearch.classList.add('expanded');
+          feedSearchInput.focus();
+        });
+
+        feedSearchInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            feedSearchInput.value = '';
+            feedSearchInput.dispatchEvent(new Event('input'));
+            feedSearch.classList.remove('expanded');
+            feedSearchToggle.focus();
+          }
+        });
+      }
+      if (feedSearchInput) {
+        feedSearchInput.addEventListener('input', () => {
+          const termo = feedSearchInput.value.trim().toLocaleLowerCase();
+          document.querySelectorAll('.feed-tab-content .post-card-feed').forEach((card) => {
+              const campoBusca = card.classList.contains('comment-entry')
+                ? card.querySelector('.post-content')
+                : card.querySelector('.post-title');
+              const texto = campoBusca ? campoBusca.textContent.toLocaleLowerCase() : '';
+            card.style.display = !termo || texto.includes(termo) ? '' : 'none';
+          });
+        });
+      }
 </script>
 
 <?php if (isset($login_error)): ?>

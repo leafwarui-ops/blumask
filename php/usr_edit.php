@@ -46,14 +46,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } else {
             $deleted_username = 'usuario_deletado_' . $user_id;
             $deleted_email = 'usuario_deletado_' . $user_id . '@deleted.local';
+            $deleted_display_name = 'Usuário deletado #' . $user_id;
             $deleted_hash = password_hash('conta_deletada', PASSWORD_DEFAULT);
 
             $deleted_username_esc = $conn->real_escape_string($deleted_username);
             $deleted_email_esc = $conn->real_escape_string($deleted_email);
+            $deleted_display_name_esc = $conn->real_escape_string($deleted_display_name);
             $deleted_hash_esc = $conn->real_escape_string($deleted_hash);
 
             $sql_anonymize = "UPDATE usuario SET 
-                nome_de_exibicao = 'Usuário deletado',
+              nome_de_exibicao = '$deleted_display_name_esc',
                 nome_de_usuario = '$deleted_username_esc',
                 email = '$deleted_email_esc',
                 descricao = 'Conta removida pelo usuário.',
@@ -63,13 +65,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 id_post_fixado = NULL
                 WHERE id_usuario = $user_id";
 
-            if ($conn->query($sql_anonymize) === TRUE) {
+            try {
+              if ($conn->query($sql_anonymize) === TRUE) {
                 session_destroy();
                 header("Location: ../index.php?conta_excluida=1");
                 exit;
+              }
+              $error_message = "Não foi possível excluir a conta no momento. Tente novamente.";
+            } catch (mysqli_sql_exception $exception) {
+              $error_message = "Não foi possível excluir a conta no momento. Tente novamente.";
             }
-
-            $error_message = "Não foi possível excluir a conta no momento. Tente novamente.";
         }
     }
     // Checa Rate Limit de edição (máx 5 atualizações / 15 min = 900s)
@@ -364,16 +369,18 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
             </div>
 
             <!-- BOTÕES DE AÇÃO -->
-            <div class="edit-actions">
-              <button type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '../index.php'; }" class="btn-voltar">Voltar</button>
-              <button type="submit" id="btn-confirmar" class="btn-confirmar" disabled>Confirmar</button>
-            </div>
+            <div class="edit-actions-row">
+              <div class="edit-actions">
+                <button type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '../index.php'; }" class="btn-voltar">Voltar</button>
+                <button type="submit" id="btn-confirmar" class="btn-confirmar" disabled>Confirmar</button>
+              </div>
 
-            <div class="delete-account-area">
-              <button type="button" id="btn-delete-account" class="btn-delete-account">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                Excluir conta
-              </button>
+              <div class="delete-account-area">
+                <button type="button" id="btn-delete-account" class="btn-delete-account">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Excluir conta
+                </button>
+              </div>
             </div>
 
           </form>
@@ -410,7 +417,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
 
   <style>
     .delete-account-area {
-      margin-top: 20px;
+      margin-top: 0;
       display: flex;
       justify-content: flex-end;
     }

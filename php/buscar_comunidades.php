@@ -35,10 +35,16 @@ if (!$resultado) {
 
 $comunidades = [];
 while ($linha = mysqli_fetch_assoc($resultado)) {
+    $imagem = trim((string) ($linha['imagem'] ?? ''));
+    $imagem_path = $imagem !== '' ? __DIR__ . '/../' . ltrim($imagem, './') : '';
+    if ($imagem !== '' && !preg_match('#^(https?:)?//#i', $imagem) && !is_file($imagem_path)) {
+        $imagem = null;
+    }
+
     $comunidades[] = [
         "id_comunidade" => intval($linha['id_comunidade']),
         "nome" => htmlspecialchars($linha['nome'], ENT_QUOTES, 'UTF-8'),
-        "imagem" => $linha['imagem'] ? htmlspecialchars($linha['imagem'], ENT_QUOTES, 'UTF-8') : null,
+        "imagem" => $imagem ? htmlspecialchars($imagem, ENT_QUOTES, 'UTF-8') : null,
         "cargo" => intval($linha['cargo'])
     ];
 }

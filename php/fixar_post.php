@@ -2,6 +2,7 @@
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
+require_once __DIR__ . "/profile_pins.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -25,6 +26,7 @@ global $conn;
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
 $id_comunidade = intval($_POST['id_comunidade'] ?? 0);
 $id_post = intval($_POST['id_post'] ?? 0);
+$destino = ($_POST['destino'] ?? '') === 'perfil' ? 'perfil' : '';
 
 if ($id_post <= 0) {
     echo json_encode(["sucesso" => false, "mensagem" => "ID do post inválido."]);
@@ -32,7 +34,7 @@ if ($id_post <= 0) {
 }
 
 // Compatibilidade: se a rota vier com id_comunidade, mantém a lógica antiga de fixar dentro da comunidade.
-if ($id_comunidade > 0) {
+if ($id_comunidade > 0 && $destino !== 'perfil') {
     $sql_permissao = "SELECT c.id_usuario, mc.cargo
                       FROM comunidade c
                       LEFT JOIN membro_comunidade mc ON mc.id_usuario = $id_usuario AND mc.id_comunidade = $id_comunidade
@@ -89,25 +91,17 @@ if (intval($post['id_usuario']) !== $id_usuario) {
     exit;
 }
 
-$sql_usuario = "SELECT id_post_fixado FROM usuario WHERE id_usuario = $id_usuario LIMIT 1";
-$resultado_usuario = mysqli_query($conn, $sql_usuario);
-
-if (!$resultado_usuario || mysqli_num_rows($resultado_usuario) === 0) {
-    echo json_encode(["sucesso" => false, "mensagem" => "Usuário não encontrado."]);
-    exit;
-}
-
-$usuario = mysqli_fetch_assoc($resultado_usuario);
-$fixado_atual = intval($usuario['id_post_fixado'] ?? 0);
-$novo_fixado = $fixado_atual === $id_post ? null : $id_post;
-
-$sql_update = "UPDATE usuario SET id_post_fixado = " . ($novo_fixado === null ? "NULL" : $novo_fixado) . " WHERE id_usuario = $id_usuario";
+ensure_profile_pin_tables($conn);
+$pin_exists = mysqli_query($conn, "SELECT 1 FROM perfil_post_fixado WHERE id_usuario = $id_usuario AND id_post = $id_post LIMIT 1");
+$is_pinned = $pin_exists && mysqli_num_rows($pin_exists) > 0;
+$sql_update = $is_pinned
+    ? "DELETE FROM perfil_post_fixado WHERE id_usuario = $id_usuario AND id_post = $id_post"
+    : "INSERT IGNORE INTO perfil_post_fixado (id_usuario, id_post) VALUES ($id_usuario, $id_post)";
 
 if (mysqli_query($conn, $sql_update)) {
-    $_SESSION['usuario']['id_post_fixado'] = $novo_fixado;
     echo json_encode([
         "sucesso" => true,
-        "mensagem" => $novo_fixado === null ? "Post removido do perfil." : "Post fixado no perfil com sucesso."
+        "mensagem" => $is_pinned ? "Post removido do perfil." : "Post fixado no perfil com sucesso."
     ]);
 } else {
     echo json_encode(["sucesso" => false, "mensagem" => "Erro ao fixar o post no perfil."]);

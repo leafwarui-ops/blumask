@@ -2,6 +2,7 @@
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
+require_once __DIR__ . "/media.php";
 
 $id_post = intval($_GET['id_post'] ?? 0);
 
@@ -56,33 +57,7 @@ if ($id_usuario > 0 && $id_comunidade > 0) {
 
 function resolve_avatar_url($foto_perfil, $nome_exibicao) {
     $nome = trim((string) ($nome_exibicao ?? 'User'));
-    $fallback = 'https://ui-avatars.com/api/?name=' . urlencode($nome) . '&background=random';
-
-    if (empty($foto_perfil)) {
-        return $fallback;
-    }
-
-    $path = trim((string) $foto_perfil);
-
-    if (preg_match('#^(https?:)?//#i', $path) || preg_match('#^data:#i', $path)) {
-        return htmlspecialchars($path, ENT_QUOTES, 'UTF-8');
-    }
-
-    if (str_starts_with($path, '/')) {
-        $relativePath = ltrim($path, '/');
-        if (file_exists(__DIR__ . '/../' . $relativePath) && is_file(__DIR__ . '/../' . $relativePath)) {
-            return htmlspecialchars($path, ENT_QUOTES, 'UTF-8');
-        }
-        return $fallback;
-    }
-
-    $normalized = ltrim($path, './');
-    $absolutePath = __DIR__ . '/../' . $normalized;
-    if (file_exists($absolutePath) && is_file($absolutePath)) {
-        return htmlspecialchars('../' . $normalized, ENT_QUOTES, 'UTF-8');
-    }
-
-    return $fallback;
+    return resolve_media_url($foto_perfil, generated_avatar_url($nome), '../');
 }
 
 $id_comentario_fixado = intval($post['id_comentario_fixado'] ?? 0);
@@ -122,6 +97,44 @@ if ($resultado_comentarios) {
             </div>
         </div>
     </div>
+
+    <dialog id="login-box">
+        <form id="popup-form" action="../index.php" method="post">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '../index.php', ENT_QUOTES, 'UTF-8') ?>">
+            <div class="dialog-tabs">
+                <button type="button" id="btn-entrar-dialog">entrar</button>
+                <button type="button" id="btn-cadastrar-dialog">cadastrar</button>
+            </div>
+            <div id="pop-div"></div>
+        </form>
+    </dialog>
+
+    <?php $is_post_owner = $id_usuario > 0 && (int) $post['id_usuario'] === $id_usuario; ?>
+    <?php if ($is_post_owner): ?>
+        <div class="modal-overlay" id="postActionModal">
+            <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="postActionTitle">
+                <div class="modal-header" id="postActionTitle">Editar post</div>
+                <div class="modal-message" id="postActionMessage"></div>
+                <form id="postEditForm" class="modal-form">
+                    <input type="hidden" name="id_post" value="<?= $id_post ?>">
+                    <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
+                    <label for="postEditSubject">Título do post</label>
+                    <input type="text" id="postEditSubject" name="assunto" minlength="3" maxlength="150" required>
+                    <label for="postEditContent">Conteúdo</label>
+                    <textarea id="postEditContent" name="conteudo" minlength="5" maxlength="5000" required></textarea>
+                    <div class="modal-actions">
+                        <button type="button" class="modal-btn modal-btn-cancel" onclick="fecharPostActionModal()">Cancelar</button>
+                        <button type="submit" class="modal-btn modal-btn-confirm">Salvar alterações</button>
+                    </div>
+                </form>
+                <div class="modal-actions" id="postDeleteActions" style="display:none;">
+                    <button type="button" class="modal-btn modal-btn-cancel" onclick="fecharPostActionModal()">Cancelar</button>
+                    <button type="button" class="modal-btn modal-btn-danger" onclick="confirmarExclusaoPost()">Excluir post</button>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <div class="page">
         <!-- Modal de confirmação para exclusão de comentário -->
@@ -184,6 +197,15 @@ if ($resultado_comentarios) {
                         </div>
                         <div class="post-date"><?= date('d/m/Y', strtotime($post['Data_post'])) ?></div>
                     </div>
+                    <?php if ($is_post_owner): ?>
+                        <div class="post-menu-wrapper">
+                            <button class="post-menu-toggle" type="button" aria-label="Opções do post" onclick="togglePostDetailMenu(this)">⋯</button>
+                            <div class="post-menu-dropdown">
+                                <button class="post-menu-btn" type="button" onclick="abrirEdicaoPost()">Editar post</button>
+                                <button class="post-menu-btn danger" type="button" onclick="abrirExclusaoPost()">Excluir post</button>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
 
                 <div class="post-detail-community">
@@ -226,7 +248,7 @@ if ($resultado_comentarios) {
                 <?php if (count($comentarios) > 0): ?>
                     <?php foreach ($comentarios as $comentario): ?>
                         <?php $comentarioAutorDeletado = trim((string) ($comentario['nome_de_exibicao'] ?? '')) === 'Usuário deletado' || stripos((string) ($comentario['nome_de_usuario'] ?? ''), 'usuario_deletado_') === 0; ?>
-                        <div class="comment-item">
+                        <div class="comment-item" id="comment-<?= intval($comentario['id_comentario']) ?>">
                             <?php if ($comentarioAutorDeletado): ?>
                                 <span class="comment-avatar" aria-label="Usuário removido" style="display:inline-block; cursor:default; opacity:0.8;">
                                     <img src="<?= resolve_avatar_url($comentario['foto_perfil'] ?? null, $comentario['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar do usuário">
@@ -289,9 +311,55 @@ if ($resultado_comentarios) {
                 <?php endif; ?>
             </div>
         </main>
+        <footer class="bottombar">
+            <strong>Blumask</strong>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#1c1c1c" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M15 9.5a3.5 3.5 0 1 0 0 5"/></svg>
+        </footer>
     </div>
 
+    <script src="../js/login_writter.js?v=<?= time() ?>"></script>
     <script>
+        const loginPostDialog = document.getElementById('login-box');
+        const loginPostContent = document.getElementById('pop-div');
+        const loginPostEnter = document.getElementById('btn-entrar-dialog');
+        const loginPostRegister = document.getElementById('btn-cadastrar-dialog');
+
+        function marcarAbaLoginPost(ativa) {
+            loginPostEnter?.classList.toggle('active-tab', ativa === 'entrar');
+            loginPostRegister?.classList.toggle('active-tab', ativa === 'cadastrar');
+        }
+
+        function abrirLoginPost(modo = 0) {
+            if (!loginPostDialog || !loginPostContent) return;
+            const modoCadastro = modo === 1 || modo === '1' || modo === 'cadastrar';
+            loginPostContent.innerHTML = '';
+            trocar(modoCadastro ? 1 : 0, loginPostContent);
+            marcarAbaLoginPost(modoCadastro ? 'cadastrar' : 'entrar');
+            document.querySelectorAll('.modal-overlay.ativo').forEach((modal) => modal.classList.remove('ativo'));
+            if (!loginPostDialog.open) loginPostDialog.showModal();
+        }
+
+        loginPostEnter?.addEventListener('click', () => abrirLoginPost(0));
+        loginPostRegister?.addEventListener('click', () => abrirLoginPost(1));
+
+        loginPostDialog?.addEventListener('click', (event) => {
+            if (event.target === loginPostDialog) loginPostDialog.close();
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const hash = window.location.hash;
+            if (!hash || !hash.startsWith('#comment-')) return;
+
+            const target = document.getElementById(hash.slice(1));
+            if (!target) return;
+
+            setTimeout(() => {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.classList.add('comment-highlight');
+                setTimeout(() => target.classList.remove('comment-highlight'), 2200);
+            }, 150);
+        });
+
         function mostrarAvisoLoginCurtida() {
             let modal = document.getElementById('likeLoginModal');
             if (!modal) {
@@ -304,6 +372,7 @@ if ($resultado_comentarios) {
                         <div class="modal-message">Você precisa estar logado para curtir posts.</div>
                         <div class="modal-actions">
                             <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharAvisoLoginCurtida()">Entendi</button>
+                            <button type="button" class="modal-btn modal-btn-confirm" onclick="abrirLoginPost()">Entrar</button>
                         </div>
                     </div>`;
                 modal.addEventListener('click', (event) => {
@@ -330,6 +399,7 @@ if ($resultado_comentarios) {
                         <div class="modal-message">Você precisa estar logado para comentar posts.</div>
                         <div class="modal-actions">
                             <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharAvisoLoginComentario()">Entendi</button>
+                            <button type="button" class="modal-btn modal-btn-confirm" onclick="abrirLoginPost()">Entrar</button>
                         </div>
                     </div>`;
                 modal.addEventListener('click', (event) => {
@@ -361,6 +431,76 @@ if ($resultado_comentarios) {
         function fecharAvisoLoginComentario() {
             document.getElementById('commentLoginModal')?.classList.remove('ativo');
         }
+
+        function togglePostDetailMenu(button) {
+            const wrapper = button.closest('.post-menu-wrapper');
+            if (!wrapper) return;
+            const menu = wrapper.querySelector('.post-menu-dropdown');
+            const isOpen = menu.classList.contains('open');
+            document.querySelectorAll('.post-menu-dropdown').forEach((item) => item.classList.remove('open'));
+            if (!isOpen) menu.classList.add('open');
+        }
+
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('.post-menu-toggle') && !event.target.closest('.post-menu-dropdown')) {
+                document.querySelectorAll('.post-menu-dropdown').forEach((item) => item.classList.remove('open'));
+            }
+        });
+
+        function fecharPostActionModal() {
+            document.getElementById('postActionModal')?.classList.remove('ativo');
+            const deleteActions = document.getElementById('postDeleteActions');
+            if (deleteActions) deleteActions.style.display = 'none';
+        }
+
+        function abrirEdicaoPost() {
+            const modal = document.getElementById('postActionModal');
+            const form = document.getElementById('postEditForm');
+            if (!modal || !form) return;
+            document.getElementById('postActionTitle').textContent = 'Editar post';
+            document.getElementById('postActionMessage').textContent = 'Atualize os dados do post abaixo.';
+            form.style.display = 'block';
+            document.getElementById('postDeleteActions').style.display = 'none';
+            form.querySelector('[name="assunto"]').value = <?= json_encode($post['assunto'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+            form.querySelector('[name="conteudo"]').value = <?= json_encode($post['conteudo'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+            modal.classList.add('ativo');
+        }
+
+        function abrirExclusaoPost() {
+            const modal = document.getElementById('postActionModal');
+            if (!modal) return;
+            document.getElementById('postActionTitle').textContent = 'Excluir post';
+            document.getElementById('postActionMessage').textContent = 'Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.';
+            document.getElementById('postEditForm').style.display = 'none';
+            document.getElementById('postDeleteActions').style.display = 'flex';
+            modal.classList.add('ativo');
+        }
+
+        function confirmarExclusaoPost() {
+            const formData = new URLSearchParams();
+            formData.set('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
+            formData.set('id_post', '<?= $id_post ?>');
+            fetch('excluir_post.php', { method: 'POST', body: formData })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.sucesso) window.location.href = 'comunidade.php?id=<?= $id_comunidade ?>';
+                    else alert(data.mensagem || 'Não foi possível excluir o post.');
+                })
+                .catch(() => alert('Erro ao excluir o post.'));
+        }
+
+        document.getElementById('postEditForm')?.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const formData = new FormData(event.currentTarget);
+            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
+            fetch('editar_post.php', { method: 'POST', body: formData })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.sucesso) window.location.reload();
+                    else alert(data.mensagem || 'Não foi possível editar o post.');
+                })
+                .catch(() => alert('Erro ao editar o post.'));
+        });
 
         function toggleCommentMenu(button) {
             const wrapper = button.closest('.post-menu-wrapper');
@@ -500,6 +640,7 @@ if ($resultado_comentarios) {
             fd.append('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
             fd.append('id_post', idPost);
             fd.append('id_comentario', idComentario);
+            fd.append('destino', 'post');
 
             fetch('fixar_comentario.php', { method: 'POST', body: fd })
                 .then(r => r.json())

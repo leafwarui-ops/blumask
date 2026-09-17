@@ -93,6 +93,31 @@ alter table post
 add constraint fk_post_comentario_fixado
 foreign key (id_comentario_fixado) references comentario(id_comentario);
 
+alter table usuario
+add id_comentario_fixado int;
+
+alter table usuario
+add constraint fk_usuario_comentario_fixado
+foreign key (id_comentario_fixado) references comentario(id_comentario);
+
+create table perfil_post_fixado(
+id_usuario int not null,
+id_post int not null,
+data_fixacao timestamp default current_timestamp,
+primary key (id_usuario, id_post),
+foreign key (id_usuario) references usuario(id_usuario),
+foreign key (id_post) references post(id_post)
+);
+
+create table perfil_comentario_fixado(
+id_usuario int not null,
+id_comentario int not null,
+data_fixacao timestamp default current_timestamp,
+primary key (id_usuario, id_comentario),
+foreign key (id_usuario) references usuario(id_usuario),
+foreign key (id_comentario) references comentario(id_comentario)
+);
+
 INSERT INTO usuario (email, nome_de_exibicao, senha, nome_de_usuario, descricao, banner, foto_perfil) VALUES
 ('lucas.silva@email.com', 'Lucas Silva', 'hash_senha_123', 'lucassilva', 'Entusiasta de tecnologia e games.', 'banners/banner_lucas.jpg', 'perfis/lucas.jpg'),
 ('mariana.costa@email.com', 'Mariana Costa', 'hash_senha_456', 'maricosta', 'Amante de fotografia e viagens pelo mundo.', 'banners/banner_mari.jpg', 'perfis/mari.jpg'),

@@ -2,6 +2,7 @@
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
+require_once __DIR__ . "/profile_pins.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -9,6 +10,7 @@ $id_usuario = isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usua
 $csrf = $_POST['csrf_token'] ?? '';
 $id_post = intval($_POST['id_post'] ?? 0);
 $id_comentario = intval($_POST['id_comentario'] ?? 0);
+$destino = ($_POST['destino'] ?? 'post') === 'perfil' ? 'perfil' : 'post';
 
 if ($id_usuario <= 0) {
     echo json_encode(["sucesso" => false, "mensagem" => "Você precisa estar logado para fixar comentários."]);
@@ -26,6 +28,35 @@ if ($id_post <= 0 || $id_comentario <= 0) {
 }
 
 global $conn;
+
+if ($destino === 'perfil') {
+    ensure_profile_pin_tables($conn);
+
+    $res_comment = mysqli_query($conn, "SELECT id_comentario, id_post, id_usuario FROM comentario WHERE id_comentario = $id_comentario AND id_post = $id_post LIMIT 1");
+    if (!$res_comment || mysqli_num_rows($res_comment) === 0) {
+        echo json_encode(["sucesso" => false, "mensagem" => "Comentário não encontrado."]);
+        exit;
+    }
+
+    $comment = mysqli_fetch_assoc($res_comment);
+    if (intval($comment['id_usuario']) !== $id_usuario) {
+        echo json_encode(["sucesso" => false, "mensagem" => "Você só pode fixar seus próprios comentários no perfil."]);
+        exit;
+    }
+
+    $pin_exists = mysqli_query($conn, "SELECT 1 FROM perfil_comentario_fixado WHERE id_usuario = $id_usuario AND id_comentario = $id_comentario LIMIT 1");
+    $is_pinned = $pin_exists && mysqli_num_rows($pin_exists) > 0;
+    $sql_update = $is_pinned
+        ? "DELETE FROM perfil_comentario_fixado WHERE id_usuario = $id_usuario AND id_comentario = $id_comentario"
+        : "INSERT IGNORE INTO perfil_comentario_fixado (id_usuario, id_comentario) VALUES ($id_usuario, $id_comentario)";
+
+    if (mysqli_query($conn, $sql_update)) {
+        echo json_encode(["sucesso" => true, "mensagem" => $is_pinned ? "Comentário removido do perfil." : "Comentário fixado no perfil."]);
+    } else {
+        echo json_encode(["sucesso" => false, "mensagem" => "Erro ao fixar o comentário no perfil."]);
+    }
+    exit;
+}
 
 // Verifica se post existe e autor
 // Verifica se post existe e autor
