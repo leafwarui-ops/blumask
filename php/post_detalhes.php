@@ -16,13 +16,29 @@ $id_usuario = isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usua
 $sql_post = "SELECT p.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil, c.nome AS nome_comunidade, c.id_comunidade,
              (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) as total_curtidas,
              (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario) as curtiu,
+             (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) as total_comentarios,
+             p.id_comentario_fixado
+             FROM post p
+             JOIN usuario u ON p.id_usuario = u.id_usuario
+             JOIN comunidade c ON c.id_comunidade = p.id_comunidade
+             WHERE p.id_post = $id_post LIMIT 1";
+
+try {
+    $resultado_post = mysqli_query($conn, $sql_post);
+} catch (mysqli_sql_exception $e) {
+    // Possível que a coluna id_comentario_fixado não exista no banco.
+    // Faz fallback para uma query sem essa coluna para evitar fatal error.
+    $sql_post_alt = "SELECT p.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil, c.nome AS nome_comunidade, c.id_comunidade,
+             (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) as total_curtidas,
+             (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario) as curtiu,
              (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) as total_comentarios
              FROM post p
              JOIN usuario u ON p.id_usuario = u.id_usuario
              JOIN comunidade c ON c.id_comunidade = p.id_comunidade
              WHERE p.id_post = $id_post LIMIT 1";
 
-$resultado_post = mysqli_query($conn, $sql_post);
+    $resultado_post = mysqli_query($conn, $sql_post_alt);
+}
 
 if (!$resultado_post || mysqli_num_rows($resultado_post) === 0) {
     header("Location: ../index.php");
@@ -69,11 +85,13 @@ function resolve_avatar_url($foto_perfil, $nome_exibicao) {
     return $fallback;
 }
 
+$id_comentario_fixado = intval($post['id_comentario_fixado'] ?? 0);
+
 $sql_comentarios = "SELECT c.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil
                     FROM comentario c
                     JOIN usuario u ON c.id_usuario = u.id_usuario
                     WHERE c.id_post = $id_post
-                    ORDER BY c.data_comentario ASC, c.id_comentario ASC";
+                    ORDER BY CASE WHEN c.id_comentario = $id_comentario_fixado THEN 0 ELSE 1 END, c.data_comentario ASC, c.id_comentario ASC";
 
 $resultado_comentarios = mysqli_query($conn, $sql_comentarios);
 $comentarios = [];
@@ -106,6 +124,17 @@ if ($resultado_comentarios) {
     </div>
 
     <div class="page">
+        <!-- Modal de confirmação para exclusão de comentário -->
+        <div class="modal-overlay" id="confirmCommentModal">
+            <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="confirmCommentTitle">
+                <div class="modal-header" id="confirmCommentTitle">Confirmação</div>
+                <div class="modal-message" id="confirmCommentMessage">Tem certeza que deseja excluir este comentário? Esta ação não pode ser desfeita.</div>
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn modal-btn-cancel" id="confirmCommentCancel">Cancelar</button>
+                    <button type="button" class="modal-btn modal-btn-danger" id="confirmCommentOk">Confirmar</button>
+                </div>
+            </div>
+        </div>
         <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9; border-bottom: 1px solid rgba(255,255,255,0.2); position: sticky; top: 0; z-index: 100;">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <a href="../index.php" style="text-decoration: none; display: flex; align-items: center; gap: 8px; color: #fff;">
@@ -187,7 +216,10 @@ if ($resultado_comentarios) {
                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
                         <textarea name="conteudo" minlength="2" maxlength="2000" placeholder="Digite seu comentário... (mín. 2 caracteres)" required></textarea>
-                        <button type="submit">Enviar comentário</button>
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="submit">Enviar comentário</button>
+                            <button type="button" class="btn-descartar" id="btnDescartarComentarioDetalhe">Descartar</button>
+                        </div>
                     </form>
                 </div>
 
@@ -204,7 +236,7 @@ if ($resultado_comentarios) {
                                     <img src="<?= resolve_avatar_url($comentario['foto_perfil'] ?? null, $comentario['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar do usuário">
                                 </a>
                             <?php endif; ?>
-                            <div class="comment-body">
+                                            <div class="comment-body">
                                 <div class="comment-meta">
                                     <?php if ($comentarioAutorDeletado): ?>
                                         <span style="text-decoration:none; color:inherit; cursor:default;">
@@ -218,7 +250,27 @@ if ($resultado_comentarios) {
                                     <span>@<?= htmlspecialchars($comentario['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?></span>
                                     <time><?= date('d/m/Y', strtotime($comentario['data_comentario'])) ?></time>
                                 </div>
-                                <p><?= htmlspecialchars($comentario['conteudo'], ENT_QUOTES, 'UTF-8') ?></p>
+                                <div class="comment-actions-and-content">
+                                    <p class="comment-content" data-comentario-id="<?= $comentario['id_comentario'] ?>"><?= htmlspecialchars($comentario['conteudo'], ENT_QUOTES, 'UTF-8') ?></p>
+
+                                    <?php $is_post_owner = (int) $post['id_usuario'] === $id_usuario; ?>
+                                    <?php $is_comentario_autor = (int) $comentario['id_usuario'] === $id_usuario; ?>
+
+                                    <?php if ($is_comentario_autor || $is_post_owner): ?>
+                                        <div class="post-menu-wrapper" style="margin-left:8px;">
+                                            <button class="post-menu-toggle" type="button" aria-label="Opções do comentário" onclick="toggleCommentMenu(this)">⋯</button>
+                                            <div class="post-menu-dropdown">
+                                                <?php if ($is_comentario_autor): ?>
+                                                    <button class="post-menu-btn" type="button" onclick="abrirEditorComentario(<?= $comentario['id_comentario'] ?>)">Editar</button>
+                                                <?php endif; ?>
+
+                                                <?php if ($is_comentario_autor || $is_post_owner): ?>
+                                                    <button class="post-menu-btn danger" type="button" onclick="excluirComentario(<?= $comentario['id_comentario'] ?>)">Excluir</button>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -300,6 +352,160 @@ if ($resultado_comentarios) {
             document.getElementById('commentLoginModal')?.classList.remove('ativo');
         }
 
+        function toggleCommentMenu(button) {
+            const wrapper = button.closest('.post-menu-wrapper');
+            if (!wrapper) return;
+            const menu = wrapper.querySelector('.post-menu-dropdown');
+            const isOpen = menu.classList.contains('open');
+            document.querySelectorAll('.post-menu-dropdown').forEach(item => item.classList.remove('open'));
+            if (!isOpen) {
+                menu.classList.add('open');
+            }
+        }
+
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.post-menu-toggle') && !event.target.closest('.post-menu-dropdown')) {
+                document.querySelectorAll('.post-menu-dropdown').forEach(item => item.classList.remove('open'));
+            }
+        });
+
+        function abrirEditorComentario(idComentario) {
+            const p = document.querySelector('.comment-content[data-comentario-id="' + idComentario + '"]');
+            if (!p) return;
+            const original = p.textContent;
+            const textarea = document.createElement('textarea');
+            textarea.value = original;
+            textarea.rows = 3;
+            textarea.style.width = '100%';
+
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Salvar';
+            saveBtn.type = 'button';
+            saveBtn.className = 'modal-btn modal-btn-confirm';
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancelar';
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'modal-btn modal-btn-cancel';
+
+            const container = document.createElement('div');
+            container.className = 'inline-comment-editor';
+            container.appendChild(textarea);
+            const actions = document.createElement('div');
+            actions.style.marginTop = '6px';
+            actions.appendChild(cancelBtn);
+            actions.appendChild(saveBtn);
+            container.appendChild(actions);
+
+            p.style.display = 'none';
+            p.parentNode.insertBefore(container, p.nextSibling);
+
+            cancelBtn.addEventListener('click', function() {
+                container.remove();
+                p.style.display = '';
+            });
+
+            saveBtn.addEventListener('click', function() {
+                const novo = textarea.value.trim();
+                if (novo.length < 2) {
+                    alert('O comentário deve ter no mínimo 2 caracteres.');
+                    return;
+                }
+
+                const fd = new FormData();
+                fd.append('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
+                fd.append('id_comentario', idComentario);
+                fd.append('conteudo', novo);
+
+                fetch('editar_comentario.php', { method: 'POST', body: fd })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.sucesso) {
+                            location.reload();
+                        } else {
+                            alert(data.mensagem || 'Não foi possível editar o comentário.');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('Erro ao editar comentário.');
+                    });
+            });
+        }
+
+        function excluirComentario(idComentario) {
+            // Abre modal de confirmação
+            showConfirm('Tem certeza que deseja excluir este comentário?', function() {
+                const fd = new FormData();
+                fd.append('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
+                fd.append('id_comentario', idComentario);
+
+                fetch('excluir_comentario.php', { method: 'POST', body: fd })
+                    .then(r => r.json())
+                        .then(data => {
+                            if (data.sucesso) {
+                                location.reload();
+                            } else {
+                                alert(data.mensagem || 'Não foi possível excluir o comentário.');
+                            }
+                        })
+                    .catch(err => {
+                        console.error(err);
+                        showMessage('Erro ao excluir comentário.');
+                    });
+            });
+        }
+
+        function showConfirm(message, onConfirm) {
+            const modal = document.getElementById('confirmCommentModal');
+            const msg = document.getElementById('confirmCommentMessage');
+            const btnOk = document.getElementById('confirmCommentOk');
+            const btnCancel = document.getElementById('confirmCommentCancel');
+            if (!modal || !msg || !btnOk || !btnCancel) {
+                if (confirm(message)) onConfirm();
+                return;
+            }
+            msg.textContent = message;
+            modal.classList.add('ativo');
+
+            function cleanup() {
+                modal.classList.remove('ativo');
+                btnOk.removeEventListener('click', onOk);
+                btnCancel.removeEventListener('click', onCancel);
+            }
+
+            function onOk() { cleanup(); onConfirm(); }
+            function onCancel() { cleanup(); }
+
+            btnOk.addEventListener('click', onOk);
+            btnCancel.addEventListener('click', onCancel);
+        }
+
+        function showMessage(message) {
+            alert(message);
+        }
+
+        function fixarComentario(idPost, idComentario) {
+            const fd = new FormData();
+            fd.append('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
+            fd.append('id_post', idPost);
+            fd.append('id_comentario', idComentario);
+
+            fetch('fixar_comentario.php', { method: 'POST', body: fd })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.sucesso) {
+                        location.reload();
+                    } else {
+                        alert(data.mensagem || 'Não foi possível atualizar a fixação.');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Erro ao atualizar fixação.');
+                });
+        }
+
         function curtirPost(idPost) {
             <?php if (!isset($_SESSION['usuario'])): ?>
                 mostrarAvisoLoginCurtida();
@@ -364,6 +570,14 @@ if ($resultado_comentarios) {
                     console.error('Erro ao comentar:', error);
                     alert('Erro ao comentar. Tente novamente.');
                 });
+            });
+        }
+
+        const btnDescartarComentarioDetalhe = document.getElementById('btnDescartarComentarioDetalhe');
+        if (btnDescartarComentarioDetalhe) {
+            btnDescartarComentarioDetalhe.addEventListener('click', function() {
+                const form = document.getElementById('formComentarioDetalhe');
+                if (form) form.reset();
             });
         }
     </script>

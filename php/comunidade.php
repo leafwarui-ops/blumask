@@ -401,7 +401,10 @@ if ($resultado_count) {
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
                                         <textarea name="conteudo" rows="3" minlength="2" maxlength="2000" placeholder="Escreva um comentário... (mín. 2 caracteres)" required></textarea>
-                                        <button type="submit">Comentar</button>
+                                        <div style="display:flex; gap:8px; margin-top:8px;">
+                                            <button type="submit">Comentar</button>
+                                            <button type="button" class="btn-descartar" onclick="descartarComentarioInline(<?= $post['id_post'] ?>)">Descartar</button>
+                                        </div>
                                     </form>
                                 </div>
                             </div>
@@ -862,6 +865,13 @@ if ($resultado_count) {
                 });
             });
         });
+
+        function descartarComentarioInline(idPost) {
+            const formWrap = document.getElementById(`comment-form-${idPost}`);
+            const form = formWrap ? formWrap.querySelector('.form-comentario') : null;
+            if (form) form.reset();
+            if (formWrap) formWrap.style.display = 'none';
+        }
 
         // ===== NEW POST FORM =====
         const formNovoPost = document.getElementById('formNovoPost');

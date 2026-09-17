@@ -1057,6 +1057,13 @@ footer.bottombar {
     border: 1px solid #eef2f7;
     border-radius: 12px;
     background: #f8fafc;
+    position: relative;
+}
+
+.comment-item .post-menu-wrapper {
+    position: absolute;
+    right: 12px;
+    top: 12px;
 }
 
 .comment-avatar {

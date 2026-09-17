@@ -85,6 +85,14 @@ alter table comunidade
 add constraint id_comu_post_fixado
 foreign key (id_post_fixado) references post(id_post);
 
+-- Permitir fixar um comentário em um post
+alter table post
+add id_comentario_fixado int;
+
+alter table post
+add constraint fk_post_comentario_fixado
+foreign key (id_comentario_fixado) references comentario(id_comentario);
+
 INSERT INTO usuario (email, nome_de_exibicao, senha, nome_de_usuario, descricao, banner, foto_perfil) VALUES
 ('lucas.silva@email.com', 'Lucas Silva', 'hash_senha_123', 'lucassilva', 'Entusiasta de tecnologia e games.', 'banners/banner_lucas.jpg', 'perfis/lucas.jpg'),
 ('mariana.costa@email.com', 'Mariana Costa', 'hash_senha_456', 'maricosta', 'Amante de fotografia e viagens pelo mundo.', 'banners/banner_mari.jpg', 'perfis/mari.jpg'),
