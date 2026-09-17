@@ -234,6 +234,17 @@ function userAvatar($user) {
   <link rel="stylesheet" href="../style/user_view_style.css?v=<?= time() ?>">
 </head>
 <body data-id-usuario="<?= isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0 ?>">
+  <dialog id="login-box">
+    <form id="popup-form" action="../index.php" method="post">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+      <input type="hidden" name="return_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '../index.php', ENT_QUOTES, 'UTF-8') ?>">
+      <div class="dialog-tabs">
+        <button type="button" id="btn-entrar-dialog">entrar</button>
+        <button type="button" id="btn-cadastrar-dialog">cadastrar</button>
+      </div>
+      <div id="pop-div"></div>
+    </form>
+  </dialog>
   <div class="page">
     <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9;">
       <div style="display: flex; align-items: center; gap: 12px; cursor: pointer;" onclick="window.location.href='../index.php'">
@@ -617,8 +628,34 @@ function userAvatar($user) {
   </div>
 
   <script src="../js/busca.js?v=<?= time() ?>"></script>
+  <script src="../js/login_writter.js?v=<?= time() ?>"></script>
   <script>
     const csrfToken = "<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>";
+    const loginProfileDialog = document.getElementById('login-box');
+    const loginProfileContent = document.getElementById('pop-div');
+    const loginProfileEnter = document.getElementById('btn-entrar-dialog');
+    const loginProfileRegister = document.getElementById('btn-cadastrar-dialog');
+
+    function marcarAbaLoginPerfil(ativa) {
+      loginProfileEnter?.classList.toggle('active-tab', ativa === 'entrar');
+      loginProfileRegister?.classList.toggle('active-tab', ativa === 'cadastrar');
+    }
+
+    function abrirLoginPerfil(modo = 0) {
+      if (!loginProfileDialog || !loginProfileContent) return;
+      const modoCadastro = modo === 1 || modo === '1' || modo === 'cadastrar';
+      loginProfileContent.innerHTML = '';
+      trocar(modoCadastro ? 1 : 0, loginProfileContent);
+      marcarAbaLoginPerfil(modoCadastro ? 'cadastrar' : 'entrar');
+      document.querySelectorAll('.modal-overlay.ativo').forEach((modal) => modal.classList.remove('ativo'));
+      if (!loginProfileDialog.open) loginProfileDialog.showModal();
+    }
+
+    loginProfileEnter?.addEventListener('click', () => abrirLoginPerfil(0));
+    loginProfileRegister?.addEventListener('click', () => abrirLoginPerfil(1));
+    loginProfileDialog?.addEventListener('click', (event) => {
+      if (event.target === loginProfileDialog) loginProfileDialog.close();
+    });
 
     function mostrarAvisoLoginCurtida() {
       let modal = document.getElementById('likeLoginModal');
@@ -632,6 +669,7 @@ function userAvatar($user) {
             <div class="modal-message">Você precisa estar logado para curtir posts.</div>
             <div class="modal-actions">
               <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharAvisoLoginCurtida()">Entendi</button>
+              <button type="button" class="modal-btn modal-btn-confirm" onclick="abrirLoginPerfil()">Entrar</button>
             </div>
           </div>`;
         modal.addEventListener('click', (event) => {
