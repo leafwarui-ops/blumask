@@ -35,6 +35,43 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
         $error_message = "Token de segurança (CSRF) inválido. Recarregue a página e tente novamente.";
     }
+    // Exclusão da conta com confirmação por senha
+    elseif (!empty($_POST['delete_account'])) {
+        $senha_delete = $_POST['delete_account_senha'] ?? '';
+
+        if (empty($senha_delete)) {
+            $error_message = "Você precisa informar sua senha para confirmar a exclusão da conta.";
+        } elseif (!password_verify($senha_delete, $user['senha'])) {
+            $error_message = "Senha incorreta. A conta não foi excluída.";
+        } else {
+            $deleted_username = 'usuario_deletado_' . $user_id;
+            $deleted_email = 'usuario_deletado_' . $user_id . '@deleted.local';
+            $deleted_hash = password_hash('conta_deletada', PASSWORD_DEFAULT);
+
+            $deleted_username_esc = $conn->real_escape_string($deleted_username);
+            $deleted_email_esc = $conn->real_escape_string($deleted_email);
+            $deleted_hash_esc = $conn->real_escape_string($deleted_hash);
+
+            $sql_anonymize = "UPDATE usuario SET 
+                nome_de_exibicao = 'Usuário deletado',
+                nome_de_usuario = '$deleted_username_esc',
+                email = '$deleted_email_esc',
+                descricao = 'Conta removida pelo usuário.',
+                senha = '$deleted_hash_esc',
+                banner = NULL,
+                foto_perfil = NULL,
+                id_post_fixado = NULL
+                WHERE id_usuario = $user_id";
+
+            if ($conn->query($sql_anonymize) === TRUE) {
+                session_destroy();
+                header("Location: ../index.php?conta_excluida=1");
+                exit;
+            }
+
+            $error_message = "Não foi possível excluir a conta no momento. Tente novamente.";
+        }
+    }
     // Checa Rate Limit de edição (máx 5 atualizações / 15 min = 900s)
     elseif (!check_rate_limit('usr_edit_attempt', 5, 900)) {
         $waitTime = get_rate_limit_wait_time('usr_edit_attempt', 900);
@@ -332,10 +369,34 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
               <button type="submit" id="btn-confirmar" class="btn-confirmar" disabled>Confirmar</button>
             </div>
 
+            <div class="delete-account-area">
+              <button type="button" id="btn-delete-account" class="btn-delete-account">Excluir conta</button>
+            </div>
+
           </form>
         </div>
       </div>
     </main>
+
+    <div class="delete-modal" id="deleteAccountModal" aria-hidden="true">
+      <div class="delete-modal-content" role="dialog" aria-modal="true" aria-labelledby="deleteAccountTitle">
+        <h3 id="deleteAccountTitle">Excluir conta</h3>
+        <p>Essa ação é permanente. Todos os seus posts, comentários e dados vinculados serão removidos.</p>
+
+        <form method="post" action="" id="deleteAccountForm">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+          <input type="hidden" name="delete_account" value="1">
+
+          <label for="delete_account_senha">Digite sua senha para confirmar</label>
+          <input id="delete_account_senha" name="delete_account_senha" type="password" placeholder="Sua senha" autocomplete="current-password" required>
+
+          <div class="delete-modal-actions">
+            <button type="button" class="btn-cancel-delete" id="btnCancelDelete">Cancelar</button>
+            <button type="submit" class="btn-confirm-delete">Excluir conta</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <!-- FOOTER -->
     <footer class="bottombar">
@@ -344,11 +405,114 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
     </footer>
   </div>
 
+  <style>
+    .delete-account-area {
+      margin-top: 20px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .btn-delete-account {
+      background: rgba(220, 53, 69, 0.12);
+      color: #d93025;
+      border: 1px solid rgba(217, 48, 37, 0.35);
+      border-radius: 12px;
+      padding: 11px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-delete-account:hover {
+      background: rgba(220, 53, 69, 0.18);
+    }
+
+    .delete-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 20px;
+    }
+
+    .delete-modal.active {
+      display: flex;
+    }
+
+    .delete-modal-content {
+      width: min(100%, 420px);
+      background: #fff;
+      color: #1f1f1f;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+    }
+
+    .delete-modal-content h3 {
+      margin: 0 0 10px;
+      font-size: 1.5rem;
+    }
+
+    .delete-modal-content p {
+      margin: 0 0 18px;
+      color: #4d4d4d;
+      line-height: 1.5;
+    }
+
+    .delete-modal-content label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .delete-modal-content input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid #d0d5dd;
+      background: #f9fafb;
+      margin-bottom: 18px;
+      box-sizing: border-box;
+    }
+
+    .delete-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .btn-cancel-delete,
+    .btn-confirm-delete {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-cancel-delete {
+      background: #eef2f7;
+      color: #1f2937;
+    }
+
+    .btn-confirm-delete {
+      background: #d93025;
+      color: #fff;
+    }
+  </style>
+
   <!-- SCRIPT DE INTERAÇÃO E VALIDAÇÕES EM TEMPO REAL -->
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const form = document.getElementById("edit-profile-form");
       const btnConfirmar = document.getElementById("btn-confirmar");
+      const btnDeleteAccount = document.getElementById("btn-delete-account");
+      const deleteModal = document.getElementById("deleteAccountModal");
+      const btnCancelDelete = document.getElementById("btnCancelDelete");
+      const deletePasswordInput = document.getElementById("delete_account_senha");
 
       const inputNomeUsr   = document.getElementById("nome_usr");
       const inputNomeExb   = document.getElementById("nome_exb");
@@ -572,6 +736,30 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
         input.addEventListener("input", validateForm);
         input.addEventListener("keyup", validateForm);
         input.addEventListener("change", validateForm);
+      });
+
+      btnDeleteAccount.addEventListener("click", function () {
+        deleteModal.classList.add("active");
+        deletePasswordInput.focus();
+      });
+
+      btnCancelDelete.addEventListener("click", function () {
+        deleteModal.classList.remove("active");
+        deletePasswordInput.value = "";
+      });
+
+      deleteModal.addEventListener("click", function (event) {
+        if (event.target === deleteModal) {
+          deleteModal.classList.remove("active");
+          deletePasswordInput.value = "";
+        }
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && deleteModal.classList.contains("active")) {
+          deleteModal.classList.remove("active");
+          deletePasswordInput.value = "";
+        }
       });
 
       // Roda validação inicial

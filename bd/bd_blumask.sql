@@ -4,13 +4,16 @@ use bd_blumask;
 create table usuario(
 id_usuario int primary key auto_increment,
 email varchar(100),
-nome_de_exibicao varchar(100) unique,
+nome_de_exibicao varchar(100),
 senha varchar(255),
 nome_de_usuario varchar(100) unique,
 descricao text,
 banner varchar(200),
 foto_perfil varchar(200)
 );
+
+-- Se seu banco já foi criado com um índice único em nome_de_exibicao, execute:
+-- ALTER TABLE usuario DROP INDEX nome_de_exibicao;
 
 create table comunidade(
 id_comunidade int primary key auto_increment,

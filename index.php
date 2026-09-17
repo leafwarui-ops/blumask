@@ -75,8 +75,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $nome_exb = mysqli_real_escape_string($conn, $nome_exb_raw);
                 $email    = mysqli_real_escape_string($conn, $email_raw);
 
-                // Verificação prévia de duplicidade amigável
-                $check_sql = "SELECT email, nome_de_usuario, nome_de_exibicao FROM usuario WHERE email = '$email' OR nome_de_usuario = '$nome_usr' OR nome_de_exibicao = '$nome_exb' LIMIT 1";
+                // Verificação prévia de duplicidade amigável:
+                // somente nome de usuário e e-mail precisam ser únicos; nome de exibição pode repetir.
+                $check_sql = "SELECT email, nome_de_usuario FROM usuario WHERE email = '$email' OR nome_de_usuario = '$nome_usr' LIMIT 1";
                 $check_res = mysqli_query($conn, $check_sql);
 
                 if ($check_res && mysqli_num_rows($check_res) > 0) {
@@ -84,10 +85,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $row_dup = mysqli_fetch_assoc($check_res);
                     if (strcasecmp($row_dup['email'] ?? '', $email_raw) === 0) {
                         $login_error = "Este e-mail já está cadastrado.";
-                    } elseif (strcasecmp($row_dup['nome_de_usuario'] ?? '', $nome_usr_raw) === 0) {
-                        $login_error = "Este nome de usuário já está em uso.";
                     } else {
-                        $login_error = "Este nome de exibição já está em uso.";
+                        $login_error = "Este nome de usuário já está em uso.";
                     }
                 } else {
                     try {
@@ -145,6 +144,7 @@ $sql_recent_posts = "SELECT
     . ($id_usuario_logado > 0 ? ", (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario_logado) AS curtiu" : ", 0 AS curtiu") . "
 FROM post p
 INNER JOIN comunidade c ON p.id_comunidade = c.id_comunidade
+WHERE p.id_usuario = $id_usuario_logado
 ORDER BY p.Data_post DESC, p.id_post DESC
 LIMIT 30";
 
@@ -335,6 +335,7 @@ if ($id_usuario_logado > 0) {
                     $authorName = $nome_comunidade;
                     $authorHandle = '';
                     $authorAvatar = $img_comunidade;
+                    $authorIsDeleted = false;
                     if ($autor_id > 0) {
                         if (!isset($authorsCache[$autor_id])) {
                             $resA = mysqli_query($conn, "SELECT nome_de_exibicao, nome_de_usuario, foto_perfil FROM usuario WHERE id_usuario = $autor_id LIMIT 1");
@@ -342,24 +343,35 @@ if ($id_usuario_logado > 0) {
                         }
                         if (!empty($authorsCache[$autor_id])) {
                             $authorName = htmlspecialchars($authorsCache[$autor_id]['nome_de_exibicao'] ?? $authorsCache[$autor_id]['nome_de_usuario'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
-                          $authorHandle = htmlspecialchars($authorsCache[$autor_id]['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
+                            $authorHandle = htmlspecialchars($authorsCache[$autor_id]['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
                             $authorAvatar = !empty($authorsCache[$autor_id]['foto_perfil']) ? htmlspecialchars($authorsCache[$autor_id]['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($authorName) . "&background=random";
+                            $authorIsDeleted = $authorName === 'Usuário deletado' || strpos($authorHandle, 'usuario_deletado_') === 0;
                         }
                     }
                   ?>
                   <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-community-id="<?= $id_comunidade ?>">
                     <div class="post-header">
                       <div class="post-avatar">
-                        <a href="php/user_view.php?id=<?= $autor_id ?>" title="Ver perfil de <?= $authorName ?>" onclick="event.stopPropagation();">
-                          <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>">
-                        </a>
+                        <?php if ($authorIsDeleted): ?>
+                          <span title="Usuário removido" style="display:inline-block; cursor:default;">
+                            <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>" style="opacity:0.8;">
+                          </span>
+                        <?php else: ?>
+                          <a href="php/user_view.php?id=<?= $autor_id ?>" title="Ver perfil de <?= $authorName ?>" onclick="event.stopPropagation();">
+                            <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>">
+                          </a>
+                        <?php endif; ?>
                       </div>
                       <div class="post-header-info">
                         <div class="post-user-info">
                           <h4>
-                            <a href="php/user_view.php?id=<?= $autor_id ?>" class="post-community-name" onclick="event.stopPropagation();">
-                              <?= $authorName ?>
-                            </a>
+                            <?php if ($authorIsDeleted): ?>
+                              <span class="post-community-name" style="cursor:default; color:inherit;"><?= $authorName ?></span>
+                            <?php else: ?>
+                              <a href="php/user_view.php?id=<?= $autor_id ?>" class="post-community-name" onclick="event.stopPropagation();">
+                                <?= $authorName ?>
+                              </a>
+                            <?php endif; ?>
                           </h4>
                           <?php if ($authorHandle !== ''): ?>
                             <div class="post-user-handle">@<?= $authorHandle ?></div>
@@ -453,6 +465,7 @@ if ($id_usuario_logado > 0) {
                     $authorName = $nome_comunidade;
                     $authorHandle = '';
                     $authorAvatar = $img_comunidade;
+                    $authorIsDeleted = false;
                     if ($autor_id > 0) {
                         if (!isset($authorsCache[$autor_id])) {
                             $resA = mysqli_query($conn, "SELECT nome_de_exibicao, nome_de_usuario, foto_perfil FROM usuario WHERE id_usuario = $autor_id LIMIT 1");
@@ -460,24 +473,35 @@ if ($id_usuario_logado > 0) {
                         }
                         if (!empty($authorsCache[$autor_id])) {
                             $authorName = htmlspecialchars($authorsCache[$autor_id]['nome_de_exibicao'] ?? $authorsCache[$autor_id]['nome_de_usuario'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
-                          $authorHandle = htmlspecialchars($authorsCache[$autor_id]['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
+                            $authorHandle = htmlspecialchars($authorsCache[$autor_id]['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
                             $authorAvatar = !empty($authorsCache[$autor_id]['foto_perfil']) ? htmlspecialchars($authorsCache[$autor_id]['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($authorName) . "&background=random";
+                            $authorIsDeleted = $authorName === 'Usuário deletado' || strpos($authorHandle, 'usuario_deletado_') === 0;
                         }
                     }
                   ?>
                   <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-community-id="<?= $id_comunidade ?>">
                     <div class="post-header">
                       <div class="post-avatar">
-                        <a href="php/user_view.php?id=<?= $autor_id ?>" title="Ver perfil de <?= $authorName ?>" onclick="event.stopPropagation();">
-                          <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>">
-                        </a>
+                        <?php if ($authorIsDeleted): ?>
+                          <span title="Usuário removido" style="display:inline-block; cursor:default;">
+                            <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>" style="opacity:0.8;">
+                          </span>
+                        <?php else: ?>
+                          <a href="php/user_view.php?id=<?= $autor_id ?>" title="Ver perfil de <?= $authorName ?>" onclick="event.stopPropagation();">
+                            <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>">
+                          </a>
+                        <?php endif; ?>
                       </div>
                       <div class="post-header-info">
                         <div class="post-user-info">
                           <h4>
-                            <a href="php/user_view.php?id=<?= $autor_id ?>" class="post-community-name" onclick="event.stopPropagation();">
-                              <?= $authorName ?>
-                            </a>
+                            <?php if ($authorIsDeleted): ?>
+                              <span class="post-community-name" style="cursor:default; color:inherit;"><?= $authorName ?></span>
+                            <?php else: ?>
+                              <a href="php/user_view.php?id=<?= $autor_id ?>" class="post-community-name" onclick="event.stopPropagation();">
+                                <?= $authorName ?>
+                              </a>
+                            <?php endif; ?>
                           </h4>
                           <?php if ($authorHandle !== ''): ?>
                             <div class="post-user-handle">@<?= $authorHandle ?></div>
@@ -521,8 +545,8 @@ if ($id_usuario_logado > 0) {
                 <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.8">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
-                <p>Nenhum post recente ainda.</p>
-                <span>Explore as comunidades ao lado e seja o primeiro a publicar!</span>
+                <p>Você ainda não publicou nenhum post.</p>
+                <span>Participe das comunidades e publique sua primeira atualização!</span>
               </div>
             <?php endif; ?>
           </div>

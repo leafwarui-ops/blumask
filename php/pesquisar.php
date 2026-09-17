@@ -81,8 +81,10 @@ $comunidades = [];
 if ($tipo === 'todos' || $tipo === 'usuarios') {
     $sql_usuarios = "SELECT id_usuario, nome_de_exibicao, nome_de_usuario, descricao, banner, foto_perfil
                      FROM usuario
-                     WHERE nome_de_usuario LIKE '%$termo_esc%' 
-                        OR nome_de_exibicao LIKE '%$termo_esc%'
+                     WHERE (nome_de_usuario LIKE '%$termo_esc%' 
+                        OR nome_de_exibicao LIKE '%$termo_esc%')
+                       AND nome_de_exibicao <> 'Usuário deletado'
+                       AND nome_de_usuario NOT LIKE 'usuario_deletado_%'
                      ORDER BY 
                         CASE 
                             WHEN nome_de_usuario LIKE '$termo_esc%' THEN 1

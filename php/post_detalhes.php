@@ -30,6 +30,13 @@ if (!$resultado_post || mysqli_num_rows($resultado_post) === 0) {
 }
 
 $post = mysqli_fetch_assoc($resultado_post);
+$id_comunidade = intval($post['id_comunidade'] ?? 0);
+$eh_membro = false;
+
+if ($id_usuario > 0 && $id_comunidade > 0) {
+    $resultado_membro = mysqli_query($conn, "SELECT id_membro_comunidade FROM membro_comunidade WHERE id_usuario = $id_usuario AND id_comunidade = $id_comunidade LIMIT 1");
+    $eh_membro = $resultado_membro && mysqli_num_rows($resultado_membro) > 0;
+}
 
 function resolve_avatar_url($foto_perfil, $nome_exibicao) {
     $nome = trim((string) ($nome_exibicao ?? 'User'));
@@ -88,6 +95,16 @@ if ($resultado_comentarios) {
     <link rel="stylesheet" href="../style/comunidade_style.css?v=<?= time() ?>">
 </head>
 <body>
+    <div class="modal-overlay" id="followCommunityModal">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="followCommunityTitle">
+            <div class="modal-header" id="followCommunityTitle">Atenção</div>
+            <div class="modal-message">Você precisa seguir esta comunidade para publicar posts e comentar.</div>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharPopupSeguirComunidade()">Entendi</button>
+            </div>
+        </div>
+    </div>
+
     <div class="page">
         <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9; border-bottom: 1px solid rgba(255,255,255,0.2); position: sticky; top: 0; z-index: 100;">
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -101,24 +118,39 @@ if ($resultado_comentarios) {
 
         <main class="post-detail-page">
             <div class="post-detail-card">
+                <?php $postAutorDeletado = trim((string) ($post['nome_de_exibicao'] ?? '')) === 'Usuário deletado' || stripos((string) ($post['nome_de_usuario'] ?? ''), 'usuario_deletado_') === 0; ?>
                 <div class="post-detail-header">
                     <button type="button" class="community-back-btn" title="Voltar para a página anterior" aria-label="Voltar para a página anterior" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '../index.php'; } return false;">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18L9 12L15 6"/></svg>
                     </button>
-                    <a href="user_view.php?id=<?= intval($post['id_usuario']) ?>" class="post-avatar" aria-label="Ver perfil de <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>" style="display:inline-block; text-decoration:none;">
-                        <img src="<?= resolve_avatar_url($post['foto_perfil'] ?? null, $post['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar">
-                    </a>
+                    <?php if ($postAutorDeletado): ?>
+                        <span class="post-avatar" aria-label="Usuário removido" style="display:inline-block; text-decoration:none; cursor:default; opacity:0.8;">
+                            <img src="<?= resolve_avatar_url($post['foto_perfil'] ?? null, $post['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar">
+                        </span>
+                    <?php else: ?>
+                        <a href="user_view.php?id=<?= intval($post['id_usuario']) ?>" class="post-avatar" aria-label="Ver perfil de <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>" style="display:inline-block; text-decoration:none;">
+                            <img src="<?= resolve_avatar_url($post['foto_perfil'] ?? null, $post['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar">
+                        </a>
+                    <?php endif; ?>
                     <div class="post-header-info">
                         <div class="post-user-info">
                             <h4>
-                                <a href="user_view.php?id=<?= intval($post['id_usuario']) ?>" style="text-decoration:none; color:inherit;">
-                                    <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>
-                                </a>
+                                <?php if ($postAutorDeletado): ?>
+                                    <span style="text-decoration:none; color:inherit; cursor:default;"><?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php else: ?>
+                                    <a href="user_view.php?id=<?= intval($post['id_usuario']) ?>" style="text-decoration:none; color:inherit;">
+                                        <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>
+                                    </a>
+                                <?php endif; ?>
                             </h4>
                             <p>
-                                <a href="user_view.php?id=<?= intval($post['id_usuario']) ?>" style="text-decoration:none; color:inherit;">
-                                    @<?= htmlspecialchars($post['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?>
-                                </a>
+                                <?php if ($postAutorDeletado): ?>
+                                    <span style="text-decoration:none; color:inherit; cursor:default;">@<?= htmlspecialchars($post['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php else: ?>
+                                    <a href="user_view.php?id=<?= intval($post['id_usuario']) ?>" style="text-decoration:none; color:inherit;">
+                                        @<?= htmlspecialchars($post['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?>
+                                    </a>
+                                <?php endif; ?>
                             </p>
                         </div>
                         <div class="post-date"><?= date('d/m/Y', strtotime($post['Data_post'])) ?></div>
@@ -161,15 +193,28 @@ if ($resultado_comentarios) {
 
                 <?php if (count($comentarios) > 0): ?>
                     <?php foreach ($comentarios as $comentario): ?>
+                        <?php $comentarioAutorDeletado = trim((string) ($comentario['nome_de_exibicao'] ?? '')) === 'Usuário deletado' || stripos((string) ($comentario['nome_de_usuario'] ?? ''), 'usuario_deletado_') === 0; ?>
                         <div class="comment-item">
-                            <a href="user_view.php?id=<?= intval($comentario['id_usuario']) ?>" class="comment-avatar" aria-label="Ver perfil de <?= htmlspecialchars($comentario['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>">
-                                <img src="<?= resolve_avatar_url($comentario['foto_perfil'] ?? null, $comentario['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar do usuário">
-                            </a>
+                            <?php if ($comentarioAutorDeletado): ?>
+                                <span class="comment-avatar" aria-label="Usuário removido" style="display:inline-block; cursor:default; opacity:0.8;">
+                                    <img src="<?= resolve_avatar_url($comentario['foto_perfil'] ?? null, $comentario['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar do usuário">
+                                </span>
+                            <?php else: ?>
+                                <a href="user_view.php?id=<?= intval($comentario['id_usuario']) ?>" class="comment-avatar" aria-label="Ver perfil de <?= htmlspecialchars($comentario['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>">
+                                    <img src="<?= resolve_avatar_url($comentario['foto_perfil'] ?? null, $comentario['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar do usuário">
+                                </a>
+                            <?php endif; ?>
                             <div class="comment-body">
                                 <div class="comment-meta">
-                                    <a href="user_view.php?id=<?= intval($comentario['id_usuario']) ?>" style="text-decoration:none; color:inherit;">
-                                        <strong><?= htmlspecialchars($comentario['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></strong>
-                                    </a>
+                                    <?php if ($comentarioAutorDeletado): ?>
+                                        <span style="text-decoration:none; color:inherit; cursor:default;">
+                                            <strong><?= htmlspecialchars($comentario['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                        </span>
+                                    <?php else: ?>
+                                        <a href="user_view.php?id=<?= intval($comentario['id_usuario']) ?>" style="text-decoration:none; color:inherit;">
+                                            <strong><?= htmlspecialchars($comentario['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                        </a>
+                                    <?php endif; ?>
                                     <span>@<?= htmlspecialchars($comentario['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?></span>
                                     <time><?= date('d/m/Y', strtotime($comentario['data_comentario'])) ?></time>
                                 </div>
@@ -233,6 +278,24 @@ if ($resultado_comentarios) {
             modal.classList.add('ativo');
         }
 
+        function mostrarPopupSeguirComunidade() {
+            const modal = document.getElementById('followCommunityModal');
+            if (!modal) return;
+            modal.classList.add('ativo');
+        }
+
+        function fecharPopupSeguirComunidade() {
+            const modal = document.getElementById('followCommunityModal');
+            if (!modal) return;
+            modal.classList.remove('ativo');
+        }
+
+        document.getElementById('followCommunityModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharPopupSeguirComunidade();
+            }
+        });
+
         function fecharAvisoLoginComentario() {
             document.getElementById('commentLoginModal')?.classList.remove('ativo');
         }
@@ -271,6 +334,11 @@ if ($resultado_comentarios) {
                     return;
                 <?php endif; ?>
 
+                <?php if (!$eh_membro): ?>
+                    mostrarPopupSeguirComunidade();
+                    return;
+                <?php endif; ?>
+
                 const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
                 if (conteudo.length < 2) {
                     alert('O comentário deve ter no mínimo 2 caracteres.');
@@ -286,6 +354,8 @@ if ($resultado_comentarios) {
                 .then(data => {
                     if (data.sucesso) {
                         location.reload();
+                    } else if (data.mensagem && data.mensagem.toLowerCase().includes('seguir esta comunidade')) {
+                        mostrarPopupSeguirComunidade();
                     } else {
                         alert(data.mensagem || 'Não foi possível enviar o comentário.');
                     }

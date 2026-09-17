@@ -11,8 +11,20 @@ if ($result) {
 }
 
 $selectedUser = null;
+$requestedId = isset($_GET['id']) ? intval($_GET['id']) : 0;
+
+$isDeletedUser = function ($user) {
+    if (!$user) {
+        return false;
+    }
+
+    $displayName = trim((string) ($user['nome_de_exibicao'] ?? ''));
+    $username = trim((string) ($user['nome_de_usuario'] ?? ''));
+
+    return $displayName === 'Usuário deletado' || stripos($username, 'usuario_deletado_') === 0;
+};
+
 if (!empty($usuarios)) {
-    $requestedId = isset($_GET['id']) ? intval($_GET['id']) : 0;
     if ($requestedId > 0) {
         foreach ($usuarios as $user) {
             if (intval($user['id_usuario']) === $requestedId) {
@@ -20,11 +32,18 @@ if (!empty($usuarios)) {
                 break;
             }
         }
-    }
 
-    if (!$selectedUser) {
-        $selectedUser = $usuarios[0];
+        if (!$selectedUser || $isDeletedUser($selectedUser)) {
+            header("Location: ../index.php");
+            exit;
+        }
+    } else {
+        header("Location: ../index.php");
+        exit;
     }
+} else {
+    header("Location: ../index.php");
+    exit;
 }
 
 $loggedUser = $_SESSION['usuario'] ?? null;

@@ -58,8 +58,9 @@ $sqlPosts = "SELECT p.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil, u
              (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) as total_comentarios
              FROM post p
              JOIN usuario u ON p.id_usuario = u.id_usuario
+             JOIN comunidade c ON c.id_comunidade = p.id_comunidade
              WHERE p.id_comunidade = $id_comunidade
-             ORDER BY p.Data_post DESC";
+             ORDER BY CASE WHEN p.id_post = c.id_post_fixado THEN 0 ELSE 1 END, p.Data_post DESC, p.id_post DESC";
 
 $postsResult = mysqli_query($conn, $sqlPosts);
 $posts = [];
@@ -204,6 +205,16 @@ if ($resultado_count) {
         </div>
     </div>
 
+    <div class="modal-overlay" id="followCommunityModal">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="followCommunityTitle">
+            <div class="modal-header" id="followCommunityTitle">Atenção</div>
+            <div class="modal-message">Você precisa seguir esta comunidade para publicar posts e comentar.</div>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharPopupSeguirComunidade()">Entendi</button>
+            </div>
+        </div>
+    </div>
+
     <div class="page">
         <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9; border-bottom: 1px solid rgba(255,255,255,0.2); position: sticky; top: 0; z-index: 100;">
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -310,18 +321,36 @@ if ($resultado_count) {
                         <?php foreach ($posts as $post): ?>
                             <div class="post" data-post-id="<?= $post['id_post'] ?>">
                                 <div class="post-header">
-                                    <a href="user_view.php?id=<?= (int) $post['id_usuario'] ?>" class="post-author-link" onclick="event.stopPropagation();" aria-label="Ver perfil de <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>">
-                                        <div class="post-avatar">
-                                            <img src="<?= resolve_avatar_url($post['foto_perfil'] ?? null, $post['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar">
+                                    <?php $usuarioDeletado = trim((string) ($post['nome_de_exibicao'] ?? '')) === 'Usuário deletado' || stripos((string) ($post['nome_de_usuario'] ?? ''), 'usuario_deletado_') === 0; ?>
+                                    <?php if ($usuarioDeletado): ?>
+                                        <div class="post-author-link" aria-label="Usuário removido" style="cursor: default; pointer-events: none;">
+                                            <div class="post-avatar">
+                                                <img src="<?= resolve_avatar_url($post['foto_perfil'] ?? null, $post['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar" style="opacity:0.8;">
+                                            </div>
                                         </div>
-                                    </a>
-                                    <div class="post-header-info">
-                                        <a href="user_view.php?id=<?= (int) $post['id_usuario'] ?>" class="post-user-link" onclick="event.stopPropagation();">
-                                            <div class="post-user-info">
-                                                <h4><?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></h4>
-                                                <p>@<?= htmlspecialchars($post['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?></p>
+                                    <?php else: ?>
+                                        <a href="user_view.php?id=<?= (int) $post['id_usuario'] ?>" class="post-author-link" onclick="event.stopPropagation();" aria-label="Ver perfil de <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>">
+                                            <div class="post-avatar">
+                                                <img src="<?= resolve_avatar_url($post['foto_perfil'] ?? null, $post['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar">
                                             </div>
                                         </a>
+                                    <?php endif; ?>
+                                    <div class="post-header-info">
+                                        <?php if ($usuarioDeletado): ?>
+                                            <div class="post-user-link" style="cursor: default; pointer-events: none;">
+                                                <div class="post-user-info">
+                                                    <h4><?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></h4>
+                                                    <p>@<?= htmlspecialchars($post['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?></p>
+                                                </div>
+                                            </div>
+                                        <?php else: ?>
+                                            <a href="user_view.php?id=<?= (int) $post['id_usuario'] ?>" class="post-user-link" onclick="event.stopPropagation();">
+                                                <div class="post-user-info">
+                                                    <h4><?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></h4>
+                                                    <p>@<?= htmlspecialchars($post['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?></p>
+                                                </div>
+                                            </a>
+                                        <?php endif; ?>
                                         <div class="post-date">
                                             <?= date('d/m/Y', strtotime($post['Data_post'])) ?>
                                         </div>
@@ -399,6 +428,7 @@ if ($resultado_count) {
     <script src="../js/busca.js?v=<?= time() ?>"></script>
     <script>
         const postsMap = <?php echo json_encode($postsMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+        const ehMembro = <?= $eh_membro ? 'true' : 'false' ?>;
         let csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
         let acaoAtual = null;
 
@@ -414,9 +444,27 @@ if ($resultado_count) {
             modal.classList.remove('ativo');
         }
 
+        function mostrarPopupSeguirComunidade() {
+            const modal = document.getElementById('followCommunityModal');
+            if (!modal) return;
+            modal.classList.add('ativo');
+        }
+
+        function fecharPopupSeguirComunidade() {
+            const modal = document.getElementById('followCommunityModal');
+            if (!modal) return;
+            modal.classList.remove('ativo');
+        }
+
         document.getElementById('loginCommunityModal')?.addEventListener('click', function(e) {
             if (e.target === this) {
                 fecharPopupLoginComunidade();
+            }
+        });
+
+        document.getElementById('followCommunityModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharPopupSeguirComunidade();
             }
         });
 
@@ -760,6 +808,11 @@ if ($resultado_count) {
                     return;
                 <?php endif; ?>
 
+                <?php if (!$eh_membro): ?>
+                    mostrarPopupSeguirComunidade();
+                    return;
+                <?php endif; ?>
+
                 const postId = this.dataset.postId;
                 const formWrap = document.getElementById(`comment-form-${postId}`);
                 if (formWrap) {
@@ -777,6 +830,11 @@ if ($resultado_count) {
                     return;
                 <?php endif; ?>
 
+                if (!ehMembro) {
+                    mostrarPopupSeguirComunidade();
+                    return;
+                }
+
                 const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
                 if (conteudo.length < 2) {
                     alert('O comentário deve ter no mínimo 2 caracteres.');
@@ -792,6 +850,8 @@ if ($resultado_count) {
                 .then(data => {
                     if (data.sucesso) {
                         location.reload();
+                    } else if (data.mensagem && data.mensagem.toLowerCase().includes('seguir esta comunidade')) {
+                        mostrarPopupSeguirComunidade();
                     } else {
                         alert(data.mensagem || 'Não foi possível enviar o comentário.');
                     }
@@ -808,6 +868,11 @@ if ($resultado_count) {
         if (formNovoPost) {
             formNovoPost.addEventListener('submit', function(e) {
                 e.preventDefault();
+
+                <?php if (!$eh_membro): ?>
+                    mostrarPopupSeguirComunidade();
+                    return;
+                <?php endif; ?>
                 
                 const assunto = this.querySelector('input[name="assunto"]').value.trim();
                 const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
@@ -831,6 +896,8 @@ if ($resultado_count) {
                 .then(data => {
                     if (data.sucesso) {
                         location.reload();
+                    } else if (data.mensagem && data.mensagem.toLowerCase().includes('seguir esta comunidade')) {
+                        mostrarPopupSeguirComunidade();
                     } else {
                         alert(data.mensagem || 'Não foi possível publicar o post.');
                     }

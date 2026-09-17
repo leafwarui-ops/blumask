@@ -58,7 +58,7 @@ $sql_check_membro = "SELECT id_membro_comunidade FROM membro_comunidade
 $resultado_check = mysqli_query($conn, $sql_check_membro);
 
 if (!$resultado_check || mysqli_num_rows($resultado_check) === 0) {
-    echo json_encode(["sucesso" => false, "mensagem" => "Você não é membro desta comunidade."]);
+    echo json_encode(["sucesso" => false, "mensagem" => "Você precisa seguir esta comunidade para publicar posts e comentar."]);
     exit;
 }
 

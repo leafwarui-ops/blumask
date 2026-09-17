@@ -264,6 +264,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 li.setAttribute("data-tipo", "usuario");
                 li.setAttribute("data-id", user.id_usuario);
 
+                const usuarioDeletado = !!user && (
+                    user.nome_de_exibicao === "Usuário deletado" ||
+                    String(user.nome_de_usuario || "").startsWith("usuario_deletado_")
+                );
+
                 // Destaca o termo buscado no nome e usuário
                 const nomeExibicaoDestacado = destacarTermo(user.nome_de_exibicao, termo);
                 const nomeUsuarioDestacado = destacarTermo(`@${user.nome_de_usuario}`, termo);
@@ -285,8 +290,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 `;
 
-                // Clica no item: navega para perfil do usuário
-                li.addEventListener("click", () => abrirPerfilUsuario(user));
+                if (usuarioDeletado) {
+                    li.style.pointerEvents = "none";
+                    li.style.opacity = "0.7";
+                    li.style.cursor = "default";
+                } else {
+                    // Clica no item: navega para perfil do usuário
+                    li.addEventListener("click", () => abrirPerfilUsuario(user));
+                }
                 listaUsr.appendChild(li);
             });
 
@@ -384,6 +395,8 @@ document.addEventListener("DOMContentLoaded", () => {
      */
     function abrirPerfilUsuario(user) {
         if (!user || !user.id_usuario) return;
+        const usuarioDeletado = user.nome_de_exibicao === "Usuário deletado" || String(user.nome_de_usuario || "").startsWith("usuario_deletado_");
+        if (usuarioDeletado) return;
         fecharDropdown();
         window.location.href = `${userProfileEndpoint}?id=${encodeURIComponent(user.id_usuario)}`;
     }
