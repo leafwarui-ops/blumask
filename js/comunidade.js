@@ -32,6 +32,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     btnDescartar.addEventListener("click", () => {
+        formCriar.reset();
+        resetPreviewImagem();
+        erroMsg.textContent = "";
         dialogCriar.close();
     });
 

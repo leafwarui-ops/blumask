@@ -203,11 +203,8 @@ if ($resultado_count) {
     <div class="page">
         <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9; border-bottom: 1px solid rgba(255,255,255,0.2); position: sticky; top: 0; z-index: 100;">
             <div style="display: flex; align-items: center; gap: 12px;">
-                <a href="../index.php" class="community-back-btn" title="Voltar para a página inicial" aria-label="Voltar para a página inicial">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18L9 12L15 6"/></svg>
-                </a>
                 <a href="../index.php" style="text-decoration: none; display: flex; align-items: center; gap: 8px; color: #fff;">
-                    <img src="../style/blumaskBlueLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
+                    <img src="../style/blumaskWhiteLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
                     <h1 style="margin: 0; font-size: 20px; color: #fff;">BluMask</h1>
                 </a>
             </div>
@@ -238,6 +235,10 @@ if ($resultado_count) {
             <div class="content-wrapper">
                 <!-- CARD DA COMUNIDADE (ESQUERDA) -->
                 <div class="comunidade-card">
+                    <button type="button" class="community-back-btn community-back-btn-card" title="Voltar para a página anterior" aria-label="Voltar para a página anterior" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '../index.php'; } return false;">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18L9 12L15 6"/></svg>
+                    </button>
+
                     <?php if (!empty($comunidade['imagem'])): ?>
                         <img src="../<?= htmlspecialchars($comunidade['imagem'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($comunidade['nome'], ENT_QUOTES, 'UTF-8') ?>">
                     <?php else: ?>

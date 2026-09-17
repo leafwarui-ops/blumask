@@ -232,7 +232,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
     <!-- TOPBAR -->
     <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px;">
       <a href="../index.php" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;">
-        <img src="../style/blumaskBlueLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
+        <img src="../style/blumaskWhiteLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
         <h1 style="margin: 0; font-size: 20px;">BluMask</h1>
       </a>
     </header>
@@ -328,7 +328,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
 
             <!-- BOTÕES DE AÇÃO -->
             <div class="edit-actions">
-              <button type="button" onclick="window.location.href='../index.php'" class="btn-voltar">Voltar</button>
+              <button type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '../index.php'; }" class="btn-voltar">Voltar</button>
               <button type="submit" id="btn-confirmar" class="btn-confirmar" disabled>Confirmar</button>
             </div>
 
@@ -340,7 +340,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
     <!-- FOOTER -->
     <footer class="bottombar">
       <strong>Blumask</strong>
-      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm-2-12h4v2h-4zm0 4h4v2h-4z"/></svg>
+      <span aria-label="Direitos autorais" style="font-size: 1rem; font-weight: 700; color: #1c1c1c;">©</span>
     </footer>
   </div>
 

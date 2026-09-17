@@ -202,7 +202,7 @@ if ($id_usuario_logado > 0) {
 
   <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px;">
     <div style="display: flex; align-items: center; gap: 12px;">
-      <img src="style/blumaskBlueLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
+      <img src="style/blumaskWhiteLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
       <h1 style="margin: 0; font-size: 20px;">BluMask</h1>
     </div>
     <?php if (isset($_SESSION['usuario'])): ?>

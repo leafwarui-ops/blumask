@@ -97,7 +97,7 @@ if ($resultado_comentarios) {
         <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9; border-bottom: 1px solid rgba(255,255,255,0.2); position: sticky; top: 0; z-index: 100;">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <a href="../index.php" style="text-decoration: none; display: flex; align-items: center; gap: 8px; color: #fff;">
-                    <img src="../style/blumaskBlueLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
+                    <img src="../style/blumaskWhiteLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
                     <h1 style="margin: 0; font-size: 20px; color: #fff;">BluMask</h1>
                 </a>
             </div>

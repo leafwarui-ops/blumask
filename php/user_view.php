@@ -175,7 +175,7 @@ function userAvatar($user) {
   <div class="page">
     <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9;">
       <div style="display: flex; align-items: center; gap: 12px; cursor: pointer;" onclick="window.location.href='../index.php'">
-        <img src="../style/blumaskBlueLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
+        <img src="../style/blumaskWhiteLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
         <h1 style="margin: 0; font-size: 20px; color: #fff;">BluMask</h1>
       </div>
       <div class="topbar-actions" style="display: flex; align-items: center; gap: 12px;">
@@ -203,8 +203,20 @@ function userAvatar($user) {
             $profileAvatar = !empty($profileUser['foto_perfil'])
               ? resolve_asset_url($profileUser['foto_perfil'], "https://ui-avatars.com/api/?name=" . urlencode(($profileUser['nome_de_exibicao'] ?? $profileUser['nome_de_usuario'] ?? 'User')) . "&background=random")
               : "https://ui-avatars.com/api/?name=" . urlencode(($profileUser['nome_de_exibicao'] ?? $profileUser['nome_de_usuario'] ?? 'User')) . "&background=random";
+            $profileBannerUrl = '';
+            if (!empty($profileUser['banner'])) {
+              $bannerRaw = trim((string) $profileUser['banner']);
+              $bannerNormalized = ltrim($bannerRaw, './');
+              $bannerPath = __DIR__ . '/../' . $bannerNormalized;
+              if ($bannerRaw !== '' && file_exists($bannerPath) && is_file($bannerPath)) {
+                $profileBannerUrl = '../' . $bannerNormalized;
+              }
+            }
+            $profileHeaderStyle = $profileBannerUrl !== ''
+              ? "background-image: url('" . htmlspecialchars($profileBannerUrl, ENT_QUOTES, 'UTF-8') . "'); background-size: cover; background-position: center; background-repeat: no-repeat;"
+              : "background: linear-gradient(135deg, #d9d2ec, #c3cbd5);";
           ?>
-          <div class="profile-header">
+          <div class="profile-header" style="<?= $profileHeaderStyle ?>">
             <div class="profile-avatar-wrap">
               <img src="<?= $profileAvatar ?>" alt="perfil">
             </div>
@@ -456,7 +468,7 @@ function userAvatar($user) {
 
     <footer class="bottombar" style="background: #e2e2e2; padding: 14px 32px; display: flex; align-items: center; gap: 10px;">
       <strong style="color: #1c1c1c; font-size: 0.95rem;">Blumask</strong>
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width: 18px; height: 18px;"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92A3.98 3.98 0 0013 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26A1.95 1.95 0 0014 8.5c0-1.1-.9-2-2-2s-2 .9-2 2H8a4 4 0 118.5-3.5c1.74 0 3.3.89 4.18 2.25z"/></svg>
+      <span aria-label="Direitos autorais" style="font-size: 1rem; font-weight: 700; color: #1c1c1c;">©</span>
     </footer>
   </div>
 
