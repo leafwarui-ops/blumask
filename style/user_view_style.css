@@ -409,6 +409,13 @@ a { text-decoration: none; color: inherit; }
   flex: 1;
 }
 
+.post-user-handle {
+  font-size: 0.72rem;
+  color: #5f6f85;
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
 .post-date {
   color: var(--muted);
   font-size: 0.72rem;

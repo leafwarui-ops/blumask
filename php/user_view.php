@@ -78,11 +78,14 @@ if ($profileUser) {
                 p.assunto,
                 c.nome AS nome_comunidade,
                 c.imagem AS imagem_comunidade,
+                u.nome_de_exibicao,
+                u.nome_de_usuario,
                 (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) AS total_curtidas,
                 (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) AS total_comentarios"
                 . ($id_usuario_logado > 0 ? ", (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario_logado) AS curtiu" : ", 0 AS curtiu") . "
             FROM post p
             INNER JOIN comunidade c ON p.id_comunidade = c.id_comunidade
+            INNER JOIN usuario u ON u.id_usuario = p.id_usuario
             WHERE p.id_post = $fixedPostId AND p.id_usuario = $profileUserId
             LIMIT 1";
             
@@ -103,11 +106,14 @@ if ($profileUser) {
             p.assunto,
             c.nome AS nome_comunidade,
             c.imagem AS imagem_comunidade,
+            u.nome_de_exibicao,
+            u.nome_de_usuario,
             (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) AS total_curtidas,
             (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) AS total_comentarios"
             . ($id_usuario_logado > 0 ? ", (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario_logado) AS curtiu" : ", 0 AS curtiu") . "
         FROM post p
         INNER JOIN comunidade c ON p.id_comunidade = c.id_comunidade
+        INNER JOIN usuario u ON u.id_usuario = p.id_usuario
         WHERE p.id_usuario = $profileUserId
         ORDER BY p.Data_post DESC, p.id_post DESC
         LIMIT 30";
@@ -326,6 +332,7 @@ function userAvatar($user) {
                                 <?= $profileName ?>
                               </a>
                             </h4>
+                            <div class="post-user-handle">@<?= $profileHandle ?: 'usuario' ?></div>
                           </div>
                           <div class="post-date">
                             <?= $data_formatada ?>
@@ -344,7 +351,7 @@ function userAvatar($user) {
                           <span class="like-icon"><?= $curtiu ? '❤️' : '🤍' ?></span>
                           <span class="like-count"><?= $total_curtidas ?></span>
                         </button>
-                        <a href="comunidade.php?id=<?= $id_comunidade ?>" class="post-action post-comment-action" title="Ver comentários na comunidade">
+                        <a href="post_detalhes.php?id_post=<?= $id_post ?>" class="post-action post-comment-action" title="Ver post completo">
                           <span class="comment-icon">💬</span>
                           <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
                         </a>
@@ -403,6 +410,7 @@ function userAvatar($user) {
                                 <?= $profileName ?>
                               </a>
                             </h4>
+                            <div class="post-user-handle">@<?= $profileHandle ?: 'usuario' ?></div>
                           </div>
                           <div class="post-date">
                             <?= $data_formatada ?>
@@ -421,7 +429,7 @@ function userAvatar($user) {
                           <span class="like-icon"><?= $curtiu ? '❤️' : '🤍' ?></span>
                           <span class="like-count"><?= $total_curtidas ?></span>
                         </button>
-                        <a href="comunidade.php?id=<?= $id_comunidade ?>" class="post-action post-comment-action" title="Ver comentários na comunidade">
+                        <a href="post_detalhes.php?id_post=<?= $id_post ?>" class="post-action post-comment-action" title="Ver post completo">
                           <span class="comment-icon">💬</span>
                           <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
                         </a>
@@ -476,11 +484,37 @@ function userAvatar($user) {
   <script>
     const csrfToken = "<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>";
 
+    function mostrarAvisoLoginCurtida() {
+      let modal = document.getElementById('likeLoginModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'likeLoginModal';
+        modal.className = 'modal-overlay like-login-modal';
+        modal.innerHTML = `
+          <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="likeLoginTitle">
+            <div class="modal-header" id="likeLoginTitle">Login necessário</div>
+            <div class="modal-message">Você precisa estar logado para curtir posts.</div>
+            <div class="modal-actions">
+              <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharAvisoLoginCurtida()">Entendi</button>
+            </div>
+          </div>`;
+        modal.addEventListener('click', (event) => {
+          if (event.target === modal) fecharAvisoLoginCurtida();
+        });
+        document.body.appendChild(modal);
+      }
+      modal.classList.add('ativo');
+    }
+
+    function fecharAvisoLoginCurtida() {
+      document.getElementById('likeLoginModal')?.classList.remove('ativo');
+    }
+
     // Função assíncrona para curtir/descurtir posts
     async function curtirPostRecente(idPost, btnElement) {
         const idUsuarioLogado = parseInt(document.body.dataset.idUsuario, 10) || 0;
         if (idUsuarioLogado <= 0) {
-            alert("Você precisa estar logado para curtir posts.");
+        mostrarAvisoLoginCurtida();
             return;
         }
 
@@ -522,6 +556,20 @@ function userAvatar($user) {
             btnElement.disabled = false;
         }
     }
+
+    document.querySelectorAll('.post-card-feed').forEach((post) => {
+        post.addEventListener('click', (event) => {
+            const isInteractive = event.target.closest('button, a, input, textarea, select, .post-action');
+            if (isInteractive) {
+                return;
+            }
+
+            const postId = post.dataset.postId;
+            if (postId) {
+                window.location.href = `post_detalhes.php?id_post=${postId}`;
+            }
+        });
+    });
 
     // Alternância entre abas Fixados e Últimos Posts
     document.querySelectorAll(".feed-tab-btn").forEach((btn) => {

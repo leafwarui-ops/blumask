@@ -3,12 +3,6 @@ require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 
-// Se o usuário não está logado, redireciona para a página inicial
-if (!isset($_SESSION['usuario'])) {
-    header("Location: ../index.php");
-    exit;
-}
-
 // Obtém o ID da comunidade da URL
 $id_comunidade = intval($_GET['id'] ?? 0);
 
@@ -18,7 +12,7 @@ if ($id_comunidade <= 0) {
 }
 
 global $conn;
-$id_usuario = intval($_SESSION['usuario']['id_usuario']);
+$id_usuario = isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0;
 
 // Buscar dados da comunidade
 $sql_comunidade = "SELECT c.*, u.nome_de_exibicao, u.nome_de_usuario
@@ -200,6 +194,16 @@ if ($resultado_count) {
             </div>
         </div>
     </div>
+    <div class="modal-overlay" id="loginCommunityModal">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="loginCommunityTitle">
+            <div class="modal-header" id="loginCommunityTitle">Login necessário</div>
+            <div class="modal-message">Para seguir esta comunidade, você precisa estar logado.</div>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharPopupLoginComunidade()">Entendi</button>
+            </div>
+        </div>
+    </div>
+
     <div class="page">
         <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9; border-bottom: 1px solid rgba(255,255,255,0.2); position: sticky; top: 0; z-index: 100;">
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -251,7 +255,11 @@ if ($resultado_count) {
                     <p class="descricao"><?= htmlspecialchars($comunidade['descricao'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
 
                     <?php if (!$eh_membro): ?>
-                        <button class="btn-seguir" onclick="entrarComunidade(<?= $id_comunidade ?>)">Seguir +</button>
+                        <?php if (isset($_SESSION['usuario'])): ?>
+                            <button class="btn-seguir" onclick="entrarComunidade(<?= $id_comunidade ?>)">Seguir +</button>
+                        <?php else: ?>
+                            <button class="btn-seguir" onclick="mostrarPopupLoginComunidade()">Seguir +</button>
+                        <?php endif; ?>
                     <?php else: ?>
                         <?php if (!$is_community_owner && $cargo_usuario !== 1): ?>
                             <button class="btn-seguir ja-membro" onclick="sairComunidade(<?= $id_comunidade ?>)">Sair da comunidade</button>
@@ -289,7 +297,10 @@ if ($resultado_count) {
                                 
                                 <textarea id="novo-post-conteudo" name="conteudo" placeholder="O que você quer compartilhar? (mín. 5 caracteres)" minlength="5" maxlength="5000" required></textarea>
                                 
-                                <button type="submit">Publicar</button>
+                                <div class="form-novo-post-actions">
+                                    <button type="submit">Publicar</button>
+                                    <button type="button" class="btn-descartar" onclick="descartarNovoPost()">Descartar</button>
+                                </div>
                             </form>
                         </div>
                     <?php endif; ?>
@@ -390,6 +401,24 @@ if ($resultado_count) {
         const postsMap = <?php echo json_encode($postsMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         let csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
         let acaoAtual = null;
+
+        function mostrarPopupLoginComunidade() {
+            const modal = document.getElementById('loginCommunityModal');
+            if (!modal) return;
+            modal.classList.add('ativo');
+        }
+
+        function fecharPopupLoginComunidade() {
+            const modal = document.getElementById('loginCommunityModal');
+            if (!modal) return;
+            modal.classList.remove('ativo');
+        }
+
+        document.getElementById('loginCommunityModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharPopupLoginComunidade();
+            }
+        });
 
         // ===== MODAL FUNCTIONS =====
         function abrirModal(titulo, mensagem, temDanger = false) {
@@ -562,10 +591,69 @@ if ($resultado_count) {
             .catch(error => console.error('Erro:', error));
         }
 
+        function mostrarAvisoLoginCurtida() {
+            let modal = document.getElementById('likeLoginModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'likeLoginModal';
+                modal.className = 'modal-overlay like-login-modal';
+                modal.innerHTML = `
+                    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="likeLoginTitle">
+                        <div class="modal-header" id="likeLoginTitle">Login necessário</div>
+                        <div class="modal-message">Você precisa estar logado para curtir posts.</div>
+                        <div class="modal-actions">
+                            <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharAvisoLoginCurtida()">Entendi</button>
+                        </div>
+                    </div>`;
+                modal.addEventListener('click', (event) => {
+                    if (event.target === modal) fecharAvisoLoginCurtida();
+                });
+                document.body.appendChild(modal);
+            }
+            modal.classList.add('ativo');
+        }
+
+        function fecharAvisoLoginCurtida() {
+            document.getElementById('likeLoginModal')?.classList.remove('ativo');
+        }
+
+        function mostrarAvisoLoginComentario() {
+            let modal = document.getElementById('commentLoginModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'commentLoginModal';
+                modal.className = 'modal-overlay like-login-modal';
+                modal.innerHTML = `
+                    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="commentLoginTitle">
+                        <div class="modal-header" id="commentLoginTitle">Login necessário</div>
+                        <div class="modal-message">Você precisa estar logado para comentar posts.</div>
+                        <div class="modal-actions">
+                            <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharAvisoLoginComentario()">Entendi</button>
+                        </div>
+                    </div>`;
+                modal.addEventListener('click', (event) => {
+                    if (event.target === modal) fecharAvisoLoginComentario();
+                });
+                document.body.appendChild(modal);
+            }
+            modal.classList.add('ativo');
+        }
+
+        function fecharAvisoLoginComentario() {
+            document.getElementById('commentLoginModal')?.classList.remove('ativo');
+        }
+
         // ===== COMUNIDADE ENTRY FUNCTION =====
         function toggleFormNovoPost() {
             const formContainer = document.getElementById('formContainer');
             formContainer.classList.toggle('ativo');
+        }
+
+        function descartarNovoPost() {
+            const form = document.getElementById('formNovoPost');
+            const formContainer = document.getElementById('formContainer');
+            if (form) form.reset();
+            if (formContainer) formContainer.classList.remove('ativo');
         }
 
         function entrarComunidade(idComunidade) {
@@ -630,6 +718,11 @@ if ($resultado_count) {
 
         // ===== POST LIKE FUNCTION =====
         function curtirPost(idPost, elemento) {
+            <?php if (!isset($_SESSION['usuario'])): ?>
+                mostrarAvisoLoginCurtida();
+                return;
+            <?php endif; ?>
+
             fetch('../php/curtir_post.php', {
                 method: 'POST',
                 headers: {
@@ -662,6 +755,11 @@ if ($resultado_count) {
 
         document.querySelectorAll('.comment-toggle').forEach(button => {
             button.addEventListener('click', function() {
+                <?php if (!isset($_SESSION['usuario'])): ?>
+                    mostrarAvisoLoginComentario();
+                    return;
+                <?php endif; ?>
+
                 const postId = this.dataset.postId;
                 const formWrap = document.getElementById(`comment-form-${postId}`);
                 if (formWrap) {
@@ -673,6 +771,11 @@ if ($resultado_count) {
         document.querySelectorAll('.form-comentario').forEach(form => {
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
+
+                <?php if (!isset($_SESSION['usuario'])): ?>
+                    mostrarAvisoLoginComentario();
+                    return;
+                <?php endif; ?>
 
                 const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
                 if (conteudo.length < 2) {

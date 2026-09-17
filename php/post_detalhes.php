@@ -3,11 +3,6 @@ require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 
-if (!isset($_SESSION['usuario'])) {
-    header("Location: ../index.php");
-    exit;
-}
-
 $id_post = intval($_GET['id_post'] ?? 0);
 
 if ($id_post <= 0) {
@@ -16,7 +11,7 @@ if ($id_post <= 0) {
 }
 
 global $conn;
-$id_usuario = intval($_SESSION['usuario']['id_usuario']);
+$id_usuario = isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0;
 
 $sql_post = "SELECT p.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil, c.nome AS nome_comunidade, c.id_comunidade,
              (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) as total_curtidas,
@@ -107,6 +102,9 @@ if ($resultado_comentarios) {
         <main class="post-detail-page">
             <div class="post-detail-card">
                 <div class="post-detail-header">
+                    <button type="button" class="community-back-btn" title="Voltar para a página anterior" aria-label="Voltar para a página anterior" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '../index.php'; } return false;">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18L9 12L15 6"/></svg>
+                    </button>
                     <a href="user_view.php?id=<?= intval($post['id_usuario']) ?>" class="post-avatar" aria-label="Ver perfil de <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>" style="display:inline-block; text-decoration:none;">
                         <img src="<?= resolve_avatar_url($post['foto_perfil'] ?? null, $post['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar">
                     </a>
@@ -187,7 +185,64 @@ if ($resultado_comentarios) {
     </div>
 
     <script>
+        function mostrarAvisoLoginCurtida() {
+            let modal = document.getElementById('likeLoginModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'likeLoginModal';
+                modal.className = 'modal-overlay like-login-modal';
+                modal.innerHTML = `
+                    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="likeLoginTitle">
+                        <div class="modal-header" id="likeLoginTitle">Login necessário</div>
+                        <div class="modal-message">Você precisa estar logado para curtir posts.</div>
+                        <div class="modal-actions">
+                            <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharAvisoLoginCurtida()">Entendi</button>
+                        </div>
+                    </div>`;
+                modal.addEventListener('click', (event) => {
+                    if (event.target === modal) fecharAvisoLoginCurtida();
+                });
+                document.body.appendChild(modal);
+            }
+            modal.classList.add('ativo');
+        }
+
+        function fecharAvisoLoginCurtida() {
+            document.getElementById('likeLoginModal')?.classList.remove('ativo');
+        }
+
+        function mostrarAvisoLoginComentario() {
+            let modal = document.getElementById('commentLoginModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'commentLoginModal';
+                modal.className = 'modal-overlay like-login-modal';
+                modal.innerHTML = `
+                    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="commentLoginTitle">
+                        <div class="modal-header" id="commentLoginTitle">Login necessário</div>
+                        <div class="modal-message">Você precisa estar logado para comentar posts.</div>
+                        <div class="modal-actions">
+                            <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharAvisoLoginComentario()">Entendi</button>
+                        </div>
+                    </div>`;
+                modal.addEventListener('click', (event) => {
+                    if (event.target === modal) fecharAvisoLoginComentario();
+                });
+                document.body.appendChild(modal);
+            }
+            modal.classList.add('ativo');
+        }
+
+        function fecharAvisoLoginComentario() {
+            document.getElementById('commentLoginModal')?.classList.remove('ativo');
+        }
+
         function curtirPost(idPost) {
+            <?php if (!isset($_SESSION['usuario'])): ?>
+                mostrarAvisoLoginCurtida();
+                return;
+            <?php endif; ?>
+
             const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
 
             fetch('curtir_post.php', {
@@ -210,6 +265,11 @@ if ($resultado_comentarios) {
         if (formComentarioDetalhe) {
             formComentarioDetalhe.addEventListener('submit', function(e) {
                 e.preventDefault();
+
+                <?php if (!isset($_SESSION['usuario'])): ?>
+                    mostrarAvisoLoginComentario();
+                    return;
+                <?php endif; ?>
 
                 const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
                 if (conteudo.length < 2) {

@@ -150,7 +150,9 @@ LIMIT 30";
 
 $res_recent_posts = mysqli_query($conn, $sql_recent_posts);
 $recent_posts = [];
-if ($res_recent_posts) {
+if ($id_usuario_logado <= 0) {
+  $recent_posts = [];
+} elseif ($res_recent_posts) {
     while ($post_row = mysqli_fetch_assoc($res_recent_posts)) {
         $recent_posts[] = $post_row;
     }
@@ -331,6 +333,7 @@ if ($id_usuario_logado > 0) {
                     // Obter informações do autor (avatar e nome) — cache simples
                     $autor_id = intval($post['autor_id'] ?? 0);
                     $authorName = $nome_comunidade;
+                    $authorHandle = '';
                     $authorAvatar = $img_comunidade;
                     if ($autor_id > 0) {
                         if (!isset($authorsCache[$autor_id])) {
@@ -339,6 +342,7 @@ if ($id_usuario_logado > 0) {
                         }
                         if (!empty($authorsCache[$autor_id])) {
                             $authorName = htmlspecialchars($authorsCache[$autor_id]['nome_de_exibicao'] ?? $authorsCache[$autor_id]['nome_de_usuario'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
+                          $authorHandle = htmlspecialchars($authorsCache[$autor_id]['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
                             $authorAvatar = !empty($authorsCache[$autor_id]['foto_perfil']) ? htmlspecialchars($authorsCache[$autor_id]['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($authorName) . "&background=random";
                         }
                     }
@@ -357,6 +361,9 @@ if ($id_usuario_logado > 0) {
                               <?= $authorName ?>
                             </a>
                           </h4>
+                          <?php if ($authorHandle !== ''): ?>
+                            <div class="post-user-handle">@<?= $authorHandle ?></div>
+                          <?php endif; ?>
                         </div>
                         <div class="post-date">
                           <?= $data_formatada ?>
@@ -412,7 +419,15 @@ if ($id_usuario_logado > 0) {
 
           <!-- Aba 2: Últimos Posts -->
           <div class="feed-tab-content" id="feed-recentes" style="display: none;">
-            <?php if (!empty($recent_posts)): ?>
+            <?php if ($id_usuario_logado <= 0): ?>
+              <div class="posts-empty-feed">
+                <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <p>Faça login para ver os últimos posts.</p>
+                <span>Usuários deslogados não podem visualizar, comentar ou publicar conteúdo.</span>
+              </div>
+            <?php elseif (!empty($recent_posts)): ?>
               <div class="posts-feed">
                 <?php 
                   // Reutiliza o cache de autores
@@ -436,6 +451,7 @@ if ($id_usuario_logado > 0) {
                     // Obter informações do autor (avatar e nome) — usa $authorsCache
                     $autor_id = intval($post['autor_id'] ?? 0);
                     $authorName = $nome_comunidade;
+                    $authorHandle = '';
                     $authorAvatar = $img_comunidade;
                     if ($autor_id > 0) {
                         if (!isset($authorsCache[$autor_id])) {
@@ -444,6 +460,7 @@ if ($id_usuario_logado > 0) {
                         }
                         if (!empty($authorsCache[$autor_id])) {
                             $authorName = htmlspecialchars($authorsCache[$autor_id]['nome_de_exibicao'] ?? $authorsCache[$autor_id]['nome_de_usuario'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
+                          $authorHandle = htmlspecialchars($authorsCache[$autor_id]['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
                             $authorAvatar = !empty($authorsCache[$autor_id]['foto_perfil']) ? htmlspecialchars($authorsCache[$autor_id]['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($authorName) . "&background=random";
                         }
                     }
@@ -462,6 +479,9 @@ if ($id_usuario_logado > 0) {
                               <?= $authorName ?>
                             </a>
                           </h4>
+                          <?php if ($authorHandle !== ''): ?>
+                            <div class="post-user-handle">@<?= $authorHandle ?></div>
+                          <?php endif; ?>
                         </div>
                         <div class="post-date">
                           <?= $data_formatada ?>
@@ -734,15 +754,37 @@ if ($id_usuario_logado > 0) {
         });
     });
 
+      function mostrarAvisoLoginCurtida() {
+        let modal = document.getElementById('likeLoginModal');
+        if (!modal) {
+          modal = document.createElement('div');
+          modal.id = 'likeLoginModal';
+          modal.className = 'modal-overlay like-login-modal';
+          modal.innerHTML = `
+            <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="likeLoginTitle">
+              <div class="modal-header" id="likeLoginTitle">Login necessário</div>
+              <div class="modal-message">Você precisa estar logado para curtir posts.</div>
+              <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharAvisoLoginCurtida()">Entendi</button>
+              </div>
+            </div>`;
+          modal.addEventListener('click', (event) => {
+            if (event.target === modal) fecharAvisoLoginCurtida();
+          });
+          document.body.appendChild(modal);
+        }
+        modal.classList.add('ativo');
+      }
+
+      function fecharAvisoLoginCurtida() {
+        document.getElementById('likeLoginModal')?.classList.remove('ativo');
+      }
+
     // Função assíncrona para curtir/descurtir posts recentes dinamicamente
     async function curtirPostRecente(idPost, btnElement) {
         const idUsuarioLogado = parseInt(document.body.dataset.idUsuario, 10) || 0;
         if (idUsuarioLogado <= 0) {
-            if (typeof abrirModalAutenticacao === 'function') {
-                abrirModalAutenticacao(0, "Você precisa estar logado para curtir posts.");
-            } else {
-                alert("Você precisa estar logado para curtir posts.");
-            }
+          mostrarAvisoLoginCurtida();
             return;
         }
 

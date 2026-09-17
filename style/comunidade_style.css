@@ -931,6 +931,24 @@ footer.bottombar {
     background: #1d4ed8;
 }
 
+.form-novo-post-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-novo-post-actions .btn-descartar {
+    margin: 0;
+    background: #ffffff;
+    color: #234a86;
+    border: 1px solid rgba(52, 101, 185, 0.25);
+}
+
+.form-novo-post-actions .btn-descartar:hover {
+    background: #ebf4ff;
+    color: #173c7a;
+}
+
 /* ===== PÁGINA DE DETALHES DO POST ===== */
 
 .post-detail-page {
@@ -964,6 +982,18 @@ footer.bottombar {
     align-items: center;
     gap: 12px;
     margin-bottom: 14px;
+}
+
+.post-detail-header .community-back-btn {
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.72);
+    border-color: rgba(98, 132, 175, 0.5);
+    box-shadow: 0 6px 16px rgba(79, 107, 156, 0.18);
+    color: #234a86;
+}
+
+.post-detail-header .community-back-btn:hover {
+    background: #ebf4ff;
 }
 
 .post-detail-community {
@@ -1099,13 +1129,13 @@ footer.bottombar {
 }
 
 .modal-content {
-    background: #d0eefb;
-    border: none;
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.28);
     border-radius: 24px;
     padding: 24px;
     max-width: 500px;
     width: 90%;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
     animation: slideUp 0.3s ease;
 }
 
@@ -1121,6 +1151,15 @@ footer.bottombar {
     font-size: 0.95rem;
     line-height: 1.5;
     margin-bottom: 18px;
+}
+
+.like-login-modal .modal-content {
+    max-width: 420px;
+    text-align: center;
+}
+
+.like-login-modal .modal-actions {
+    margin-top: 4px;
 }
 
 .modal-form {
@@ -1160,8 +1199,10 @@ footer.bottombar {
 
 .modal-actions {
     display: flex;
+    justify-content: center;
+    align-items: center;
     gap: 12px;
-    justify-content: flex-start;
+    flex-wrap: wrap;
 }
 
 .modal-btn {
