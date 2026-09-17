@@ -28,14 +28,34 @@ if ($id_post <= 0 || $id_comentario <= 0) {
 global $conn;
 
 // Verifica se post existe e autor
-$res = mysqli_query($conn, "SELECT id_usuario, id_comentario_fixado FROM post WHERE id_post = $id_post LIMIT 1");
+// Verifica se post existe e autor
+$res = mysqli_query($conn, "SELECT id_usuario FROM post WHERE id_post = $id_post LIMIT 1");
 if (!$res || mysqli_num_rows($res) === 0) {
     echo json_encode(["sucesso" => false, "mensagem" => "Post não encontrado."]);
     exit;
 }
+
 $post = mysqli_fetch_assoc($res);
 $id_post_autor = intval($post['id_usuario']);
-$current_pinned = intval($post['id_comentario_fixado'] ?? 0);
+$current_pinned = 0;
+
+// Certifica-se de que a coluna id_comentario_fixado exista; se não, tenta criá-la
+$col_check = mysqli_query($conn, "SHOW COLUMNS FROM post LIKE 'id_comentario_fixado'");
+if (!$col_check || mysqli_num_rows($col_check) === 0) {
+    // Tenta adicionar a coluna (sem constraint FK para evitar erros em ambientes antigos)
+    $alter_sql = "ALTER TABLE post ADD COLUMN id_comentario_fixado INT NULL";
+    if (!mysqli_query($conn, $alter_sql)) {
+        echo json_encode(["sucesso" => false, "mensagem" => "Coluna id_comentario_fixado ausente e não foi possível criá-la automaticamente. Execute a migração no banco."]);
+        exit;
+    }
+}
+
+// Agora podemos ler o valor atual (se houver)
+$res3 = mysqli_query($conn, "SELECT id_comentario_fixado FROM post WHERE id_post = $id_post LIMIT 1");
+if ($res3 && mysqli_num_rows($res3) > 0) {
+    $r3 = mysqli_fetch_assoc($res3);
+    $current_pinned = intval($r3['id_comentario_fixado'] ?? 0);
+}
 
 if ($id_post_autor !== $id_usuario) {
     echo json_encode(["sucesso" => false, "mensagem" => "Apenas o autor do post pode fixar comentários."]);

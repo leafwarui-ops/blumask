@@ -253,6 +253,10 @@ if ($resultado_comentarios) {
                                 <div class="comment-actions-and-content">
                                     <p class="comment-content" data-comentario-id="<?= $comentario['id_comentario'] ?>"><?= htmlspecialchars($comentario['conteudo'], ENT_QUOTES, 'UTF-8') ?></p>
 
+                                    <?php if (!empty($post['id_comentario_fixado']) && (int) $post['id_comentario_fixado'] === (int) $comentario['id_comentario']): ?>
+                                        <div class="comment-pinned-badge">📌 Comentário fixado</div>
+                                    <?php endif; ?>
+
                                     <?php $is_post_owner = (int) $post['id_usuario'] === $id_usuario; ?>
                                     <?php $is_comentario_autor = (int) $comentario['id_usuario'] === $id_usuario; ?>
 
@@ -266,6 +270,12 @@ if ($resultado_comentarios) {
 
                                                 <?php if ($is_comentario_autor || $is_post_owner): ?>
                                                     <button class="post-menu-btn danger" type="button" onclick="excluirComentario(<?= $comentario['id_comentario'] ?>)">Excluir</button>
+                                                <?php endif; ?>
+
+                                                <?php if ($is_post_owner): ?>
+                                                    <button class="post-menu-btn" type="button" onclick="fixarComentario(<?= $post['id_post'] ?>, <?= $comentario['id_comentario'] ?>)">
+                                                        <?= !empty($post['id_comentario_fixado']) && (int) $post['id_comentario_fixado'] === (int) $comentario['id_comentario'] ? 'Desfixar comentário' : 'Fixar comentário' ?>
+                                                    </button>
                                                 <?php endif; ?>
                                             </div>
                                         </div>

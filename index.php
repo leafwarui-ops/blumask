@@ -158,6 +158,30 @@ if ($id_usuario_logado <= 0) {
     }
 }
 
+// Além dos posts do usuário, também trazemos os comentários que ele fez
+$recent_items = [];
+if ($id_usuario_logado > 0) {
+  // adicionar posts como itens
+  foreach ($recent_posts as $p) {
+    $ts = strtotime($p['Data_post']) ?: 0;
+    $recent_items[] = ['type' => 'post', 'ts' => $ts, 'data' => $p];
+  }
+
+  // buscar comentários feitos pelo usuário
+  $sql_recent_comments = "SELECT c.id_comentario, c.id_post, c.conteudo, c.data_comentario, p.assunto, p.id_comunidade, p.id_usuario AS post_autor_id, p.conteudo AS post_conteudo FROM comentario c INNER JOIN post p ON c.id_post = p.id_post WHERE c.id_usuario = $id_usuario_logado ORDER BY c.data_comentario DESC, c.id_comentario DESC LIMIT 30";
+  $res_recent_comments = mysqli_query($conn, $sql_recent_comments);
+  if ($res_recent_comments) {
+    while ($c = mysqli_fetch_assoc($res_recent_comments)) {
+      $ts = strtotime($c['data_comentario']) ?: 0;
+      $recent_items[] = ['type' => 'comment', 'ts' => $ts, 'data' => $c];
+    }
+  }
+
+  // ordenar por timestamp desc e limitar a 30
+  usort($recent_items, function($a, $b) { return $b['ts'] <=> $a['ts']; });
+  $recent_items = array_slice($recent_items, 0, 30);
+}
+
 // 2. Post Fixado pelo Próprio Usuário
 $pinned_posts = [];
 if ($id_usuario_logado > 0) {
@@ -407,6 +431,37 @@ if ($id_usuario_logado > 0) {
                         <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
                       </a>
                     </div>
+                    <?php
+                      // Carrega os últimos 2 comentários para exibição rápida no feed
+                      $preview_comments = [];
+                      $res_c = mysqli_query($conn, "SELECT c.id_comentario, c.id_usuario, c.conteudo, c.data_comentario, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil FROM comentario c LEFT JOIN usuario u ON c.id_usuario = u.id_usuario WHERE c.id_post = $id_post ORDER BY c.data_comentario DESC, c.id_comentario DESC LIMIT 2");
+                      if ($res_c) {
+                        while ($r = mysqli_fetch_assoc($res_c)) $preview_comments[] = $r;
+                      }
+                    ?>
+
+                    <?php if (count($preview_comments) > 0): ?>
+                      <div class="post-comments-preview">
+                        <?php foreach ($preview_comments as $comentario): ?>
+                          <div class="comment-item comment-preview">
+                            <?php $avatar = !empty($comentario['foto_perfil']) ? htmlspecialchars($comentario['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($comentario['nome_de_exibicao'] ?? 'Usuário') . "&background=random"; ?>
+                            <a href="php/user_view.php?id=<?= intval(
+                              $comentario['id_usuario']
+                            ) ?>" class="comment-avatar">
+                              <img src="<?= $avatar ?>" alt="<?= htmlspecialchars($comentario['nome_de_exibicao'] ?? 'Usuário', ENT_QUOTES, 'UTF-8') ?>">
+                            </a>
+                            <div class="comment-body">
+                              <div class="comment-meta">
+                                <a href="php/user_view.php?id=<?= intval($comentario['id_usuario']) ?>" style="text-decoration:none; color:inherit;"><strong><?= htmlspecialchars($comentario['nome_de_exibicao'] ?? 'Usuário', ENT_QUOTES, 'UTF-8') ?></strong></a>
+                                <span>@<?= htmlspecialchars($comentario['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
+                                <time><?= date('d/m/Y', strtotime($comentario['data_comentario'])) ?></time>
+                              </div>
+                              <p class="comment-content"><?= nl2br(htmlspecialchars($comentario['conteudo'], ENT_QUOTES, 'UTF-8')) ?></p>
+                            </div>
+                          </div>
+                        <?php endforeach; ?>
+                      </div>
+                    <?php endif; ?>
                   </article>
                 <?php endforeach; ?>
               </div>
@@ -439,69 +494,58 @@ if ($id_usuario_logado > 0) {
                 <p>Faça login para ver os últimos posts.</p>
                 <span>Usuários deslogados não podem visualizar, comentar ou publicar conteúdo.</span>
               </div>
-            <?php elseif (!empty($recent_posts)): ?>
+            <?php elseif (!empty($recent_items)): ?>
               <div class="posts-feed">
-                <?php 
-                  // Reutiliza o cache de autores
-                  foreach ($recent_posts as $post): ?>
-                  <?php 
-                    $id_post = intval($post['id_post']);
-                    $id_comunidade = intval($post['id_comunidade']);
-                    $nome_comunidade = htmlspecialchars($post['nome_comunidade'], ENT_QUOTES, 'UTF-8');
-                    $data_post_ts = strtotime($post['Data_post']);
-                    $data_formatada = $data_post_ts ? date('d/m/Y', $data_post_ts) : htmlspecialchars($post['Data_post'], ENT_QUOTES, 'UTF-8');
-                    $assunto = !empty($post['assunto']) ? htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8') : '';
-                    $conteudo = htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8');
-                    $total_curtidas = intval($post['total_curtidas']);
-                    $total_comentarios = intval($post['total_comentarios']);
-                    $curtiu = intval($post['curtiu']) === 1;
+                <?php
+                  foreach ($recent_items as $entry):
+                    $type = $entry['type'];
+                    $item = $entry['data'];
+                    if ($type === 'post'):
+                      $post = $item;
+                      $id_post = intval($post['id_post']);
+                      $id_comunidade = intval($post['id_comunidade']);
+                      $nome_comunidade = htmlspecialchars($post['nome_comunidade'], ENT_QUOTES, 'UTF-8');
+                      $data_post_ts = strtotime($post['Data_post']);
+                      $data_formatada = $data_post_ts ? date('d/m/Y', $data_post_ts) : htmlspecialchars($post['Data_post'], ENT_QUOTES, 'UTF-8');
+                      $assunto = !empty($post['assunto']) ? htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8') : '';
+                      $conteudo = htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8');
+                      $total_curtidas = intval($post['total_curtidas']);
+                      $total_comentarios = intval($post['total_comentarios']);
+                      $curtiu = intval($post['curtiu']) === 1;
 
-                    $img_comunidade = !empty($post['imagem_comunidade'])
-                      ? htmlspecialchars($post['imagem_comunidade'], ENT_QUOTES, 'UTF-8')
-                      : "https://ui-avatars.com/api/?name=" . urlencode($post['nome_comunidade']) . "&background=2b17e0&color=fff";
+                      $img_comunidade = !empty($post['imagem_comunidade'])
+                        ? htmlspecialchars($post['imagem_comunidade'], ENT_QUOTES, 'UTF-8')
+                        : "https://ui-avatars.com/api/?name=" . urlencode($post['nome_comunidade']) . "&background=2b17e0&color=fff";
 
-                    // Obter informações do autor (avatar e nome) — usa $authorsCache
-                    $autor_id = intval($post['autor_id'] ?? 0);
-                    $authorName = $nome_comunidade;
-                    $authorHandle = '';
-                    $authorAvatar = $img_comunidade;
-                    $authorIsDeleted = false;
-                    if ($autor_id > 0) {
-                        if (!isset($authorsCache[$autor_id])) {
-                            $resA = mysqli_query($conn, "SELECT nome_de_exibicao, nome_de_usuario, foto_perfil FROM usuario WHERE id_usuario = $autor_id LIMIT 1");
-                            $authorsCache[$autor_id] = ($resA && mysqli_num_rows($resA) > 0) ? mysqli_fetch_assoc($resA) : null;
-                        }
-                        if (!empty($authorsCache[$autor_id])) {
-                            $authorName = htmlspecialchars($authorsCache[$autor_id]['nome_de_exibicao'] ?? $authorsCache[$autor_id]['nome_de_usuario'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
-                            $authorHandle = htmlspecialchars($authorsCache[$autor_id]['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
-                            $authorAvatar = !empty($authorsCache[$autor_id]['foto_perfil']) ? htmlspecialchars($authorsCache[$autor_id]['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($authorName) . "&background=random";
-                            $authorIsDeleted = $authorName === 'Usuário deletado' || strpos($authorHandle, 'usuario_deletado_') === 0;
-                        }
-                    }
-                  ?>
+                      $autor_id = intval($post['autor_id'] ?? 0);
+                      $authorName = $nome_comunidade;
+                      $authorHandle = '';
+                      $authorAvatar = $img_comunidade;
+                      if ($autor_id > 0) {
+                          if (!isset($authorsCache[$autor_id])) {
+                              $resA = mysqli_query($conn, "SELECT nome_de_exibicao, nome_de_usuario, foto_perfil FROM usuario WHERE id_usuario = $autor_id LIMIT 1");
+                              $authorsCache[$autor_id] = ($resA && mysqli_num_rows($resA) > 0) ? mysqli_fetch_assoc($resA) : null;
+                          }
+                          if (!empty($authorsCache[$autor_id])) {
+                              $authorName = htmlspecialchars($authorsCache[$autor_id]['nome_de_exibicao'] ?? $authorsCache[$autor_id]['nome_de_usuario'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
+                              $authorHandle = htmlspecialchars($authorsCache[$autor_id]['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
+                              $authorAvatar = !empty($authorsCache[$autor_id]['foto_perfil']) ? htmlspecialchars($authorsCache[$autor_id]['foto_perfil'], ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($authorName) . "&background=random";
+                          }
+                      }
+                ?>
                   <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-community-id="<?= $id_comunidade ?>">
                     <div class="post-header">
                       <div class="post-avatar">
-                        <?php if ($authorIsDeleted): ?>
-                          <span title="Usuário removido" style="display:inline-block; cursor:default;">
-                            <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>" style="opacity:0.8;">
-                          </span>
-                        <?php else: ?>
-                          <a href="php/user_view.php?id=<?= $autor_id ?>" title="Ver perfil de <?= $authorName ?>" onclick="event.stopPropagation();">
-                            <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>">
-                          </a>
-                        <?php endif; ?>
+                        <a href="php/user_view.php?id=<?= $autor_id ?>" title="Ver perfil de <?= $authorName ?>" onclick="event.stopPropagation();">
+                          <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>">
+                        </a>
                       </div>
                       <div class="post-header-info">
                         <div class="post-user-info">
                           <h4>
-                            <?php if ($authorIsDeleted): ?>
-                              <span class="post-community-name" style="cursor:default; color:inherit;"><?= $authorName ?></span>
-                            <?php else: ?>
                               <a href="php/user_view.php?id=<?= $autor_id ?>" class="post-community-name" onclick="event.stopPropagation();">
                                 <?= $authorName ?>
                               </a>
-                            <?php endif; ?>
                           </h4>
                           <?php if ($authorHandle !== ''): ?>
                             <div class="post-user-handle">@<?= $authorHandle ?></div>
@@ -525,20 +569,45 @@ if ($id_usuario_logado > 0) {
                         <span class="like-count"><?= $total_curtidas ?></span>
                       </button>
 
-                      <?php if ($id_usuario_logado > 0 && intval($post['autor_id'] ?? 0) === $id_usuario_logado): ?>
-                        <button type="button" class="post-action post-pin-action" onclick="event.stopPropagation(); fixarPostPerfil(<?= $id_post ?>, this)" title="<?= intval($usuario_post_fixado) === $id_post ? 'Desfixar do perfil' : 'Fixar no perfil' ?>">
-                          <span><?= intval($usuario_post_fixado) === $id_post ? '📌' : '📍' ?></span>
-                          <span><?= intval($usuario_post_fixado) === $id_post ? 'Desfixar' : 'Fixar' ?></span>
-                        </button>
-                      <?php endif; ?>
-
                       <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-action post-comment-action" title="Ver comentários na comunidade" onclick="event.stopPropagation();">
                         <span class="comment-icon">💬</span>
                         <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
                       </a>
                     </div>
                   </article>
-                <?php endforeach; ?>
+                <?php
+                    elseif ($type === 'comment'):
+                      $c = $item;
+                      $id_post = intval($c['id_post']);
+                      $id_comunidade = intval($c['id_comunidade']);
+                      $data_formatada = date('d/m/Y', strtotime($c['data_comentario']));
+                      $comentario_conteudo = htmlspecialchars($c['conteudo'], ENT_QUOTES, 'UTF-8');
+                      $post_assunto = htmlspecialchars($c['assunto'] ?? '', ENT_QUOTES, 'UTF-8');
+                ?>
+                  <article class="post post-card-feed comment-entry" data-post-id="<?= $id_post ?>">
+                    <div class="post-header">
+                      <div class="post-avatar">
+                        <a href="php/post_detalhes.php?id_post=<?= $id_post ?>" title="Abrir post" onclick="event.stopPropagation();">
+                          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#2563eb" stroke-width="1.8"><circle cx="12" cy="12" r="9"/></svg>
+                        </a>
+                      </div>
+                      <div class="post-header-info">
+                        <div class="post-user-info">
+                          <h4>Comentário seu</h4>
+                          <?php if (!empty($post_assunto)): ?><div class="post-user-handle">Em: <?= $post_assunto ?></div><?php endif; ?>
+                        </div>
+                        <div class="post-date"><?= $data_formatada ?></div>
+                      </div>
+                    </div>
+                    <div class="post-content"><?= nl2br($comentario_conteudo) ?></div>
+                    <div class="post-actions">
+                      <a href="php/post_detalhes.php?id_post=<?= $id_post ?>" class="post-action" onclick="event.stopPropagation();">Ver no contexto</a>
+                    </div>
+                  </article>
+                <?php
+                    endif;
+                  endforeach;
+                ?>
               </div>
             <?php else: ?>
               <div class="posts-empty-feed">

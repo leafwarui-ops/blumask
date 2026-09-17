@@ -773,6 +773,18 @@ footer.bottombar {
     font-weight: 700;
 }
 
+.comment-pinned-badge {
+    display: inline-block;
+    margin-top: 8px;
+    background: #fff7ed;
+    color: #b45309;
+    border: 1px solid #fdba74;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
 .post-title {
     font-weight: 700;
     font-size: 17px;

@@ -370,7 +370,10 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
             </div>
 
             <div class="delete-account-area">
-              <button type="button" id="btn-delete-account" class="btn-delete-account">Excluir conta</button>
+              <button type="button" id="btn-delete-account" class="btn-delete-account">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Excluir conta
+              </button>
             </div>
 
           </form>
@@ -413,18 +416,30 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
     }
 
     .btn-delete-account {
-      background: rgba(220, 53, 69, 0.12);
-      color: #d93025;
-      border: 1px solid rgba(217, 48, 37, 0.35);
+      background: #ef4444; /* red-500 */
+      color: #fff;
+      border: none;
       border-radius: 12px;
-      padding: 11px 18px;
+      padding: 10px 18px;
       font-weight: 700;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      box-shadow: 0 6px 18px rgba(239, 68, 68, 0.18);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .btn-delete-account:hover {
-      background: rgba(220, 53, 69, 0.18);
+      transform: translateY(-2px);
+      background: #dc2626; /* red-600 */
+      box-shadow: 0 10px 26px rgba(220, 38, 38, 0.22);
+    }
+
+    .btn-delete-account svg {
+      width: 16px;
+      height: 16px;
+      opacity: 0.95;
     }
 
     .delete-modal {
