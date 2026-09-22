@@ -411,8 +411,8 @@ if ($id_usuario_logado > 0) {
                     $nome_comunidade = htmlspecialchars($post['nome_comunidade'], ENT_QUOTES, 'UTF-8');
                     $data_post_ts = strtotime($post['Data_post']);
                     $data_formatada = $data_post_ts ? date('d/m/Y', $data_post_ts) : htmlspecialchars($post['Data_post'], ENT_QUOTES, 'UTF-8');
-                    $assunto = !empty($post['assunto']) ? htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8') : '';
-                    $conteudo = htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8');
+                    $assunto = !empty($post['assunto']) ? htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8', false) : '';
+                    $conteudo = htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8', false);
                     $total_curtidas = intval($post['total_curtidas']);
                     $total_comentarios = intval($post['total_comentarios']);
                     $curtiu = intval($post['curtiu']) === 1;
@@ -511,8 +511,8 @@ if ($id_usuario_logado > 0) {
                     $comment_avatar = resolve_index_avatar_url($comment['foto_perfil'] ?? null, $comment['nome_de_exibicao'] ?? 'Usuário');
                     $comment_author_name = htmlspecialchars($comment['nome_de_exibicao'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
                     $comment_author_handle = htmlspecialchars($comment['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
-                    $comment_assunto = htmlspecialchars($comment['assunto'] ?? '', ENT_QUOTES, 'UTF-8');
-                    $comment_conteudo = htmlspecialchars($comment['conteudo'], ENT_QUOTES, 'UTF-8');
+                    $comment_assunto = htmlspecialchars($comment['assunto'] ?? '', ENT_QUOTES, 'UTF-8', false);
+                    $comment_conteudo = htmlspecialchars($comment['conteudo'], ENT_QUOTES, 'UTF-8', false);
                     $comment_date = date('d/m/Y', strtotime($comment['data_comentario']));
                   ?>
                   <article class="post post-card-feed comment-entry" data-post-id="<?= $comment_post_id ?>" data-comment-id="<?= $comment_id ?>">
@@ -586,8 +586,8 @@ if ($id_usuario_logado > 0) {
                       $nome_comunidade = htmlspecialchars($post['nome_comunidade'], ENT_QUOTES, 'UTF-8');
                       $data_post_ts = strtotime($post['Data_post']);
                       $data_formatada = $data_post_ts ? date('d/m/Y', $data_post_ts) : htmlspecialchars($post['Data_post'], ENT_QUOTES, 'UTF-8');
-                      $assunto = !empty($post['assunto']) ? htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8') : '';
-                      $conteudo = htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8');
+                      $assunto = !empty($post['assunto']) ? htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8', false) : '';
+                      $conteudo = htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8', false);
                       $total_curtidas = intval($post['total_curtidas']);
                       $total_comentarios = intval($post['total_comentarios']);
                       $curtiu = intval($post['curtiu']) === 1;
@@ -671,8 +671,8 @@ if ($id_usuario_logado > 0) {
                       $id_post = intval($c['id_post']);
                       $id_comunidade = intval($c['id_comunidade']);
                       $data_formatada = date('d/m/Y', strtotime($c['data_comentario']));
-                      $comentario_conteudo = htmlspecialchars($c['conteudo'], ENT_QUOTES, 'UTF-8');
-                      $post_assunto = htmlspecialchars($c['assunto'] ?? '', ENT_QUOTES, 'UTF-8');
+                      $comentario_conteudo = htmlspecialchars($c['conteudo'], ENT_QUOTES, 'UTF-8', false);
+                      $post_assunto = htmlspecialchars($c['assunto'] ?? '', ENT_QUOTES, 'UTF-8', false);
                       $commentUserName = htmlspecialchars($c['nome_de_exibicao'] ?? ($_SESSION['usuario']['nome_de_exibicao'] ?? 'Você'), ENT_QUOTES, 'UTF-8');
                       $commentUserHandle = htmlspecialchars($c['nome_de_usuario'] ?? ($_SESSION['usuario']['nome_de_usuario'] ?? ''), ENT_QUOTES, 'UTF-8');
                       $commentAvatar = resolve_index_avatar_url($c['foto_perfil'] ?? ($_SESSION['usuario']['foto_perfil'] ?? null), $c['nome_de_exibicao'] ?? ($_SESSION['usuario']['nome_de_exibicao'] ?? 'Você'));

@@ -71,8 +71,8 @@ if (intval($comunidade['id_usuario']) !== $id_usuario) {
     exit;
 }
 
-$nome = htmlspecialchars($nome_raw, ENT_QUOTES, 'UTF-8');
-$descricao = htmlspecialchars($descricao_raw, ENT_QUOTES, 'UTF-8');
+$nome = $nome_raw;
+$descricao = $descricao_raw;
 
 $nome_esc = mysqli_real_escape_string($conn, $nome);
 $descricao_esc = mysqli_real_escape_string($conn, $descricao);

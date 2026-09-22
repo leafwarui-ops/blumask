@@ -250,7 +250,7 @@ if ($resultado_count) {
                     <img src="<?= resolve_community_image_url($comunidade['imagem'] ?? null, $comunidade['nome']) ?>" alt="<?= htmlspecialchars($comunidade['nome'], ENT_QUOTES, 'UTF-8') ?>">
 
                     <h2><?= htmlspecialchars($comunidade['nome'], ENT_QUOTES, 'UTF-8') ?></h2>
-                    <p class="descricao"><?= htmlspecialchars($comunidade['descricao'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
+                    <p class="descricao"><?= htmlspecialchars($comunidade['descricao'] ?? '', ENT_QUOTES, 'UTF-8', false) ?></p>
 
                     <?php if (!$eh_membro): ?>
                         <?php if (isset($_SESSION['usuario'])): ?>
@@ -367,8 +367,8 @@ if ($resultado_count) {
                                 <?php if (!empty($comunidade['id_post_fixado']) && (int) $post['id_post'] === (int) $comunidade['id_post_fixado']): ?>
                                     <div class="post-pinned-badge">📌 Post fixado</div>
                                 <?php endif; ?>
-                                <div class="post-title"><?= htmlspecialchars($post['assunto'] ?? 'Sem assunto', ENT_QUOTES, 'UTF-8') ?></div>
-                                <div class="post-content"><?= htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8') ?></div>
+                                <div class="post-title"><?= htmlspecialchars($post['assunto'] ?? 'Sem assunto', ENT_QUOTES, 'UTF-8', false) ?></div>
+                                <div class="post-content"><?= htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8', false) ?></div>
 
                                 <div class="post-actions">
                                     <span class="post-action" onclick="curtirPost(<?= $post['id_post'] ?>, this)">

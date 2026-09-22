@@ -71,9 +71,9 @@ if (!$resultado_comunidade || mysqli_num_rows($resultado_comunidade) === 0) {
     exit;
 }
 
-// 7. Sanitização contra XSS
-$assunto = htmlspecialchars($assunto_raw, ENT_QUOTES, 'UTF-8');
-$conteudo = htmlspecialchars($conteudo_raw, ENT_QUOTES, 'UTF-8');
+// 7. Dados são escapados na saída HTML, não antes de persistir.
+$assunto = $assunto_raw;
+$conteudo = $conteudo_raw;
 
 $assunto_esc = mysqli_real_escape_string($conn, $assunto);
 $conteudo_esc = mysqli_real_escape_string($conn, $conteudo);

@@ -370,8 +370,8 @@ function userAvatar($user) {
                       $nome_comunidade = htmlspecialchars($post['nome_comunidade'], ENT_QUOTES, 'UTF-8');
                       $data_post_ts = strtotime($post['Data_post']);
                       $data_formatada = $data_post_ts ? date('d/m/Y', $data_post_ts) : htmlspecialchars($post['Data_post'], ENT_QUOTES, 'UTF-8');
-                      $assunto = !empty($post['assunto']) ? htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8') : '';
-                      $conteudo = htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8');
+                      $assunto = !empty($post['assunto']) ? htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8', false) : '';
+                      $conteudo = htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8', false);
                       $total_curtidas = intval($post['total_curtidas']);
                       $total_comentarios = intval($post['total_comentarios']);
                       $curtiu = intval($post['curtiu']) === 1;
@@ -442,8 +442,8 @@ function userAvatar($user) {
                       $comment_avatar = resolve_asset_url($comment['foto_perfil'] ?? null, "https://ui-avatars.com/api/?name=" . urlencode($comment['nome_de_exibicao'] ?? 'Usuário') . "&background=random");
                       $comment_author_name = htmlspecialchars($comment['nome_de_exibicao'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
                       $comment_author_handle = htmlspecialchars($comment['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
-                      $comment_assunto = htmlspecialchars($comment['assunto'] ?? '', ENT_QUOTES, 'UTF-8');
-                      $comment_conteudo = htmlspecialchars($comment['conteudo'], ENT_QUOTES, 'UTF-8');
+                      $comment_assunto = htmlspecialchars($comment['assunto'] ?? '', ENT_QUOTES, 'UTF-8', false);
+                      $comment_conteudo = htmlspecialchars($comment['conteudo'], ENT_QUOTES, 'UTF-8', false);
                       $comment_date = date('d/m/Y', strtotime($comment['data_comentario']));
                     ?>
                     <article class="post post-card-feed comment-entry" data-post-id="<?= $comment_post_id ?>" data-comment-id="<?= $comment_id ?>">
@@ -491,8 +491,8 @@ function userAvatar($user) {
                       $nome_comunidade = htmlspecialchars($post['nome_comunidade'], ENT_QUOTES, 'UTF-8');
                       $data_post_ts = strtotime($post['Data_post']);
                       $data_formatada = $data_post_ts ? date('d/m/Y', $data_post_ts) : htmlspecialchars($post['Data_post'], ENT_QUOTES, 'UTF-8');
-                      $assunto = !empty($post['assunto']) ? htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8') : '';
-                      $conteudo = htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8');
+                      $assunto = !empty($post['assunto']) ? htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8', false) : '';
+                      $conteudo = htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8', false);
                       $total_curtidas = intval($post['total_curtidas']);
                       $total_comentarios = intval($post['total_comentarios']);
                       $curtiu = intval($post['curtiu']) === 1;
@@ -557,8 +557,8 @@ function userAvatar($user) {
                       $comment_avatar = resolve_asset_url($comment['foto_perfil'] ?? null, generated_avatar_url($comment['nome_de_exibicao'] ?? 'Usuário'));
                       $comment_author_name = htmlspecialchars($comment['nome_de_exibicao'] ?? 'Usuário', ENT_QUOTES, 'UTF-8');
                       $comment_author_handle = htmlspecialchars($comment['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
-                      $comment_assunto = htmlspecialchars($comment['assunto'] ?? '', ENT_QUOTES, 'UTF-8');
-                      $comment_conteudo = htmlspecialchars($comment['conteudo'] ?? '', ENT_QUOTES, 'UTF-8');
+                      $comment_assunto = htmlspecialchars($comment['assunto'] ?? '', ENT_QUOTES, 'UTF-8', false);
+                      $comment_conteudo = htmlspecialchars($comment['conteudo'] ?? '', ENT_QUOTES, 'UTF-8', false);
                       $comment_date = date('d/m/Y', strtotime($comment['data_comentario']));
                     ?>
                     <article class="post post-card-feed comment-entry" data-post-id="<?= $comment_post_id ?>" data-comment-id="<?= $comment_id ?>">

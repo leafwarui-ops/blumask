@@ -102,11 +102,11 @@ if (mb_strlen($descricao_raw) > 200) {
 // SEÇÃO 4: SANITIZAÇÃO CONTRA XSS
 // ============================================================================
 
-// Converte caracteres especiais em HTML entities para evitar XSS
-$nome = htmlspecialchars($nome_raw, ENT_QUOTES, 'UTF-8');
-$descricao = htmlspecialchars($descricao_raw, ENT_QUOTES, 'UTF-8');
+// Persiste texto bruto; a saída HTML é que converte caracteres especiais.
+$nome = $nome_raw;
+$descricao = $descricao_raw;
 
-// Escapa a string para uso em query SQL (ainda que htmlspecialchars já tenha limpado XSS)
+// Escapa a string para uso na query SQL.
 $nome_esc = mysqli_real_escape_string($conn, $nome);
 $descricao_esc = mysqli_real_escape_string($conn, $descricao);
 

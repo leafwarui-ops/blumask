@@ -43,8 +43,8 @@ while ($linha = mysqli_fetch_assoc($resultado)) {
 
     $comunidades[] = [
         "id_comunidade" => intval($linha['id_comunidade']),
-        "nome" => htmlspecialchars($linha['nome'], ENT_QUOTES, 'UTF-8'),
-        "imagem" => $imagem ? htmlspecialchars($imagem, ENT_QUOTES, 'UTF-8') : null,
+        "nome" => $linha['nome'],
+        "imagem" => $imagem ?: null,
         "cargo" => intval($linha['cargo'])
     ];
 }

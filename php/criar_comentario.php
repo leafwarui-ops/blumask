@@ -61,7 +61,7 @@ if (!$resultado_membro || mysqli_num_rows($resultado_membro) === 0) {
     exit;
 }
 
-$conteudo = htmlspecialchars($conteudo_raw, ENT_QUOTES, 'UTF-8');
+$conteudo = $conteudo_raw;
 $conteudo_esc = mysqli_real_escape_string($conn, $conteudo);
 $data_comentario = date('Y-m-d');
 

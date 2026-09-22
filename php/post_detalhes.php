@@ -213,8 +213,8 @@ if ($resultado_comentarios) {
                         <?= htmlspecialchars($post['nome_comunidade'], ENT_QUOTES, 'UTF-8') ?>
                     </a>
                 </div>
-                <h2 class="post-detail-title"><?= htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8') ?></h2>
-                <div class="post-content"><?= htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8') ?></div>
+                <h2 class="post-detail-title"><?= htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8', false) ?></h2>
+                <div class="post-content"><?= htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8', false) ?></div>
 
                 <div class="post-actions post-detail-actions">
                     <span class="post-action" onclick="curtirPost(<?= $post['id_post'] ?>, this)">
@@ -273,7 +273,7 @@ if ($resultado_comentarios) {
                                     <time><?= date('d/m/Y', strtotime($comentario['data_comentario'])) ?></time>
                                 </div>
                                 <div class="comment-actions-and-content">
-                                    <p class="comment-content" data-comentario-id="<?= $comentario['id_comentario'] ?>"><?= htmlspecialchars($comentario['conteudo'], ENT_QUOTES, 'UTF-8') ?></p>
+                                    <p class="comment-content" data-comentario-id="<?= $comentario['id_comentario'] ?>"><?= htmlspecialchars($comentario['conteudo'], ENT_QUOTES, 'UTF-8', false) ?></p>
 
                                     <?php if (!empty($post['id_comentario_fixado']) && (int) $post['id_comentario_fixado'] === (int) $comentario['id_comentario']): ?>
                                         <div class="comment-pinned-badge">📌 Comentário fixado</div>

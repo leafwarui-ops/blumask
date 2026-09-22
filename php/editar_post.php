@@ -80,8 +80,8 @@ if ($autor_id !== $id_usuario) {
     exit;
 }
 
-$assunto = htmlspecialchars($assunto_raw, ENT_QUOTES, 'UTF-8');
-$conteudo = htmlspecialchars($conteudo_raw, ENT_QUOTES, 'UTF-8');
+$assunto = $assunto_raw;
+$conteudo = $conteudo_raw;
 
 $assunto_esc = mysqli_real_escape_string($conn, $assunto);
 $conteudo_esc = mysqli_real_escape_string($conn, $conteudo);

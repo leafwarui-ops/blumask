@@ -56,7 +56,7 @@ $tipo      = in_array($tipo_raw, ['todos', 'usuarios', 'comunidades'], true) ? $
 if ($termo_raw === '' || preg_match('/^[%_\s]+$/', $termo_raw)) {
     echo json_encode([
         "sucesso" => true,
-        "termo" => htmlspecialchars($termo_raw, ENT_QUOTES, 'UTF-8'),
+        "termo" => $termo_raw,
         "total" => 0,
         "usuarios" => [],
         "comunidades" => []
@@ -98,17 +98,17 @@ if ($tipo === 'todos' || $tipo === 'usuarios') {
 
     if ($res_usuarios) {
         while ($row = mysqli_fetch_assoc($res_usuarios)) {
-            $nome_exb = htmlspecialchars($row['nome_de_exibicao'] ?? '', ENT_QUOTES, 'UTF-8');
+            $nome_exb = $row['nome_de_exibicao'] ?? '';
             $foto_raw = normalize_search_asset_path($row['foto_perfil'] ?? '');
-            $foto = $foto_raw !== '' ? htmlspecialchars($foto_raw, ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($nome_exb ?: 'User') . "&background=random";
+            $foto = $foto_raw !== '' ? $foto_raw : "https://ui-avatars.com/api/?name=" . urlencode($nome_exb ?: 'User') . "&background=random";
             $banner_raw = normalize_search_asset_path($row['banner'] ?? '');
-            $banner = $banner_raw !== '' ? htmlspecialchars($banner_raw, ENT_QUOTES, 'UTF-8') : null;
+            $banner = $banner_raw !== '' ? $banner_raw : null;
 
             $usuarios[] = [
                 "id_usuario"       => intval($row['id_usuario']),
                 "nome_de_exibicao" => $nome_exb,
-                "nome_de_usuario"  => htmlspecialchars($row['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8'),
-                "descricao"        => htmlspecialchars($row['descricao'] ?? '', ENT_QUOTES, 'UTF-8'),
+                "nome_de_usuario"  => $row['nome_de_usuario'] ?? '',
+                "descricao"        => $row['descricao'] ?? '',
                 "foto_perfil"      => $foto,
                 "banner"           => $banner
             ];
@@ -138,16 +138,16 @@ if ($tipo === 'todos' || $tipo === 'comunidades') {
 
     if ($res_comunidades) {
         while ($row = mysqli_fetch_assoc($res_comunidades)) {
-            $nome_com = htmlspecialchars($row['nome'] ?? '', ENT_QUOTES, 'UTF-8');
+            $nome_com = $row['nome'] ?? '';
             $imagem_raw = normalize_search_asset_path($row['imagem'] ?? '');
-            $imagem = $imagem_raw !== '' ? htmlspecialchars($imagem_raw, ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($nome_com ?: 'Comunidade') . "&background=random";
+            $imagem = $imagem_raw !== '' ? $imagem_raw : "https://ui-avatars.com/api/?name=" . urlencode($nome_com ?: 'Comunidade') . "&background=random";
 
             $comunidades[] = [
                 "id_comunidade" => intval($row['id_comunidade']),
                 "nome"          => $nome_com,
-                "descricao"     => htmlspecialchars($row['descricao'] ?? '', ENT_QUOTES, 'UTF-8'),
+                "descricao"     => $row['descricao'] ?? '',
                 "imagem"        => $imagem,
-                "data_criacao"  => $row['data_criacao'] ? htmlspecialchars($row['data_criacao'], ENT_QUOTES, 'UTF-8') : null,
+                "data_criacao"  => $row['data_criacao'] ?: null,
                 "total_membros" => intval($row['total_membros'] ?? 0)
             ];
         }
@@ -158,7 +158,7 @@ $total = count($usuarios) + count($comunidades);
 
 echo json_encode([
     "sucesso"     => true,
-    "termo"       => htmlspecialchars($termo_raw, ENT_QUOTES, 'UTF-8'),
+    "termo"       => $termo_raw,
     "total"       => $total,
     "usuarios"    => $usuarios,
     "comunidades" => $comunidades
