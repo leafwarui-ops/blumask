@@ -2,6 +2,7 @@
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
+require_once __DIR__ . "/profile_pins.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -36,21 +37,10 @@ $row = mysqli_fetch_assoc($res);
 $id_autor = intval($row['id_usuario']);
 $id_post = intval($row['id_post']);
 
-// Buscar autor do post. Não assume que a coluna id_comentario_fixado exista.
+// Buscar autor do post.
 $res2 = mysqli_query($conn, "SELECT id_usuario FROM post WHERE id_post = $id_post LIMIT 1");
 $post_row = $res2 && mysqli_num_rows($res2) > 0 ? mysqli_fetch_assoc($res2) : null;
 $id_post_autor = $post_row ? intval($post_row['id_usuario']) : 0;
-$current_pinned = 0;
-
-// Verifica se a coluna id_comentario_fixado existe antes de consultá-la
-$col_check = mysqli_query($conn, "SHOW COLUMNS FROM post LIKE 'id_comentario_fixado'");
-if ($col_check && mysqli_num_rows($col_check) > 0) {
-    $res3 = mysqli_query($conn, "SELECT id_comentario_fixado FROM post WHERE id_post = $id_post LIMIT 1");
-    if ($res3 && mysqli_num_rows($res3) > 0) {
-        $r3 = mysqli_fetch_assoc($res3);
-        $current_pinned = intval($r3['id_comentario_fixado'] ?? 0);
-    }
-}
 
 // Permissão: autor do comentário ou dono do post
 if ($id_autor !== $id_usuario && $id_post_autor !== $id_usuario) {
@@ -58,16 +48,39 @@ if ($id_autor !== $id_usuario && $id_post_autor !== $id_usuario) {
     exit;
 }
 
-// Se comentário estiver fixado no post, desfixa antes de deletar
-if ($current_pinned === $id_comentario) {
-    mysqli_query($conn, "UPDATE post SET id_comentario_fixado = NULL WHERE id_post = $id_post");
-}
+ensure_profile_pin_tables($conn);
+mysqli_begin_transaction($conn);
 
-$sql_delete = "DELETE FROM comentario WHERE id_comentario = $id_comentario";
-$del_res = mysqli_query($conn, $sql_delete);
-if ($del_res) {
+try {
+    if (!mysqli_query($conn, "DELETE FROM perfil_comentario_fixado WHERE id_comentario = $id_comentario")) {
+        throw new Exception("Erro ao remover fixação do perfil.");
+    }
+
+    $post_pin_column = mysqli_query($conn, "SHOW COLUMNS FROM post LIKE 'id_comentario_fixado'");
+    if (!$post_pin_column) {
+        throw new Exception("Erro ao verificar comentário fixado no post.");
+    }
+    if (mysqli_num_rows($post_pin_column) > 0
+        && !mysqli_query($conn, "UPDATE post SET id_comentario_fixado = NULL WHERE id_comentario_fixado = $id_comentario")) {
+        throw new Exception("Erro ao desfixar comentário do post.");
+    }
+
+    $user_pin_column = mysqli_query($conn, "SHOW COLUMNS FROM usuario LIKE 'id_comentario_fixado'");
+    if (!$user_pin_column) {
+        throw new Exception("Erro ao verificar comentários fixados no perfil.");
+    }
+    if (mysqli_num_rows($user_pin_column) > 0
+        && !mysqli_query($conn, "UPDATE usuario SET id_comentario_fixado = NULL WHERE id_comentario_fixado = $id_comentario")) {
+        throw new Exception("Erro ao limpar fixação antiga do perfil.");
+    }
+
+    if (!mysqli_query($conn, "DELETE FROM comentario WHERE id_comentario = $id_comentario")) {
+        throw new Exception("Erro ao excluir comentário.");
+    }
+
+    mysqli_commit($conn);
     echo json_encode(["sucesso" => true, "mensagem" => "Comentário excluído com sucesso."]);
-} else {
-    $err = mysqli_error($conn);
-    echo json_encode(["sucesso" => false, "mensagem" => "Erro ao excluir comentário.", "debug" => $err, "sql" => $sql_delete]);
+} catch (Throwable $e) {
+    mysqli_rollback($conn);
+    echo json_encode(["sucesso" => false, "mensagem" => "Erro ao excluir comentário."]);
 }

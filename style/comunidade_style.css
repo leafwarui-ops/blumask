@@ -1070,6 +1070,13 @@ footer.bottombar {
     border-radius: 12px;
     background: #f8fafc;
     position: relative;
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.comment-item.comment-highlight {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.22);
 }
 
 .comment-item .post-menu-wrapper {
