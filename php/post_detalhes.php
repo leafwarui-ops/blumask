@@ -66,7 +66,7 @@ $sql_comentarios = "SELECT c.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_pe
                     FROM comentario c
                     JOIN usuario u ON c.id_usuario = u.id_usuario
                     WHERE c.id_post = $id_post
-                    ORDER BY CASE WHEN c.id_comentario = $id_comentario_fixado THEN 0 ELSE 1 END, c.data_comentario ASC, c.id_comentario ASC";
+                    ORDER BY CASE WHEN c.id_comentario = $id_comentario_fixado THEN 0 ELSE 1 END, c.data_comentario DESC, c.id_comentario DESC";
 
 $resultado_comentarios = mysqli_query($conn, $sql_comentarios);
 $comentarios = [];
@@ -721,6 +721,14 @@ if ($resultado_comentarios) {
                     console.error('Erro ao comentar:', error);
                     alert('Erro ao comentar. Tente novamente.');
                 });
+            });
+
+            const campoComentario = formComentarioDetalhe.querySelector('textarea[name="conteudo"]');
+            campoComentario?.addEventListener('keydown', function(event) {
+                if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+
+                event.preventDefault();
+                formComentarioDetalhe.requestSubmit();
             });
         }
 

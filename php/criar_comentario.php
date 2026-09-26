@@ -2,6 +2,7 @@
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
+require_once __DIR__ . "/activity_timestamps.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -63,7 +64,13 @@ if (!$resultado_membro || mysqli_num_rows($resultado_membro) === 0) {
 
 $conteudo = $conteudo_raw;
 $conteudo_esc = mysqli_real_escape_string($conn, $conteudo);
-$data_comentario = date('Y-m-d');
+
+if (!ensure_activity_timestamp_columns($conn)) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Não foi possível preparar a data do comentário."]);
+    exit;
+}
+
+$data_comentario = date('Y-m-d H:i:s');
 
 $sql_insert = "INSERT INTO comentario (id_usuario, id_post, conteudo, data_comentario) VALUES ($id_usuario, $id_post, '$conteudo_esc', '$data_comentario')";
 

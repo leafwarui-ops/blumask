@@ -883,6 +883,15 @@ if ($resultado_count) {
             });
         });
 
+        document.querySelectorAll('#formNovoPost textarea[name="conteudo"], .form-comentario textarea[name="conteudo"]').forEach(textarea => {
+            textarea.addEventListener('keydown', function(event) {
+                if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+
+                event.preventDefault();
+                this.form?.requestSubmit();
+            });
+        });
+
         function descartarComentarioInline(idPost) {
             const formWrap = document.getElementById(`comment-form-${idPost}`);
             const form = formWrap ? formWrap.querySelector('.form-comentario') : null;

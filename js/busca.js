@@ -350,8 +350,17 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 `;
 
-                // Clica no item: abre modal de preview
-                li.addEventListener("click", () => abrirModalComunidade(comu));
+                // Usa a prévia quando disponível; páginas sem modal abrem a comunidade diretamente.
+                li.addEventListener("click", () => {
+                    if (dialogComunidade) {
+                        abrirModalComunidade(comu);
+                        return;
+                    }
+
+                    if (!comu.id_comunidade) return;
+                    fecharDropdown();
+                    window.location.href = `${communityEndpoint}?id=${encodeURIComponent(comu.id_comunidade)}`;
+                });
                 listaComu.appendChild(li);
             });
 

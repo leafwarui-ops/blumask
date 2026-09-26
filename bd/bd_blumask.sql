@@ -29,7 +29,7 @@ foreign key (id_usuario) references usuario(id_usuario)
 create table post(
 id_post int primary key auto_increment,
 id_comunidade int,
-Data_post date,
+Data_post datetime,
 conteudo text,
 id_usuario int,
 assunto varchar(150),
@@ -56,7 +56,7 @@ id_comentario int primary key auto_increment,
 id_usuario int,
 id_post int,
 conteudo text,
-data_comentario date,
+data_comentario datetime,
 
 foreign key (id_usuario) references usuario(id_usuario),
 foreign key (id_post) references post(id_post)

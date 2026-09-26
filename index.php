@@ -4,7 +4,9 @@ require_once "php/rate_limit.php";
 include "php/bd.php";
 require_once "php/media.php";
 require_once "php/profile_pins.php";
+require_once "php/activity_timestamps.php";
 ensure_profile_pin_tables($conn);
+ensure_activity_timestamp_columns($conn);
 
 function get_login_redirect_target() {
   $target = trim((string) ($_POST['return_to'] ?? ''));
@@ -157,6 +159,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 // -------------------------------------------------------------
 // Consulta de Posts Recentes para o Feed
 // -------------------------------------------------------------
+function merge_feed_items_by_date($posts, $comments, $post_date_key, $comment_date_key) {
+  $items = [];
+  $post_index = 0;
+  $comment_index = 0;
+  $prefer_comment_on_tie = false;
+
+  while ($post_index < count($posts) || $comment_index < count($comments)) {
+    $post_available = $post_index < count($posts);
+    $comment_available = $comment_index < count($comments);
+    $post_timestamp = $post_available ? (strtotime($posts[$post_index][$post_date_key]) ?: 0) : null;
+    $comment_timestamp = $comment_available ? (strtotime($comments[$comment_index][$comment_date_key]) ?: 0) : null;
+
+    if ($post_available && $comment_available && $post_timestamp === $comment_timestamp) {
+      $take_comment = $prefer_comment_on_tie;
+      $prefer_comment_on_tie = !$prefer_comment_on_tie;
+    } else {
+      $take_comment = !$post_available || ($comment_available && $comment_timestamp > $post_timestamp);
+    }
+
+    if ($take_comment) {
+      $items[] = ['type' => 'comment', 'ts' => $comment_timestamp, 'data' => $comments[$comment_index]];
+      $comment_index++;
+    } else {
+      $items[] = ['type' => 'post', 'ts' => $post_timestamp, 'data' => $posts[$post_index]];
+      $post_index++;
+    }
+  }
+
+  return $items;
+}
+
 $id_usuario_logado = isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0;
 $profile_comment_pin_column = mysqli_query($conn, "SHOW COLUMNS FROM usuario LIKE 'id_comentario_fixado'");
 if ($profile_comment_pin_column && mysqli_num_rows($profile_comment_pin_column) === 0) {
@@ -193,24 +226,17 @@ if ($id_usuario_logado <= 0) {
 // Além dos posts do usuário, também trazemos os comentários que ele fez
 $recent_items = [];
 if ($id_usuario_logado > 0) {
-  // adicionar posts como itens
-  foreach ($recent_posts as $p) {
-    $ts = strtotime($p['Data_post']) ?: 0;
-    $recent_items[] = ['type' => 'post', 'ts' => $ts, 'data' => $p];
-  }
-
   // buscar comentários feitos pelo usuário
   $sql_recent_comments = "SELECT c.id_comentario, c.id_post, c.conteudo, c.data_comentario, p.assunto, p.id_comunidade, p.id_usuario AS post_autor_id, p.conteudo AS post_conteudo, p.id_comentario_fixado, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil FROM comentario c INNER JOIN post p ON c.id_post = p.id_post INNER JOIN usuario u ON u.id_usuario = c.id_usuario WHERE c.id_usuario = $id_usuario_logado ORDER BY c.data_comentario DESC, c.id_comentario DESC LIMIT 30";
+  $recent_comments = [];
   $res_recent_comments = mysqli_query($conn, $sql_recent_comments);
   if ($res_recent_comments) {
     while ($c = mysqli_fetch_assoc($res_recent_comments)) {
-      $ts = strtotime($c['data_comentario']) ?: 0;
-      $recent_items[] = ['type' => 'comment', 'ts' => $ts, 'data' => $c];
+      $recent_comments[] = $c;
     }
   }
 
-  // ordenar por timestamp desc e limitar a 30
-  usort($recent_items, function($a, $b) { return $b['ts'] <=> $a['ts']; });
+  $recent_items = merge_feed_items_by_date($recent_posts, $recent_comments, 'Data_post', 'data_comentario');
   $recent_items = array_slice($recent_items, 0, 30);
 }
 
@@ -229,7 +255,8 @@ if ($id_usuario_logado > 0) {
         c.imagem AS imagem_comunidade,
         (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) AS total_curtidas,
         (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) AS total_comentarios,
-        (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario_logado) AS curtiu
+        (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario_logado) AS curtiu,
+        pf.data_fixacao
     FROM perfil_post_fixado pf
     INNER JOIN post p ON p.id_post = pf.id_post
     INNER JOIN comunidade c ON p.id_comunidade = c.id_comunidade
@@ -249,6 +276,7 @@ if ($id_usuario_logado > 0) {
         c.id_usuario,
         c.conteudo,
         c.data_comentario,
+        pf.data_fixacao,
         p.id_comunidade,
         p.assunto,
         p.id_usuario AS post_autor_id,
@@ -268,6 +296,8 @@ if ($id_usuario_logado > 0) {
             $pinned_comment_items[] = $pin_comment_row;
         }
     }
+
+    $pinned_items = merge_feed_items_by_date($pinned_posts, $pinned_comment_items, 'data_fixacao', 'data_fixacao');
 }
 ?>
 <!DOCTYPE html>
@@ -307,9 +337,8 @@ if ($id_usuario_logado > 0) {
           $descricao_usr = htmlspecialchars($user['descricao'] ?? '', ENT_QUOTES, 'UTF-8');
           $bannerUrl     = !empty($user['banner']) ? htmlspecialchars($user['banner'], ENT_QUOTES, 'UTF-8') : '';
           
-          // Utiliza a foto de perfil salva no banco; caso não exista, gera um avatar dinâmico com as iniciais
-          $avatarFallback = "https://ui-avatars.com/api/?name=" . urlencode($nome_exibicao) . "&background=random";
-          $avatarUrl = resolve_index_avatar_url($user['foto_perfil'] ?? null, $avatarFallback);
+          // Utiliza a foto salva; sem ela, gera um avatar com o nome de exibição.
+          $avatarUrl = resolve_index_avatar_url($user['foto_perfil'] ?? null, $user['nome_de_exibicao'] ?? 'User');
           $bannerUrl = resolve_index_asset_url($user['banner'] ?? null);
           $bannerStyle = $bannerUrl !== '' ? "background-image: url('$bannerUrl'); background-size: cover; background-position: center;" : "";
       ?>
@@ -404,7 +433,11 @@ if ($id_usuario_logado > 0) {
               <div class="posts-feed">
                 <?php 
                   $authorsCache = [];
-                  foreach ($pinned_posts as $post): ?>
+                  foreach ($pinned_items as $entry):
+                    $item = $entry['data'];
+                    if ($entry['type'] === 'post'):
+                      $post = $item;
+                  ?>
                   <?php 
                     $id_post = intval($post['id_post']);
                     $id_comunidade = intval($post['id_comunidade']);
@@ -502,9 +535,9 @@ if ($id_usuario_logado > 0) {
                       </a>
                     </div>
                   </article>
-                <?php endforeach; ?>
-
-                <?php foreach ($pinned_comment_items as $comment): ?>
+                <?php elseif ($entry['type'] === 'comment'):
+                    $comment = $item;
+                ?>
                   <?php
                     $comment_id = intval($comment['id_comentario']);
                     $comment_post_id = intval($comment['id_post']);
@@ -542,7 +575,7 @@ if ($id_usuario_logado > 0) {
                       </button>
                     </div>
                   </article>
-                <?php endforeach; ?>
+                <?php endif; endforeach; ?>
               </div>
             <?php elseif ($id_usuario_logado > 0): ?>
               <div class="posts-empty-feed">

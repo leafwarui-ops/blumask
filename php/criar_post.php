@@ -2,6 +2,7 @@
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
+require_once __DIR__ . "/activity_timestamps.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -79,6 +80,11 @@ $assunto_esc = mysqli_real_escape_string($conn, $assunto);
 $conteudo_esc = mysqli_real_escape_string($conn, $conteudo);
 
 // 8. Inserir o post
+if (!ensure_activity_timestamp_columns($conn)) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Não foi possível preparar a data do post."]);
+    exit;
+}
+
 $data_post = date("Y-m-d H:i:s");
 $sql_insert = "INSERT INTO post (id_comunidade, Data_post, conteudo, id_usuario, assunto)
                VALUES ($id_comunidade, '$data_post', '$conteudo_esc', $id_usuario, '$assunto_esc')";
