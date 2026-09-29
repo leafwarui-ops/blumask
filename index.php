@@ -195,6 +195,11 @@ $profile_comment_pin_column = mysqli_query($conn, "SHOW COLUMNS FROM usuario LIK
 if ($profile_comment_pin_column && mysqli_num_rows($profile_comment_pin_column) === 0) {
   mysqli_query($conn, "ALTER TABLE usuario ADD COLUMN id_comentario_fixado INT NULL");
 }
+// Garante que a coluna id_comentario_fixado exista na tabela post
+$post_pin_column = mysqli_query($conn, "SHOW COLUMNS FROM post LIKE 'id_comentario_fixado'");
+if ($post_pin_column && mysqli_num_rows($post_pin_column) === 0) {
+  mysqli_query($conn, "ALTER TABLE post ADD COLUMN id_comentario_fixado INT NULL");
+}
 $sql_recent_posts = "SELECT 
     p.id_post,
     p.id_comunidade,
