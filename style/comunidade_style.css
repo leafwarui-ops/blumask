@@ -278,6 +278,10 @@ html {
     font-size: 18px !important;
 }
 
+* {
+    box-sizing: border-box;
+}
+
 body {
     background: linear-gradient(180deg, #b9d7ff 0%, #b9d7ff 100%);
     min-height: 100vh;
@@ -285,10 +289,17 @@ body {
     flex-direction: column;
     font-size: 18px !important;
     line-height: 1.5;
+    overflow-x: hidden;
+}
+
+img, svg, canvas {
+    max-width: 100%;
+    display: block;
 }
 
 button, input, textarea, select {
     font: inherit;
+    max-width: 100%;
 }
 
 .page {
@@ -1295,11 +1306,110 @@ footer.bottombar {
 }
 
 @media (max-width: 768px) {
+    body {
+        overflow-x: hidden;
+    }
+
+    main {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .search-container {
+        width: 100%;
+        margin: 16px auto 20px;
+        padding: 0 12px;
+    }
+
+    .search-results-dropdown {
+        width: calc(100vw - 24px);
+        max-width: none;
+    }
+
     .content-wrapper {
         grid-template-columns: 1fr;
+        padding: 0 12px 40px;
+        gap: 20px;
     }
 
     .comunidade-card {
         position: static;
+        width: 100%;
+        padding: 18px 16px 16px;
+    }
+
+    .comunidade-card img {
+        width: 100px;
+        height: 100px;
+    }
+
+    .comunidade-card h2 {
+        font-size: 1.4rem;
+    }
+
+    .posts-section h3 {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .btn-novo-post {
+        width: 100%;
+    }
+
+    .post {
+        padding: 16px;
+    }
+
+    .post-header {
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+
+    .post-header-info {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .post-user-info {
+        min-width: 0;
+        flex: 1 1 100%;
+    }
+
+    .post-user-info h4,
+    .post-user-info p,
+    .post-title,
+    .post-content,
+    .comment-body p {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .post-actions {
+        flex-wrap: wrap;
+        gap: 10px 12px;
+    }
+
+    .comment-item {
+        flex-direction: column;
+        padding: 14px;
+    }
+
+    .comment-meta {
+        gap: 6px;
+    }
+
+    .comment-body {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .modal-content {
+        width: calc(100vw - 24px);
+        padding: 18px 16px;
+    }
+
+    .criar-comunidade-body {
+        flex-direction: column;
     }
 }
