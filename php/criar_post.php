@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . "/security_headers.php";
-require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/activity_timestamps.php";
 require_once __DIR__ . "/community_bans.php";
@@ -21,13 +20,6 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 // 2. Verificação de CSRF Token
 if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
     echo json_encode(["sucesso" => false, "mensagem" => "Token de segurança (CSRF) inválido."]);
-    exit;
-}
-
-// 3. Verificação de Rate Limit (máx 200 posts por hora para não bloquear uso normal)
-if (!check_rate_limit('create_post', 200, 3600)) {
-    $wait = get_rate_limit_wait_time('create_post', 3600);
-    echo json_encode(["sucesso" => false, "mensagem" => "Limite de criação de posts excedido. Aguarde $wait."]);
     exit;
 }
 
@@ -91,12 +83,25 @@ if (!ensure_activity_timestamp_columns($conn)) {
     exit;
 }
 
+$postingLimit = consume_user_posting_limit($conn, $id_usuario, 'post', 60);
+if ($postingLimit['error']) {
+    http_response_code(503);
+    echo json_encode(["sucesso" => false, "mensagem" => "Não foi possível validar o limite de publicação. Tente novamente."]);
+    exit;
+}
+if (!$postingLimit['allowed']) {
+    $wait = (int) $postingLimit['retry_after'];
+    http_response_code(429);
+    header('Retry-After: ' . $wait);
+    echo json_encode(["sucesso" => false, "limite_atingido" => true]);
+    exit;
+}
+
 $data_post = date("Y-m-d H:i:s");
 $sql_insert = "INSERT INTO post (id_comunidade, Data_post, conteudo, id_usuario, assunto)
                VALUES ($id_comunidade, '$data_post', '$conteudo_esc', $id_usuario, '$assunto_esc')";
 
 if (mysqli_query($conn, $sql_insert)) {
-    hit_rate_limit('create_post');
     $id_post = mysqli_insert_id($conn);
     
     echo json_encode([

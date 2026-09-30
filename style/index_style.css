@@ -491,6 +491,8 @@
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     text-align: left;
     margin-bottom: 0;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .post-card-feed.comment-entry {
@@ -594,13 +596,18 @@
     font-size: 15px;
     margin-bottom: 8px;
     color: #1a1a1a;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 
   .post-content {
     color: #333333;
     line-height: 1.55;
     margin-bottom: 12px;
-    word-break: break-word;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
     white-space: pre-wrap;
     font-size: 14px;
   }

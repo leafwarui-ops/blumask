@@ -709,6 +709,7 @@ if ($resultado_comentarios) {
                 })
                 .then(response => response.json())
                 .then(data => {
+                    if (data.limite_atingido) return;
                     if (data.sucesso) {
                         location.reload();
                     } else if (data.mensagem && data.mensagem.toLowerCase().includes('seguir esta comunidade')) {

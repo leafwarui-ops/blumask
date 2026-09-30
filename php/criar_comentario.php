@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . "/security_headers.php";
-require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/activity_timestamps.php";
 require_once __DIR__ . "/community_bans.php";
@@ -19,12 +18,6 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 
 if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
     echo json_encode(["sucesso" => false, "mensagem" => "Token de segurança (CSRF) inválido."]);
-    exit;
-}
-
-if (!check_rate_limit('create_comment', 200, 3600)) {
-    $wait = get_rate_limit_wait_time('create_comment', 3600);
-    echo json_encode(["sucesso" => false, "mensagem" => "Limite de comentários excedido. Aguarde $wait."]);
     exit;
 }
 
@@ -76,12 +69,25 @@ if (!ensure_activity_timestamp_columns($conn)) {
     exit;
 }
 
+$postingLimit = consume_user_posting_limit($conn, $id_usuario, 'comentario', 60);
+if ($postingLimit['error']) {
+    http_response_code(503);
+    echo json_encode(["sucesso" => false, "mensagem" => "Não foi possível validar o limite de comentários. Tente novamente."]);
+    exit;
+}
+if (!$postingLimit['allowed']) {
+    $wait = (int) $postingLimit['retry_after'];
+    http_response_code(429);
+    header('Retry-After: ' . $wait);
+    echo json_encode(["sucesso" => false, "limite_atingido" => true]);
+    exit;
+}
+
 $data_comentario = date('Y-m-d H:i:s');
 
 $sql_insert = "INSERT INTO comentario (id_usuario, id_post, conteudo, data_comentario) VALUES ($id_usuario, $id_post, '$conteudo_esc', '$data_comentario')";
 
 if (mysqli_query($conn, $sql_insert)) {
-    hit_rate_limit('create_comment');
     echo json_encode(["sucesso" => true, "mensagem" => "Comentário enviado com sucesso!"]);
 } else {
     echo json_encode(["sucesso" => false, "mensagem" => "Erro ao cadastrar comentário."]);

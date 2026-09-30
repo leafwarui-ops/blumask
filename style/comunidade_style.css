@@ -600,6 +600,8 @@ footer.bottombar {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     transition: all 0.3s ease;
     cursor: pointer;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .post:hover {
@@ -807,13 +809,18 @@ footer.bottombar {
     margin-bottom: 8px;
     color: #1a1a1a;
     line-height: 1.4;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 .post-content {
     color: #333;
     line-height: 1.6;
     margin-bottom: 12px;
-    word-break: break-word;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
     white-space: pre-wrap;
     font-size: 15px;
 }
@@ -1118,6 +1125,8 @@ footer.bottombar {
 
 .comment-body {
     flex: 1;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .comment-meta {
@@ -1139,6 +1148,9 @@ footer.bottombar {
     margin: 0;
     color: #333;
     line-height: 1.5;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
     white-space: pre-wrap;
 }
 

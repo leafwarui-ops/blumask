@@ -14,6 +14,15 @@ is_admin tinyint(1) not null default 0,
 suspenso_ate datetime null default null
 );
 
+create table if not exists limite_publicacao_usuario(
+id_usuario int not null,
+tipo_publicacao enum('post', 'comentario') not null,
+data_ultima_publicacao datetime not null,
+primary key (id_usuario, tipo_publicacao),
+constraint fk_limite_publicacao_usuario foreign key (id_usuario)
+references usuario(id_usuario) on delete cascade
+);
+
 alter table usuario
 add column if not exists is_admin tinyint(1) not null default 0;
 
