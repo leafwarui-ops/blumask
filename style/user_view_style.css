@@ -606,6 +606,28 @@ a { text-decoration: none; color: inherit; }
 @media (max-width: 1000px) {
   .home-layout {
     grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 20px 16px 28px;
+  }
+
+  .home-layout .center-col {
+    display: contents;
+  }
+
+  .home-layout .search-container {
+    order: 1;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .home-layout .profile-panel {
+    order: 2;
+  }
+
+  .home-layout .last-post {
+    order: 3;
+    width: 100%;
+    max-width: 100%;
   }
 
   .profile-panel,
