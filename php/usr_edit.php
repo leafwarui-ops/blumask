@@ -22,6 +22,11 @@ if ($res_user && $res_user->num_rows > 0) {
 
 $nomeUsuario  = htmlspecialchars($user['nome_de_usuario'] ?? '', ENT_QUOTES, 'UTF-8');
 $nomeExibicao = htmlspecialchars($user['nome_de_exibicao'] ?? '', ENT_QUOTES, 'UTF-8');
+$is_admin_user = (int) ($user['is_admin'] ?? 0) === 1;
+if ($is_admin_user) {
+  $nomeUsuario = 'admin';
+  $nomeExibicao = 'admin';
+}
 $email        = htmlspecialchars($user['email'] ?? '', ENT_QUOTES, 'UTF-8');
 $descricao    = htmlspecialchars($user['descricao'] ?? '', ENT_QUOTES, 'UTF-8');
 $fotoPerfil   = $user['foto_perfil'] ?? '';
@@ -36,6 +41,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $error_message = "Token de segurança (CSRF) inválido. Recarregue a página e tente novamente.";
     }
     // Exclusão da conta com confirmação por senha
+    elseif (!empty($_POST['delete_account']) && $is_admin_user) {
+      $error_message = "A conta administrativa não pode ser excluída por esta página.";
+    }
     elseif (!empty($_POST['delete_account'])) {
         $senha_delete = $_POST['delete_account_senha'] ?? '';
 
@@ -83,18 +91,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $error_message = "Muitas solicitações de alteração seguidas. Por favor, aguarde $waitTime para tentar novamente.";
     } else {
         hit_rate_limit('usr_edit_attempt');
-        $post_nome_usr  = trim($_POST['nome_usr'] ?? '');
-        $post_nome_exb  = trim($_POST['nome_exb'] ?? '');
-        $post_email     = trim($_POST['email'] ?? '');
+      $is_admin_user = (int) ($user['is_admin'] ?? 0) === 1;
+      $post_nome_usr  = $is_admin_user ? 'admin' : trim($_POST['nome_usr'] ?? '');
+      $post_nome_exb  = $is_admin_user ? 'admin' : trim($_POST['nome_exb'] ?? '');
+        $post_email     = $is_admin_user
+          ? trim((string) ($user['email'] ?? ''))
+          : trim($_POST['email'] ?? '');
         $post_descricao = str_replace(["\r\n", "\r"], "\n", trim($_POST['descricao'] ?? ''));
-        $senha_atual    = $_POST['senha_atual'] ?? '';
+        $senha_atual    = $is_admin_user ? '' : ($_POST['senha_atual'] ?? '');
         $nova_senha     = $_POST['nova_senha'] ?? '';
 
         // 1. Checa se alterou e-mail ou senha (que exigem confirmação da senha atual)
         $email_alterado = ($post_email !== $user['email']);
         $senha_alterada = !empty($nova_senha);
 
-        if ($email_alterado || $senha_alterada) {
+        if ($is_admin_user && $senha_alterada) {
+          $error_message = "A conta administrativa não pode trocar a senha por esta página.";
+        }
+
+        if (empty($error_message) && ($email_alterado || $senha_alterada)) {
             if (empty($senha_atual)) {
                 $error_message = "Você precisa informar sua senha atual para alterar o e-mail ou a senha.";
             } elseif (!password_verify($senha_atual, $user['senha'])) {
@@ -124,7 +139,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         // 4. Validação do E-mail e Unicidade
         if (empty($error_message)) {
-            if (!filter_var($post_email, FILTER_VALIDATE_EMAIL)) {
+          if (mb_strlen($post_email, 'UTF-8') > 100) {
+            $error_message = "O e-mail não pode ter mais de 100 caracteres.";
+          } elseif (!filter_var($post_email, FILTER_VALIDATE_EMAIL)) {
                 $error_message = "Formato de e-mail inválido.";
             } else {
                 $esc_email = mysqli_real_escape_string($conn, $post_email);
@@ -152,12 +169,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         }
 
-        // Max file size: 30MB (31457280 bytes)
-        $max_file_size = 31457280;
+        $max_file_size = 2 * 1024 * 1024;
         $allowed_extensions = ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'avif'];
 
         // 7. Upload do Banner (se enviado)
         $uploaded_banner_path = $bannerPath;
+        if (isset($_FILES['banner']) && $_FILES['banner']['error'] !== UPLOAD_ERR_NO_FILE && $_FILES['banner']['error'] !== UPLOAD_ERR_OK) {
+          $error_message = "Não foi possível receber o banner. O limite é 2 MB.";
+        }
         if (empty($error_message) && isset($_FILES['banner']) && $_FILES['banner']['error'] === UPLOAD_ERR_OK) {
             $b_size = $_FILES['banner']['size'];
             $b_tmp  = $_FILES['banner']['tmp_name'];
@@ -165,7 +184,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $b_ext  = strtolower(pathinfo($b_name, PATHINFO_EXTENSION));
 
             if ($b_size > $max_file_size) {
-                $error_message = "A imagem do banner excede o limite máximo de 30MB.";
+                $error_message = "A imagem do banner excede o limite máximo de 2 MB.";
             } elseif (!in_array($b_ext, $allowed_extensions)) {
                 $error_message = "Formato de imagem de banner inválido. Use JPG, JPEG, JFIF, PNG, GIF, WEBP ou AVIF.";
             } elseif (@getimagesize($b_tmp) === false) {
@@ -188,6 +207,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         // 8. Upload da Foto de Perfil (Avatar) (se enviada)
         $uploaded_avatar_path = $fotoPerfil;
+        if (empty($error_message) && isset($_FILES['avatar']) && $_FILES['avatar']['error'] !== UPLOAD_ERR_NO_FILE && $_FILES['avatar']['error'] !== UPLOAD_ERR_OK) {
+          $error_message = "Não foi possível receber a foto de perfil. O limite é 2 MB.";
+        }
         if (empty($error_message) && isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
             $a_size = $_FILES['avatar']['size'];
             $a_tmp  = $_FILES['avatar']['tmp_name'];
@@ -195,7 +217,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $a_ext  = strtolower(pathinfo($a_name, PATHINFO_EXTENSION));
 
             if ($a_size > $max_file_size) {
-                $error_message = "A imagem de perfil excede o limite máximo de 30MB.";
+                $error_message = "A imagem de perfil excede o limite máximo de 2 MB.";
             } elseif (!in_array($a_ext, $allowed_extensions)) {
                 $error_message = "Formato de foto de perfil inválido. Use JPG, JPEG, JFIF, PNG, GIF, WEBP ou AVIF.";
             } elseif (@getimagesize($a_tmp) === false) {
@@ -285,7 +307,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
         
         <!-- PAINEL SUPERIOR (BANNER) -->
         <div class="edit-panel-header" id="banner-preview" style="<?= $bannerStyle ?>">
-          <button type="button" class="btn-edit-banner" id="btn-trigger-banner" title="Editar Capa (máx 30MB)">
+          <button type="button" class="btn-edit-banner" id="btn-trigger-banner" title="Editar Capa (máx 2 MB)">
             <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
           </button>
         </div>
@@ -296,7 +318,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
           <!-- FOTO DE PERFIL (AVATAR) -->
           <div class="edit-avatar-wrapper">
             <img src="<?= $avatarUrl ?>" alt="Avatar" id="avatar-preview" class="edit-avatar">
-            <button type="button" class="btn-edit-avatar" id="btn-trigger-avatar" title="Editar Foto (máx 30MB)">
+            <button type="button" class="btn-edit-avatar" id="btn-trigger-avatar" title="Editar Foto (máx 2 MB)">
               <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
             </button>
           </div>
@@ -322,37 +344,41 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
                 <!-- Nome de usuário -->
                 <div class="form-group">
                   <label for="nome_usr">Nome de usuario <span class="required-asterisk">*</span></label>
-                  <input id="nome_usr" name="nome_usr" type="text" value="<?= $nomeUsuario ?>" minlength="4" maxlength="20" placeholder="Mínimo de 4 caracteres" required>
+                  <input id="nome_usr" name="nome_usr" type="text" value="<?= $nomeUsuario ?>" minlength="4" maxlength="20" placeholder="Mínimo de 4 caracteres" <?= $is_admin_user ? 'readonly' : '' ?> required>
                   <span id="err-nome_usr" class="field-error"></span>
                 </div>
 
                 <!-- Nome de exibição -->
                 <div class="form-group">
                   <label for="nome_exb">Nome de exibição <span class="required-asterisk">*</span></label>
-                  <input id="nome_exb" name="nome_exb" type="text" value="<?= $nomeExibicao ?>" minlength="2" maxlength="10" placeholder="Mínimo de 2 caracteres" required>
+                  <input id="nome_exb" name="nome_exb" type="text" value="<?= $nomeExibicao ?>" minlength="2" maxlength="10" placeholder="Mínimo de 2 caracteres" <?= $is_admin_user ? 'readonly' : '' ?> required>
                   <span id="err-nome_exb" class="field-error"></span>
                 </div>
 
                 <!-- Email -->
                 <div class="form-group">
                   <label for="email">Email <span class="required-asterisk">*</span></label>
-                  <input id="email" name="email" type="email" value="<?= $email ?>" required>
+                  <input id="email" name="email" type="email" value="<?= $email ?>" maxlength="100" <?= $is_admin_user ? 'readonly title="O email administrativo não pode ser alterado."' : '' ?> required>
                   <span id="err-email" class="field-error"></span>
                 </div>
 
                 <!-- Senha Atual -->
+                <?php if (!$is_admin_user): ?>
                 <div class="form-group">
                   <label for="senha_atual">Senha Atual <span id="label-senha-req" style="font-size: 0.8rem; font-weight: normal; color: #666;">(Apenas se alterar e-mail ou senha)</span></label>
                   <input id="senha_atual" name="senha_atual" type="password" placeholder="Preencha caso altere e-mail ou nova senha">
                   <span id="err-senha_atual" class="field-error"></span>
                 </div>
+                <?php endif; ?>
 
                 <!-- Nova Senha -->
+                <?php if (!$is_admin_user): ?>
                 <div class="form-group">
                   <label for="nova_senha">Nova Senha <span style="font-size: 0.8rem; font-weight: normal; color: #666;">(Opcional)</span></label>
                   <input id="nova_senha" name="nova_senha" type="password" minlength="8" maxlength="32" placeholder="Mínimo de 8 caracteres (maiúscula e símbolo)">
                   <span id="err-nova_senha" class="field-error"></span>
                 </div>
+                <?php endif; ?>
 
               </div>
 
@@ -375,12 +401,14 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
                 <button type="submit" id="btn-confirmar" class="btn-confirmar" disabled>Confirmar</button>
               </div>
 
+              <?php if (!$is_admin_user): ?>
               <div class="delete-account-area">
                 <button type="button" id="btn-delete-account" class="btn-delete-account">
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   Excluir conta
                 </button>
               </div>
+              <?php endif; ?>
             </div>
 
           </form>
@@ -388,6 +416,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
       </div>
     </main>
 
+    <?php if (!$is_admin_user): ?>
     <div class="delete-modal" id="deleteAccountModal" aria-hidden="true">
       <div class="delete-modal-content" role="dialog" aria-modal="true" aria-labelledby="deleteAccountTitle">
         <h3 id="deleteAccountTitle">Excluir conta</h3>
@@ -407,6 +436,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
         </form>
       </div>
     </div>
+    <?php endif; ?>
 
     <!-- FOOTER -->
     <footer class="bottombar">
@@ -541,9 +571,11 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
   </style>
 
   <!-- SCRIPT DE INTERAÇÃO E VALIDAÇÕES EM TEMPO REAL -->
+  <script src="../js/admin_messages.js?v=<?= time() ?>"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const form = document.getElementById("edit-profile-form");
+      const adminEditingProfile = <?= $is_admin_user ? 'true' : 'false' ?>;
       const btnConfirmar = document.getElementById("btn-confirmar");
       const btnDeleteAccount = document.getElementById("btn-delete-account");
       const deleteModal = document.getElementById("deleteAccountModal");
@@ -574,7 +606,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
       const inputAvatar = document.getElementById("avatar-input");
       const avatarPreview = document.getElementById("avatar-preview");
 
-      const MAX_FILE_SIZE = 31457280; // 30MB
+      const MAX_FILE_SIZE = 2 * 1024 * 1024;
       const allowedExtensions = ["jpg", "jpeg", "jfif", "png", "gif", "webp", "avif"];
 
       function isAllowedImageFile(file) {
@@ -608,7 +640,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
         const file = this.files[0];
         if (file) {
           if (file.size > MAX_FILE_SIZE) {
-            alert("O arquivo de banner selecionado excede o limite máximo de 30MB.");
+            alert("O arquivo de banner selecionado excede o limite máximo de 2 MB.");
             this.value = "";
             return;
           }
@@ -633,7 +665,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
         const file = this.files[0];
         if (file) {
           if (file.size > MAX_FILE_SIZE) {
-            alert("A foto de perfil selecionada excede o limite máximo de 30MB.");
+            alert("A foto de perfil selecionada excede o limite máximo de 2 MB.");
             this.value = "";
             return;
           }
@@ -675,7 +707,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
         const currentDescricao = textDescricao.value.replace(/\r\n/g, "\n");
         const hasFileBanner    = inputBanner.files.length > 0;
         const hasFileAvatar    = inputAvatar.files.length > 0;
-        const hasNovaSenha     = inputNovaSenha.value.length > 0;
+        const hasNovaSenha     = inputNovaSenha ? inputNovaSenha.value.length > 0 : false;
 
         // Detecta se o usuário alterou algum dado em relação ao estado inicial
         const hasChanges = (
@@ -732,15 +764,19 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
         // 5. Senha Atual - EXIGIDA APENAS se alterou o e-mail ou a senha!
         const requiresPassword = (currentEmail !== initialEmail || hasNovaSenha);
         if (requiresPassword) {
-          if (inputSenhaAtu.value.trim().length === 0) {
+          if (!inputSenhaAtu || inputSenhaAtu.value.trim().length === 0) {
             isValid = false;
-            inputSenhaAtu.classList.add("invalid");
-            errSenhaAtu.textContent = "Senha atual é necessária para alterar e-mail ou nova senha.";
+            inputSenhaAtu?.classList.add("invalid");
+            if (errSenhaAtu) {
+              errSenhaAtu.textContent = adminEditingProfile
+                ? "Senha atual é necessária para alterar o email."
+                : "Senha atual é necessária para alterar e-mail ou nova senha.";
+            }
           } else {
             inputSenhaAtu.classList.remove("invalid");
             errSenhaAtu.textContent = "";
           }
-        } else {
+        } else if (inputSenhaAtu && errSenhaAtu) {
           inputSenhaAtu.classList.remove("invalid");
           errSenhaAtu.textContent = "";
         }
@@ -757,7 +793,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
             inputNovaSenha.classList.remove("invalid");
             errNovaSenha.textContent = "";
           }
-        } else {
+        } else if (inputNovaSenha && errNovaSenha) {
           inputNovaSenha.classList.remove("invalid");
           errNovaSenha.textContent = "";
         }
@@ -769,34 +805,37 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
       // Adiciona eventos aos campos
       const inputsToWatch = [inputNomeUsr, inputNomeExb, inputEmail, inputSenhaAtu, inputNovaSenha, textDescricao];
       inputsToWatch.forEach(input => {
+        if (!input) return;
         input.addEventListener("input", validateForm);
         input.addEventListener("keyup", validateForm);
         input.addEventListener("change", validateForm);
       });
 
-      btnDeleteAccount.addEventListener("click", function () {
-        deleteModal.classList.add("active");
-        deletePasswordInput.focus();
-      });
+      if (btnDeleteAccount && deleteModal && btnCancelDelete && deletePasswordInput) {
+        btnDeleteAccount.addEventListener("click", function () {
+          deleteModal.classList.add("active");
+          deletePasswordInput.focus();
+        });
 
-      btnCancelDelete.addEventListener("click", function () {
-        deleteModal.classList.remove("active");
-        deletePasswordInput.value = "";
-      });
-
-      deleteModal.addEventListener("click", function (event) {
-        if (event.target === deleteModal) {
+        btnCancelDelete.addEventListener("click", function () {
           deleteModal.classList.remove("active");
           deletePasswordInput.value = "";
-        }
-      });
+        });
 
-      document.addEventListener("keydown", function (event) {
-        if (event.key === "Escape" && deleteModal.classList.contains("active")) {
-          deleteModal.classList.remove("active");
-          deletePasswordInput.value = "";
-        }
-      });
+        deleteModal.addEventListener("click", function (event) {
+          if (event.target === deleteModal) {
+            deleteModal.classList.remove("active");
+            deletePasswordInput.value = "";
+          }
+        });
+
+        document.addEventListener("keydown", function (event) {
+          if (event.key === "Escape" && deleteModal.classList.contains("active")) {
+            deleteModal.classList.remove("active");
+            deletePasswordInput.value = "";
+          }
+        });
+      }
 
       // Roda validação inicial
       validateForm();

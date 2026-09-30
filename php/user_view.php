@@ -6,7 +6,7 @@ require_once __DIR__ . "/profile_pins.php";
 ensure_profile_pin_tables($conn);
 
 $usuarios = [];
-$result = $conn->query("SELECT id_usuario, nome_de_exibicao, nome_de_usuario, descricao, banner, foto_perfil, id_post_fixado FROM usuario ORDER BY nome_de_exibicao ASC");
+$result = $conn->query("SELECT id_usuario, nome_de_exibicao, nome_de_usuario, descricao, banner, foto_perfil, id_post_fixado, is_admin FROM usuario ORDER BY nome_de_exibicao ASC");
 if ($result) {
     while ($row = $result->fetch_assoc()) {
         $usuarios[] = $row;
@@ -39,6 +39,13 @@ if (!empty($usuarios)) {
         if (!$selectedUser || $isDeletedUser($selectedUser)) {
             header("Location: ../index.php");
             exit;
+        }
+
+        $loggedUserId = (int) ($_SESSION['usuario']['id_usuario'] ?? 0);
+        if ((int) ($selectedUser['is_admin'] ?? 0) === 1
+          && $loggedUserId !== (int) $selectedUser['id_usuario']) {
+          header("Location: ../index.php");
+          exit;
         }
     } else {
         header("Location: ../index.php");
@@ -629,6 +636,10 @@ function userAvatar($user) {
 
   <script src="../js/busca.js?v=<?= time() ?>"></script>
   <script src="../js/login_writter.js?v=<?= time() ?>"></script>
+  <?php if (isset($_SESSION['usuario'])): ?>
+  <script src="../js/admin_messages.js?v=<?= time() ?>"></script>
+  <?php endif; ?>
+  <script src="../js/logout_confirm.js?v=<?= time() ?>"></script>
   <script>
     const csrfToken = "<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>";
     const loginProfileDialog = document.getElementById('login-box');

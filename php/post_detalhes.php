@@ -3,6 +3,7 @@ require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/media.php";
+require_once __DIR__ . "/admin_helpers.php";
 
 $id_post = intval($_GET['id_post'] ?? 0);
 
@@ -13,6 +14,7 @@ if ($id_post <= 0) {
 
 global $conn;
 $id_usuario = isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0;
+$is_site_admin_user = is_site_admin($conn, $id_usuario);
 
 $sql_post = "SELECT p.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil, c.nome AS nome_comunidade, c.id_comunidade,
              (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) as total_curtidas,
@@ -232,6 +234,7 @@ if ($resultado_comentarios) {
             <div class="comments-list">
                 <h3>Comentários</h3>
 
+                <?php if (!$is_site_admin_user): ?>
                 <div class="comment-detail-box">
                     <h3>Adicionar comentário</h3>
                     <form id="formComentarioDetalhe" class="form-comentario">
@@ -239,11 +242,12 @@ if ($resultado_comentarios) {
                         <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
                         <textarea name="conteudo" minlength="2" maxlength="2000" placeholder="Digite seu comentário... (mín. 2 caracteres)" required></textarea>
                         <div style="display:flex; gap:8px; margin-top:8px;">
-                            <button type="submit">Enviar comentário</button>
                             <button type="button" class="btn-descartar" id="btnDescartarComentarioDetalhe">Descartar</button>
+                            <button type="submit">Comentar</button>
                         </div>
                     </form>
                 </div>
+                <?php endif; ?>
 
                 <?php if (count($comentarios) > 0): ?>
                     <?php foreach ($comentarios as $comentario): ?>
@@ -307,7 +311,10 @@ if ($resultado_comentarios) {
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <div class="comments-empty">Nenhum comentário ainda. Seja o primeiro a responder este post.</div>
+                    <div class="comments-empty">
+                        Nenhum comentário ainda.
+                        <?= $is_site_admin_user ? 'Administradores não podem comentar.' : 'Seja o primeiro a responder este post.' ?>
+                    </div>
                 <?php endif; ?>
             </div>
         </main>
@@ -318,6 +325,9 @@ if ($resultado_comentarios) {
     </div>
 
     <script src="../js/login_writter.js?v=<?= time() ?>"></script>
+    <?php if (isset($_SESSION['usuario'])): ?>
+    <script src="../js/admin_messages.js?v=<?= time() ?>"></script>
+    <?php endif; ?>
     <script>
         const loginPostDialog = document.getElementById('login-box');
         const loginPostContent = document.getElementById('pop-div');
@@ -685,6 +695,7 @@ if ($resultado_comentarios) {
         if (formComentarioDetalhe) {
             formComentarioDetalhe.addEventListener('submit', function(e) {
                 e.preventDefault();
+                if (this.dataset.enviando === 'true') return;
 
                 <?php if (!isset($_SESSION['usuario'])): ?>
                     mostrarAvisoLoginComentario();
@@ -703,6 +714,15 @@ if ($resultado_comentarios) {
                 }
 
                 const formData = new FormData(this);
+                const formAtual = this;
+                const botaoEnviar = formAtual.querySelector('button[type="submit"]');
+                const textoOriginal = botaoEnviar?.textContent;
+                formAtual.dataset.enviando = 'true';
+                if (botaoEnviar) {
+                    botaoEnviar.disabled = true;
+                    botaoEnviar.textContent = 'Enviando...';
+                }
+
                 fetch('criar_comentario.php', {
                     method: 'POST',
                     body: formData
@@ -721,6 +741,13 @@ if ($resultado_comentarios) {
                 .catch(error => {
                     console.error('Erro ao comentar:', error);
                     alert('Erro ao comentar. Tente novamente.');
+                })
+                .finally(() => {
+                    delete formAtual.dataset.enviando;
+                    if (botaoEnviar) {
+                        botaoEnviar.disabled = false;
+                        botaoEnviar.textContent = textoOriginal;
+                    }
                 });
             });
 

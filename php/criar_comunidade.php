@@ -44,6 +44,25 @@ if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
     exit;
 }
 
+$id_usuario = (int) $_SESSION['usuario']['id_usuario'];
+$adminCheck = $conn->prepare("SELECT is_admin FROM usuario WHERE id_usuario = ? LIMIT 1");
+if (!$adminCheck) {
+    http_response_code(503);
+    echo json_encode(["sucesso" => false, "mensagem" => "Não foi possível validar as permissões da conta."]);
+    exit;
+}
+$adminCheck->bind_param('i', $id_usuario);
+$adminCheck->execute();
+$adminResult = $adminCheck->get_result();
+$isAdmin = $adminResult && (int) ($adminResult->fetch_assoc()['is_admin'] ?? 0) === 1;
+$adminCheck->close();
+
+if ($isAdmin) {
+    http_response_code(403);
+    echo json_encode(["sucesso" => false, "mensagem" => "Administradores não podem criar comunidades."]);
+    exit;
+}
+
 // 1.4 - Verifica Rate Limit: máximo 3 comunidades por hora (3600 segundos)
 // Proteção contra spam de criação de comunidades
 if (!check_rate_limit('create_community', 3, 3600)) {
@@ -66,7 +85,7 @@ hit_rate_limit('create_community');
 global $conn;
 
 // Obtém ID do usuário logado (garantidamente um inteiro)
-$id_usuario = intval($_SESSION['usuario']['id_usuario']);
+                    $id_usuario = intval($_SESSION['usuario']['id_usuario']);
 
 // Obtém nome da comunidade e remove espaços extras de início/fim
 $nome_raw = trim($_POST['nome'] ?? '');
@@ -115,7 +134,13 @@ $descricao_esc = mysqli_real_escape_string($conn, $descricao);
 // ============================================================================
 
 $imagem_path = null;
+$tamanho_maximo_imagem = 2 * 1024 * 1024;
 $extensoes_permitidas = ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'avif']; // Formatos de imagem aceitos
+
+if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] !== UPLOAD_ERR_NO_FILE && $_FILES['imagem']['error'] !== UPLOAD_ERR_OK) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Não foi possível receber a imagem. O limite é 2 MB."]);
+    exit;
+}
 
 // Verifica se um arquivo de imagem foi enviado e sem erros de upload
 if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === UPLOAD_ERR_OK) {
@@ -130,6 +155,12 @@ if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === UPLOAD_ERR_OK) {
         echo json_encode(["sucesso" => false, "mensagem" => "Formato de imagem inválido. Use JPG, JPEG, JFIF, PNG, GIF, WEBP ou AVIF."]);
         exit;
     }
+
+        // Verifica se o tamanho da imagem é maior que o permitido
+        if ($size > $tamanho_maximo_imagem) {
+            echo json_encode(["sucesso" => false, "mensagem" => "A imagem da comunidade não pode passar de 2 MB."]);
+            exit;
+        }
 
     // Valida se o arquivo é realmente uma imagem (não é web shell ou polyglot)
     $image_info = @getimagesize($tmp_name);

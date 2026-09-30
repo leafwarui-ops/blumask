@@ -4,6 +4,7 @@ require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/media.php";
 require_once __DIR__ . "/community_bans.php";
+require_once __DIR__ . "/admin_helpers.php";
 
 // Obtém o ID da comunidade da URL
 $id_comunidade = intval($_GET['id'] ?? 0);
@@ -15,6 +16,7 @@ if ($id_comunidade <= 0) {
 
 global $conn;
 $id_usuario = isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0;
+$is_site_admin_user = is_site_admin($conn, $id_usuario);
 
 // Buscar dados da comunidade
 $sql_comunidade = "SELECT c.*, u.nome_de_exibicao, u.nome_de_usuario
@@ -268,10 +270,12 @@ if ($resultado_count) {
                     <?php if ($is_community_banned): ?>
                         <button class="btn-seguir ja-membro" type="button" disabled>Banido desta comunidade</button>
                     <?php elseif (!$eh_membro): ?>
-                        <?php if (isset($_SESSION['usuario'])): ?>
-                            <button class="btn-seguir" onclick="entrarComunidade(<?= $id_comunidade ?>)">Seguir +</button>
-                        <?php else: ?>
-                            <button class="btn-seguir" onclick="mostrarPopupLoginComunidade()">Seguir +</button>
+                        <?php if (!$is_site_admin_user): ?>
+                            <?php if (isset($_SESSION['usuario'])): ?>
+                                <button class="btn-seguir" onclick="entrarComunidade(<?= $id_comunidade ?>)">Seguir +</button>
+                            <?php else: ?>
+                                <button class="btn-seguir" onclick="mostrarPopupLoginComunidade()">Seguir +</button>
+                            <?php endif; ?>
                         <?php endif; ?>
                     <?php else: ?>
                         <?php if (!$is_community_owner && $cargo_usuario !== 1): ?>
@@ -293,12 +297,12 @@ if ($resultado_count) {
                 <div class="posts-section">
                     <h3>
                         Últimos posts
-                        <?php if ($eh_membro): ?>
+                        <?php if ($eh_membro && !$is_site_admin_user): ?>
                             <button class="btn-novo-post" onclick="toggleFormNovoPost()">+ Novo Post</button>
                         <?php endif; ?>
                     </h3>
 
-                    <?php if ($eh_membro): ?>
+                    <?php if ($eh_membro && !$is_site_admin_user): ?>
                         <!-- Área para criar novo post (apenas para membros) -->
                         <div class="form-novo-post" id="formContainer">
                             <h3>Criar novo post</h3>
@@ -311,8 +315,8 @@ if ($resultado_count) {
                                 <textarea id="novo-post-conteudo" name="conteudo" placeholder="O que você quer compartilhar? (mín. 5 caracteres)" minlength="5" maxlength="5000" required></textarea>
                                 
                                 <div class="form-novo-post-actions">
-                                    <button type="submit">Publicar</button>
                                     <button type="button" class="btn-descartar" onclick="descartarNovoPost()">Descartar</button>
+                                    <button type="submit">Publicar</button>
                                 </div>
                             </form>
                         </div>
@@ -396,30 +400,36 @@ if ($resultado_count) {
                                         <span><?= intval($post['total_curtidas']) ?></span>
                                     </span>
 
-                                    <button type="button" class="post-action comment-toggle" data-post-id="<?= $post['id_post'] ?>" aria-label="Comentar">
-                                        <span>💬</span>
-                                        <span><?= intval($post['total_comentarios']) ?></span>
-                                    </button>
+                                    <?php if (!$is_site_admin_user): ?>
+                                        <button type="button" class="post-action comment-toggle" data-post-id="<?= $post['id_post'] ?>" aria-label="Comentar">
+                                            <span>💬</span>
+                                            <span><?= intval($post['total_comentarios']) ?></span>
+                                        </button>
+                                    <?php endif; ?>
 
                                 </div>
 
+                                <?php if (!$is_site_admin_user): ?>
                                 <div class="comment-form-wrap" id="comment-form-<?= $post['id_post'] ?>" style="display: none;">
                                     <form class="form-comentario" data-post-id="<?= $post['id_post'] ?>">
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
                                         <textarea name="conteudo" rows="3" minlength="2" maxlength="2000" placeholder="Escreva um comentário... (mín. 2 caracteres)" required></textarea>
                                         <div style="display:flex; gap:8px; margin-top:8px;">
-                                            <button type="submit">Comentar</button>
                                             <button type="button" class="btn-descartar" onclick="descartarComentarioInline(<?= $post['id_post'] ?>)">Descartar</button>
+                                            <button type="submit">Comentar</button>
                                         </div>
                                     </form>
                                 </div>
+                                <?php endif; ?>
                             </div>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <div class="posts-empty">
                             <p>Nenhum post nesta comunidade ainda.</p>
-                            <?php if ($eh_membro): ?>
+                            <?php if ($is_site_admin_user): ?>
+                                <p>Administradores podem visualizar, mas não publicar ou comentar.</p>
+                            <?php elseif ($eh_membro): ?>
                                 <p>Seja o primeiro a criar um post!</p>
                             <?php else: ?>
                                 <p>Entre na comunidade para ver e criar posts.</p>
@@ -437,6 +447,10 @@ if ($resultado_count) {
 
     <script src="../js/busca.js?v=<?= time() ?>"></script>
     <script src="../js/login_writter.js?v=<?= time() ?>"></script>
+    <?php if (isset($_SESSION['usuario'])): ?>
+    <script src="../js/admin_messages.js?v=<?= time() ?>"></script>
+    <?php endif; ?>
+    <script src="../js/logout_confirm.js?v=<?= time() ?>"></script>
     <script>
         const postsMap = <?php echo json_encode($postsMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         const ehMembro = <?= $eh_membro ? 'true' : 'false' ?>;
@@ -901,6 +915,7 @@ if ($resultado_count) {
         document.querySelectorAll('.form-comentario').forEach(form => {
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
+                if (this.dataset.enviando === 'true') return;
 
                 <?php if (!isset($_SESSION['usuario'])): ?>
                     mostrarAvisoLoginComentario();
@@ -919,6 +934,15 @@ if ($resultado_count) {
                 }
 
                 const formData = new FormData(this);
+                const formAtual = this;
+                const botaoEnviar = formAtual.querySelector('button[type="submit"]');
+                const textoOriginal = botaoEnviar?.textContent;
+                formAtual.dataset.enviando = 'true';
+                if (botaoEnviar) {
+                    botaoEnviar.disabled = true;
+                    botaoEnviar.textContent = 'Enviando...';
+                }
+
                 fetch('../php/criar_comentario.php', {
                     method: 'POST',
                     body: formData
@@ -937,6 +961,13 @@ if ($resultado_count) {
                 .catch(error => {
                     console.error('Erro ao comentar:', error);
                     alert('Erro ao comentar. Tente novamente.');
+                })
+                .finally(() => {
+                    delete formAtual.dataset.enviando;
+                    if (botaoEnviar) {
+                        botaoEnviar.disabled = false;
+                        botaoEnviar.textContent = textoOriginal;
+                    }
                 });
             });
         });
@@ -962,6 +993,7 @@ if ($resultado_count) {
         if (formNovoPost) {
             formNovoPost.addEventListener('submit', function(e) {
                 e.preventDefault();
+                if (this.dataset.enviando === 'true') return;
 
                 <?php if (!$eh_membro): ?>
                     mostrarPopupSeguirComunidade();
@@ -981,6 +1013,14 @@ if ($resultado_count) {
                 }
                 
                 const formData = new FormData(this);
+                const formAtual = this;
+                const botaoEnviar = formAtual.querySelector('button[type="submit"]');
+                const textoOriginal = botaoEnviar?.textContent;
+                formAtual.dataset.enviando = 'true';
+                if (botaoEnviar) {
+                    botaoEnviar.disabled = true;
+                    botaoEnviar.textContent = 'Enviando...';
+                }
 
                 fetch('../php/criar_post.php', {
                     method: 'POST',
@@ -1000,6 +1040,13 @@ if ($resultado_count) {
                 .catch(error => {
                     console.error('Erro:', error);
                     alert('Erro ao criar post. Tente novamente.');
+                })
+                .finally(() => {
+                    delete formAtual.dataset.enviando;
+                    if (botaoEnviar) {
+                        botaoEnviar.disabled = false;
+                        botaoEnviar.textContent = textoOriginal;
+                    }
                 });
             });
         }
@@ -1052,6 +1099,14 @@ if ($resultado_count) {
             editarImagemInput.addEventListener('change', function() {
                 const file = this.files && this.files[0];
                 if (!file) {
+                    editarImagemPreview.src = '';
+                    editarImagemUpload.classList.remove('has-image');
+                    return;
+                }
+
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('A imagem da comunidade não pode passar de 2 MB.');
+                    this.value = '';
                     editarImagemPreview.src = '';
                     editarImagemUpload.classList.remove('has-image');
                     return;

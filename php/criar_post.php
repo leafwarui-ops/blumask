@@ -3,6 +3,7 @@ require_once __DIR__ . "/security_headers.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/activity_timestamps.php";
 require_once __DIR__ . "/community_bans.php";
+require_once __DIR__ . "/admin_helpers.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -29,6 +30,12 @@ $id_usuario = intval($_SESSION['usuario']['id_usuario']);
 $id_comunidade = intval($_POST['id_comunidade'] ?? 0);
 $assunto_raw = trim($_POST['assunto'] ?? '');
 $conteudo_raw = str_replace(["\r\n", "\r"], "\n", trim($_POST['conteudo'] ?? ''));
+
+if (is_site_admin($conn, $id_usuario)) {
+    http_response_code(403);
+    echo json_encode(["sucesso" => false, "mensagem" => "Administradores não podem criar posts."]);
+    exit;
+}
 
 // 4. Validações
 if ($id_comunidade <= 0) {

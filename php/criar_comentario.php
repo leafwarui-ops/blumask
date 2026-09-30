@@ -3,6 +3,7 @@ require_once __DIR__ . "/security_headers.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/activity_timestamps.php";
 require_once __DIR__ . "/community_bans.php";
+require_once __DIR__ . "/admin_helpers.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -26,6 +27,12 @@ global $conn;
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
 $id_post = intval($_POST['id_post'] ?? 0);
 $conteudo_raw = trim((string)($_POST['conteudo'] ?? ''));
+
+if (is_site_admin($conn, $id_usuario)) {
+    http_response_code(403);
+    echo json_encode(["sucesso" => false, "mensagem" => "Administradores não podem comentar."]);
+    exit;
+}
 
 if ($id_post <= 0) {
     echo json_encode(["sucesso" => false, "mensagem" => "ID do post inválido."]);

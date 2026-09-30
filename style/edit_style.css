@@ -175,6 +175,17 @@ main.layout-single {
   gap: 20px;
 }
 
+@media (min-width: 769px) {
+  .delete-account-area {
+    order: 1;
+    justify-content: flex-start;
+  }
+
+  .edit-actions {
+    order: 2;
+  }
+}
+
 .btn-voltar {
   background: rgba(255, 255, 255, 0.7);
   color: #234a86;

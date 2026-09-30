@@ -81,6 +81,11 @@ $imagem_sql = ($comunidade['imagem'] !== null && $comunidade['imagem'] !== '')
     ? "imagem = '" . mysqli_real_escape_string($conn, $comunidade['imagem']) . "'"
     : "imagem = NULL";
 
+if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] !== UPLOAD_ERR_NO_FILE && $_FILES['imagem']['error'] !== UPLOAD_ERR_OK) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Não foi possível receber a imagem. O limite é 2 MB."]);
+    exit;
+}
+
 if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === UPLOAD_ERR_OK) {
     $size = $_FILES['imagem']['size'];
     $tmp_name = $_FILES['imagem']['tmp_name'];
@@ -88,8 +93,8 @@ if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === UPLOAD_ERR_OK) {
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
     $extensoes_permitidas = ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'avif'];
 
-    if ($size > 31457280) {
-        echo json_encode(["sucesso" => false, "mensagem" => "A imagem selecionada excede o limite máximo de 30MB."]);
+    if ($size > 2 * 1024 * 1024) {
+        echo json_encode(["sucesso" => false, "mensagem" => "A imagem selecionada excede o limite máximo de 2 MB."]);
         exit;
     }
 

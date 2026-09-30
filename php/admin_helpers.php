@@ -31,19 +31,44 @@ function is_user_suspended($user) {
     return $timestamp > time();
 }
 
+function is_site_admin(mysqli $conn, int $userId): bool {
+    if ($userId <= 0) {
+        return false;
+    }
+
+    $statement = $conn->prepare("SELECT is_admin FROM usuario WHERE id_usuario = ? LIMIT 1");
+    if (!$statement) {
+        return false;
+    }
+
+    $statement->bind_param('i', $userId);
+    $statement->execute();
+    $result = $statement->get_result();
+    $user = $result ? $result->fetch_assoc() : null;
+    $statement->close();
+
+    return (int) ($user['is_admin'] ?? 0) === 1;
+}
+
 function ensure_admin_user($conn) {
     $adminEmail = 'admin@blumask.com';
-    $adminDisplay = 'BluMask Admin';
-    $adminUser = 'blumask_admin';
+    $adminDisplay = 'admin';
+    $adminUser = 'admin';
     $adminPassword = 'BluMask@Admin2026!';
 
     $escapedEmail = $conn->real_escape_string($adminEmail);
-    $escapedUser = $conn->real_escape_string($adminUser);
-    $search = $conn->query("SELECT * FROM usuario WHERE email = '$escapedEmail' OR nome_de_usuario = '$escapedUser' LIMIT 1");
+    $search = $conn->query("SELECT * FROM usuario WHERE email = '$escapedEmail' LIMIT 1");
+    if (!$search || $search->num_rows === 0) {
+        $search = $conn->query("SELECT * FROM usuario WHERE nome_de_usuario = 'blumask_admin' AND is_admin = 1 LIMIT 1");
+    }
 
     if ($search && $search->num_rows > 0) {
         $adminUserRow = $search->fetch_assoc();
         $updates = [];
+        $handleOwner = $conn->query("SELECT id_usuario FROM usuario WHERE nome_de_usuario = 'admin' LIMIT 1");
+        $handleOwnerRow = $handleOwner ? $handleOwner->fetch_assoc() : null;
+        $canUseAdminHandle = !$handleOwnerRow
+            || (int) $handleOwnerRow['id_usuario'] === (int) $adminUserRow['id_usuario'];
 
         if ((int) ($adminUserRow['is_admin'] ?? 0) !== 1) {
             $updates[] = 'is_admin = 1';
@@ -57,7 +82,7 @@ function ensure_admin_user($conn) {
             $updates[] = "nome_de_exibicao = '" . $conn->real_escape_string($adminDisplay) . "'";
         }
 
-        if (trim((string) ($adminUserRow['nome_de_usuario'] ?? '')) !== $adminUser) {
+        if ($canUseAdminHandle && trim((string) ($adminUserRow['nome_de_usuario'] ?? '')) !== $adminUser) {
             $updates[] = "nome_de_usuario = '" . $conn->real_escape_string($adminUser) . "'";
         }
 
@@ -71,6 +96,11 @@ function ensure_admin_user($conn) {
         }
 
         return (int) $adminUserRow['id_usuario'];
+    }
+
+    $handleOwner = $conn->query("SELECT id_usuario FROM usuario WHERE nome_de_usuario = 'admin' LIMIT 1");
+    if ($handleOwner && $handleOwner->num_rows > 0) {
+        return 0;
     }
 
     $hashedPassword = password_hash($adminPassword, PASSWORD_DEFAULT);

@@ -85,6 +85,7 @@ if ($tipo === 'todos' || $tipo === 'usuarios') {
                         OR nome_de_exibicao LIKE '%$termo_esc%')
                        AND nome_de_exibicao <> 'Usuário deletado'
                        AND nome_de_usuario NOT LIKE 'usuario_deletado_%'
+                                             AND COALESCE(is_admin, 0) = 0
                      ORDER BY 
                         CASE 
                             WHEN nome_de_usuario LIKE '$termo_esc%' THEN 1

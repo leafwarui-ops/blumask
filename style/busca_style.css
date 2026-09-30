@@ -369,6 +369,22 @@
 }
 
 @media (max-width: 560px) {
+    main.layout .search-filter-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        width: 100%;
+        padding: 2px 0;
+    }
+
+    main.layout .search-filter-tabs .filter-tab-btn {
+        min-width: 0;
+        width: 100%;
+        padding: 6px 2px;
+        font-size: 0.72rem;
+        white-space: nowrap;
+    }
+
     .search-bar-interactive {
         padding: 8px 12px;
         gap: 8px;

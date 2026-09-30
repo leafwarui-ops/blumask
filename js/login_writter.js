@@ -2,7 +2,7 @@
 let MenuItens =[
             {"tag":"input","name":"popup-mode","id":"popup","type":"hidden","value":"0"},
             {"tag":"label","conteudo":"Email:"},
-            {"tag":"input","name":"email","id":"email","type":"email","value":"","placeholder":"seu@email.com","required":true},
+            {"tag":"input","name":"email","id":"email","type":"email","value":"","maxlength":100,"placeholder":"seu@email.com","required":true},
             {"tag":"label","conteudo":"Senha:"},
             {"tag":"input","name":"senha","id":"senha","type":"password","value":"","placeholder":"Sua senha","required":true},
             {"tag":"input","name":"entrar","id":"entrar","type":"submit","value":"entrar"}
@@ -54,7 +54,7 @@ function trocar(popup,objeto)
             MenuItens =[
             {"tag":"input","name":"popup-mode","id":"popup","type":"hidden","value":"0"},
             {"tag":"label","conteudo":"Email:"},
-            {"tag":"input","name":"email","id":"email","type":"email","value":"","placeholder":"seu@email.com","required":true},
+            {"tag":"input","name":"email","id":"email","type":"email","value":"","maxlength":100,"placeholder":"seu@email.com","required":true},
             {"tag":"label","conteudo":"Senha:"},
             {"tag":"input","name":"senha","id":"senha","type":"password","value":"","placeholder":"Sua senha","required":true},
             {"tag":"input","name":"entrar","id":"entrar","type":"submit","value":"entrar"}
@@ -69,11 +69,30 @@ function trocar(popup,objeto)
                 {"tag":"label","conteudo":"Nome de usuário:"},
                 {"tag":"input","name":"nome_usr","id":"nome_usuario","type":"text","value":"","minlength":4,"maxlength":20,"placeholder":"Mínimo de 4 caracteres","required":true,"title":"O nome de usuário deve ter entre 4 e 20 caracteres."},
                 {"tag":"label","conteudo":"Email:"},
-                {"tag":"input","name":"email","id":"email","type":"email","value":"","placeholder":"seu@email.com","required":true},
+                {"tag":"input","name":"email","id":"email","type":"email","value":"","maxlength":100,"placeholder":"seu@email.com","required":true},
                 {"tag":"label","conteudo":"Senha:"},
                 {"tag":"input","name":"senha","id":"senha","type":"password","value":"","minlength":8,"maxlength":32,"placeholder":"Mínimo de 8 caracteres","required":true,"pattern":"^(?=.*[A-Z])(?=.*[\\W_]).{8,32}$","title":"A senha deve ter entre 8 e 32 caracteres, contendo pelo menos uma letra maiúscula e um símbolo/caractere especial."},
                 {"tag":"input","name":"cadastrar","id":"cadastrar","type":"submit","value":"cadastrar"}
                 ]
             }
         escrever(objeto,MenuItens);
+
+        if (popup == 0) {
+            const recoveryButton = document.createElement('button');
+            recoveryButton.type = 'button';
+            recoveryButton.className = 'forgot-password-button';
+            recoveryButton.textContent = 'Esqueci minha senha';
+
+            const recoveryNotice = document.createElement('p');
+            recoveryNotice.className = 'forgot-password-notice';
+            recoveryNotice.hidden = true;
+            recoveryNotice.textContent = 'A recuperação por email ainda não está configurada. Entre em contato com o administrador.';
+
+            recoveryButton.addEventListener('click', () => {
+                recoveryNotice.hidden = false;
+            });
+
+            objeto.appendChild(recoveryButton);
+            objeto.appendChild(recoveryNotice);
+        }
     }

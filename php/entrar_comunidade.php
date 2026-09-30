@@ -3,6 +3,7 @@ require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/community_bans.php";
+require_once __DIR__ . "/admin_helpers.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -36,6 +37,12 @@ global $conn;
 
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
 $id_comunidade = intval($_POST['id_comunidade'] ?? 0);
+
+if (is_site_admin($conn, $id_usuario)) {
+    http_response_code(403);
+    echo json_encode(["sucesso" => false, "mensagem" => "Administradores não podem seguir comunidades."]);
+    exit;
+}
 
 // 4. Validação do ID da Comunidade
 if ($id_comunidade <= 0) {

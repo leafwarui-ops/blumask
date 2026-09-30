@@ -71,12 +71,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $waitTime = get_rate_limit_wait_time('login_attempt', 900);
             $login_error = "Muitas tentativas incorretas. Por favor, aguarde $waitTime para tentar novamente.";
         } else {
-            $email = mysqli_real_escape_string($conn, trim($_POST['email'] ?? ''));
+            $email_raw = trim($_POST['email'] ?? '');
+            $email = mysqli_real_escape_string($conn, $email_raw);
             $senha = $_POST['senha'] ?? '';
             
             if (empty($email) || empty($senha)) {
                 hit_rate_limit('login_attempt');
                 $login_error = "Email e senha são obrigatórios!";
+            } elseif (mb_strlen($email_raw, 'UTF-8') > 100) {
+              hit_rate_limit('login_attempt');
+              $login_error = "O e-mail não pode ter mais de 100 caracteres.";
             } else {
                 $sql = "SELECT * FROM usuario WHERE email = '$email' LIMIT 1";
                 $result = mysqli_query($conn, $sql);
@@ -123,6 +127,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $login_error = "O nome de usuário deve ter entre 4 e 20 caracteres.";
             } elseif (mb_strlen($nome_exb_raw) < 2 || mb_strlen($nome_exb_raw) > 10) {
                 $login_error = "O nome de exibição deve ter entre 2 e 10 caracteres.";
+            } elseif (mb_strlen($email_raw, 'UTF-8') > 100) {
+              $login_error = "O e-mail não pode ter mais de 100 caracteres.";
             } elseif (!filter_var($email_raw, FILTER_VALIDATE_EMAIL)) {
                 $login_error = "Formato de e-mail inválido.";
             } elseif (!preg_match('/^(?=.*[A-Z])(?=.*[\W_]).{8,32}$/', $senha)) {
@@ -358,9 +364,9 @@ if ($id_usuario_logado > 0) {
         <div class="topbar-right" style="display:flex; align-items:center; gap:12px; position:relative;">
             <?php if ($is_admin_session): ?>
                 <div class="admin-menu-wrapper" style="position:relative;">
-                    <button type="button" class="topbar-admin-menu" id="adminMenuButton" aria-label="Menu de administração" aria-expanded="false" style="border:none; border-radius:10px; background:#ffffff; color:#1d2a39; font-weight:700; cursor:pointer; padding:10px 12px; font-size:1rem;">☰</button>
-                    <div class="admin-menu" id="adminMenu" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:#fff; border:1px solid rgba(0,0,0,.08); border-radius:12px; box-shadow:0 8px 20px rgba(0,0,0,.12); min-width:160px; overflow:hidden; z-index:20;">
-                        <a href="admin.php" style="display:block; padding:12px 16px; text-decoration:none; color:#1d2a39; font-weight:700;">Admin</a>
+                    <button type="button" class="topbar-admin-menu" id="adminMenuButton" aria-label="Menu de administração" aria-expanded="false" style="border:none; border-radius:8px; background:#ffffff; color:#1d2a39; font-weight:700; cursor:pointer; padding:8px 10px; font-size:0.85rem;">☰</button>
+                    <div class="admin-menu" id="adminMenu" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:#fff; border:1px solid rgba(0,0,0,.08); border-radius:10px; box-shadow:0 8px 20px rgba(0,0,0,.12); min-width:148px; overflow:hidden; z-index:20;">
+                      <a href="admin.php" style="display:block; padding:9px 12px; text-decoration:none; color:#1d2a39; font-weight:700; font-size:0.8rem;">Admin</a>
                     </div>
                 </div>
             <?php endif; ?>
@@ -395,7 +401,7 @@ if ($id_usuario_logado > 0) {
         <h3 style="margin-bottom: 2px;"><?= $nome_exibicao ?></h3>
         <p style="font-size: 13px; color: #666; margin-bottom: 10px;">@<?= $nome_usuario ?></p>
         <?php if (!empty($descricao_usr)): ?>
-          <p style="font-size: 12px; color: #444; margin-bottom: 15px; font-style: italic; font-weight: 500; word-break: break-word;"><?= $descricao_usr ?></p>
+          <p style="font-size: 0.9rem; color: #444; margin-bottom: 15px; font-style: italic; font-weight: 500; word-break: break-word;"><?= $descricao_usr ?></p>
         <?php endif; ?>
         <button onclick="window.location.href='php/usr_edit.php'" class="btn-entrar" id="btn-editar-perfil" style="display: block; width: 100%; cursor: pointer;">Editar</button>
       </div>
@@ -810,14 +816,17 @@ if ($id_usuario_logado > 0) {
       </div>
 
       <?php if (isset($_SESSION['usuario'])): ?>
+      <?php if ((int) ($_SESSION['usuario']['is_admin'] ?? 0) !== 1): ?>
       <div class="communities-actions">
-        <button class="btn-criar-comunidade" id="btn-criar-comunidade">+ Criar Comunidade</button>
+        <button class="btn-criar-comunidade" id="btn-criar-comunidade" type="button">+ Criar Comunidade</button>
       </div>
+      <?php endif; ?>
 
       <ul class="communities-list" id="communities-list">
         <!-- Preenchida via JS a partir de php/buscar_comunidades.php -->
       </ul>
 
+      <?php if ((int) ($_SESSION['usuario']['is_admin'] ?? 0) !== 1): ?>
       <!-- Modal de Criação de Comunidade -->
       <dialog id="criar-comunidade-box">
         <form id="form-criar-comunidade" enctype="multipart/form-data">
@@ -848,6 +857,7 @@ if ($id_usuario_logado > 0) {
           <p id="erro-criar-comunidade" class="erro-msg"></p>
         </form>
       </dialog>
+      <?php endif; ?>
       <?php else: ?>
       <p class="communities-login-hint">Faça login para criar ou participar de comunidades.</p>
       <?php endif; ?>
@@ -903,6 +913,9 @@ if ($id_usuario_logado > 0) {
 <?php if (isset($_SESSION['usuario'])): ?>
 <!-- Script para controle e carregamento do Painel de Comunidades -->
 <script src="js/comunidade.js?v=<?= time() ?>"></script>
+<?php endif; ?>
+<?php if (isset($_SESSION['usuario'])): ?>
+<script src="js/admin_messages.js?v=<?= time() ?>"></script>
 <?php endif; ?>
 
 <!-- Script para controle de exibição e alternância de abas do Modal de Autenticação -->
@@ -1234,5 +1247,6 @@ if ($id_usuario_logado > 0) {
 </script>
 <?php endif; ?>
 
+<script src="js/logout_confirm.js?v=<?= time() ?>"></script>
 </body>
 </html>

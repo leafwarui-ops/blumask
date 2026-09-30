@@ -1,9 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
     const btnCriar = document.getElementById("btn-criar-comunidade");
     const dialogCriar = document.getElementById("criar-comunidade-box");
+    const listaComunidades = document.getElementById("communities-list");
 
-    // Se o elemento não existir (ex: usuário deslogado), encerra
-    if (!btnCriar || !dialogCriar) return;
+    if (!listaComunidades) return;
 
     const btnDescartar = document.getElementById("btn-descartar-comunidade");
     const formCriar = document.getElementById("form-criar-comunidade");
@@ -11,10 +11,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const inputImagem = document.getElementById("input-imagem-comunidade");
     const previewImagem = document.getElementById("preview-imagem-comunidade");
     const avatarUpload = document.querySelector(".avatar-upload");
-    const listaComunidades = document.getElementById("communities-list");
     const erroMsg = document.getElementById("erro-criar-comunidade");
-
-    // No client-side file size limit for community creation (removed per request)
+    const maxImageSize = 2 * 1024 * 1024;
 
     function resetPreviewImagem() {
         if (!previewImagem) return;
@@ -24,14 +22,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (avatarUpload) avatarUpload.classList.remove("has-image");
     }
 
-    btnCriar.addEventListener("click", () => {
+    btnCriar?.addEventListener("click", () => {
         erroMsg.textContent = "";
         formCriar.reset();
         resetPreviewImagem();
         dialogCriar.showModal();
     });
 
-    btnDescartar.addEventListener("click", () => {
+    btnDescartar?.addEventListener("click", () => {
         formCriar.reset();
         resetPreviewImagem();
         erroMsg.textContent = "";
@@ -40,30 +38,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Fecha ao clicar no backdrop: só fecha se o pointerdown também tiver ocorrido no backdrop
     // ou se o pointerdown não começou dentro do conteúdo do dialog.
-    let pointerDownInsideContent = false;
-    let pointerDownOnBackdrop = false;
-    document.addEventListener('pointerdown', (e) => {
-        pointerDownOnBackdrop = (e.target === dialogCriar);
-        pointerDownInsideContent = (e.target.closest && e.target.closest('dialog') === dialogCriar && e.target !== dialogCriar);
-    });
-    window.addEventListener('pointerup', () => { pointerDownInsideContent = false; pointerDownOnBackdrop = false; });
-    dialogCriar.addEventListener("click", (event) => {
-        if (event.target === dialogCriar && (pointerDownOnBackdrop || !pointerDownInsideContent)) {
-            dialogCriar.close();
-        }
-    });
-    // Preview de Imagem (com checagem de max 30MB)
-    inputImagem.addEventListener("change", () => {
+    if (dialogCriar) {
+        let pointerDownInsideContent = false;
+        let pointerDownOnBackdrop = false;
+        document.addEventListener('pointerdown', (e) => {
+            pointerDownOnBackdrop = (e.target === dialogCriar);
+            pointerDownInsideContent = (e.target.closest && e.target.closest('dialog') === dialogCriar && e.target !== dialogCriar);
+        });
+        window.addEventListener('pointerup', () => { pointerDownInsideContent = false; pointerDownOnBackdrop = false; });
+        dialogCriar.addEventListener("click", (event) => {
+            if (event.target === dialogCriar && (pointerDownOnBackdrop || !pointerDownInsideContent)) {
+                dialogCriar.close();
+            }
+        });
+    }
+    // Preview da imagem da comunidade
+    inputImagem?.addEventListener("change", () => {
         const arquivo = inputImagem.files[0];
         if (!arquivo) return;
 
-        // NOTE: check commented for testing to allow larger uploads temporarily
-        // if (arquivo.size > MAX_FILE_SIZE) {
-        //     alert("A imagem selecionada excede o limite máximo de 30MB.");
-        //     inputImagem.value = "";
-        //     resetPreviewImagem();
-        //     return;
-        // }
+        if (arquivo.size > maxImageSize) {
+            erroMsg.textContent = "A imagem da comunidade não pode passar de 2 MB.";
+            inputImagem.value = "";
+            resetPreviewImagem();
+            return;
+        }
+
+        erroMsg.textContent = "";
 
         const reader = new FileReader();
         reader.onload = function (event) {
@@ -80,8 +81,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // Submissão do Formulário de Comunidade
-    formCriar.addEventListener("submit", async (event) => {
+    formCriar?.addEventListener("submit", async (event) => {
         event.preventDefault();
+        if (formCriar.dataset.enviando === "true") return;
         erroMsg.textContent = "";
 
         const valNome = inputNome.value.trim();
@@ -98,6 +100,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const dados = new FormData(formCriar);
+        const botaoEnviar = formCriar.querySelector('button[type="submit"]');
+        const textoOriginal = botaoEnviar?.textContent;
+        formCriar.dataset.enviando = "true";
+        if (botaoEnviar) {
+            botaoEnviar.disabled = true;
+            botaoEnviar.textContent = "Enviando...";
+        }
 
         try {
             const resposta = await fetch("php/criar_comunidade.php", {
@@ -114,6 +123,12 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         } catch (erro) {
             erroMsg.textContent = "Erro de conexão. Tente novamente.";
+        } finally {
+            delete formCriar.dataset.enviando;
+            if (botaoEnviar) {
+                botaoEnviar.disabled = false;
+                botaoEnviar.textContent = textoOriginal;
+            }
         }
     });
 
