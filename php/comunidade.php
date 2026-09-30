@@ -222,25 +222,25 @@ if ($resultado_count) {
         </header>
 
         <main>
-            <!-- BARRA DE BUSCA -->
-            <div class="search-container">
-                <div class="search-bar-interactive">
-                    <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2.5">
-                        <circle cx="11" cy="11" r="7"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <input type="text" id="input-busca" class="search-input" placeholder="Procurando por Algo? (usuários, comunidades...)" autocomplete="off">
-                    <div class="search-actions">
-                        <div class="search-spinner" id="busca-spinner" title="Buscando..."></div>
-                        <button type="button" class="btn-clear-search" id="btn-limpar-busca" title="Limpar busca">&times;</button>
-                    </div>
-                </div>
-
-                <div class="search-results-dropdown" id="busca-resultados-dropdown"></div>
-            </div>
-
             <!-- CONTEÚDO PRINCIPAL -->
             <div class="content-wrapper">
+                <!-- BARRA DE BUSCA -->
+                <div class="search-container">
+                    <div class="search-bar-interactive">
+                        <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2.5">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="input-busca" class="search-input" placeholder="Procurando por Algo? (usuários, comunidades...)" autocomplete="off">
+                        <div class="search-actions">
+                            <div class="search-spinner" id="busca-spinner" title="Buscando..."></div>
+                            <button type="button" class="btn-clear-search" id="btn-limpar-busca" title="Limpar busca">&times;</button>
+                        </div>
+                    </div>
+
+                    <div class="search-results-dropdown" id="busca-resultados-dropdown"></div>
+                </div>
+
                 <!-- CARD DA COMUNIDADE (ESQUERDA) -->
                 <div class="comunidade-card">
                     <button type="button" class="community-back-btn community-back-btn-card" title="Voltar para a página anterior" aria-label="Voltar para a página anterior" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '../index.php'; } return false;">

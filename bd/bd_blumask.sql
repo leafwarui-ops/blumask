@@ -9,8 +9,16 @@ senha varchar(255),
 nome_de_usuario varchar(100) unique,
 descricao text,
 banner varchar(200),
-foto_perfil varchar(200)
+foto_perfil varchar(200),
+is_admin tinyint(1) not null default 0,
+suspenso_ate datetime null default null
 );
+
+alter table usuario
+add column if not exists is_admin tinyint(1) not null default 0;
+
+alter table usuario
+add column if not exists suspenso_ate datetime null default null;
 
 -- Se seu banco já foi criado com um índice único em nome_de_exibicao, execute:
 -- ALTER TABLE usuario DROP INDEX nome_de_exibicao;

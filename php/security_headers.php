@@ -32,6 +32,33 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+if (!empty($_SESSION['usuario']['id_usuario'])) {
+    require_once __DIR__ . '/bd.php';
+    $sessionUserId = (int) ($_SESSION['usuario']['id_usuario'] ?? 0);
+    if ($sessionUserId > 0) {
+        $suspendedCheck = $conn->query("SELECT suspenso_ate FROM usuario WHERE id_usuario = $sessionUserId LIMIT 1");
+        if ($suspendedCheck && $suspendedCheck->num_rows > 0) {
+            $suspendedUser = $suspendedCheck->fetch_assoc();
+            $suspensoAte = trim((string) ($suspendedUser['suspenso_ate'] ?? ''));
+            if ($suspensoAte !== '' && strtotime($suspensoAte) > time()) {
+                session_unset();
+                session_destroy();
+                setcookie('blumask_notice', urlencode('Sua conta foi suspensa por 10 minutos. Você não pode usar o BluMask neste período.'), time() + 120, '/');
+
+                if ((!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') || (isset($_SERVER['CONTENT_TYPE']) && stripos((string) $_SERVER['CONTENT_TYPE'], 'application/json') !== false)) {
+                    http_response_code(403);
+                    header('Content-Type: application/json; charset=utf-8');
+                    echo json_encode(['sucesso' => false, 'mensagem' => 'Sua conta foi suspensa por 10 minutos.']);
+                    exit;
+                }
+
+                header('Location: ../index.php?status=suspenso');
+                exit;
+            }
+        }
+    }
+}
+
 // ============================================================================
 // SEÇÃO 2: Definição de Headers HTTP de Segurança
 // ============================================================================

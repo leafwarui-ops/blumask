@@ -2,11 +2,23 @@
 require_once "php/security_headers.php";
 require_once "php/rate_limit.php";
 include "php/bd.php";
+require_once "php/admin_helpers.php";
 require_once "php/media.php";
 require_once "php/profile_pins.php";
 require_once "php/activity_timestamps.php";
+ensure_admin_schema($conn);
+ensure_admin_user($conn);
 ensure_profile_pin_tables($conn);
 ensure_activity_timestamp_columns($conn);
+
+$siteNoticeMessage = '';
+if (!empty($_COOKIE['blumask_notice'])) {
+    $siteNoticeMessage = urldecode((string) $_COOKIE['blumask_notice']);
+    setcookie('blumask_notice', '', time() - 3600, '/');
+}
+if ($siteNoticeMessage === '' && ($_GET['status'] ?? '') === 'suspenso') {
+    $siteNoticeMessage = 'Sua conta foi suspensa por 10 minutos. Você não pode usar o BluMask neste período.';
+}
 
 function get_login_redirect_target() {
   $target = trim((string) ($_POST['return_to'] ?? ''));
@@ -75,11 +87,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     || stripos((string) ($user['nome_de_usuario'] ?? ''), 'usuario_deletado_') === 0;
 
                   if (!$usuario_deletado && password_verify($senha, $user['senha'])) {
-                        reset_rate_limit('login_attempt');
-                        session_regenerate_id(true);
-                        $_SESSION['usuario'] = $user;
-                        header("Location: " . get_login_redirect_target());
-                        exit;
+                        if (is_user_suspended($user)) {
+                            $suspenso_ate = strtotime((string) $user['suspenso_ate']);
+                            $login_error = "Esta conta foi suspensa até " . date('d/m/Y H:i', $suspenso_ate) . ".";
+                            hit_rate_limit('login_attempt');
+                        } else {
+                            reset_rate_limit('login_attempt');
+                            session_regenerate_id(true);
+                            $_SESSION['usuario'] = $user;
+                            header("Location: " . get_login_redirect_target());
+                            exit;
+                        }
                     } else {
                         hit_rate_limit('login_attempt');
                         $login_error = "Email ou senha incorretos!";
@@ -318,6 +336,16 @@ if ($id_usuario_logado > 0) {
 </head>
 <body data-id-usuario="<?= isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0 ?>">
 
+    <?php if ($siteNoticeMessage !== ''): ?>
+    <div class="notice-modal active" id="noticeModal" role="dialog" aria-modal="true" aria-labelledby="noticeModalTitle">
+        <div class="notice-modal-content">
+            <div class="notice-modal-header" id="noticeModalTitle">Atenção</div>
+            <p><?= htmlspecialchars($siteNoticeMessage, ENT_QUOTES, 'UTF-8') ?></p>
+            <button type="button" class="notice-modal-close" id="noticeModalClose">Entendi</button>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div class="page">
 
   <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px;">
@@ -326,7 +354,18 @@ if ($id_usuario_logado > 0) {
       <h1 style="margin: 0; font-size: 20px;">BluMask</h1>
     </div>
     <?php if (isset($_SESSION['usuario'])): ?>
-        <a href="?logout=1" class="topbar-logout">Sair</a>
+        <?php $is_admin_session = (int) ($_SESSION['usuario']['is_admin'] ?? 0) === 1; ?>
+        <div class="topbar-right" style="display:flex; align-items:center; gap:12px; position:relative;">
+            <?php if ($is_admin_session): ?>
+                <div class="admin-menu-wrapper" style="position:relative;">
+                    <button type="button" class="topbar-admin-menu" id="adminMenuButton" aria-label="Menu de administração" aria-expanded="false" style="border:none; border-radius:10px; background:#ffffff; color:#1d2a39; font-weight:700; cursor:pointer; padding:10px 12px; font-size:1rem;">☰</button>
+                    <div class="admin-menu" id="adminMenu" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:#fff; border:1px solid rgba(0,0,0,.08); border-radius:12px; box-shadow:0 8px 20px rgba(0,0,0,.12); min-width:160px; overflow:hidden; z-index:20;">
+                        <a href="admin.php" style="display:block; padding:12px 16px; text-decoration:none; color:#1d2a39; font-weight:700;">Admin</a>
+                    </div>
+                </div>
+            <?php endif; ?>
+            <a href="?logout=1" class="topbar-logout">Sair</a>
+        </div>
     <?php endif; ?>
   </header>
 
@@ -1151,6 +1190,36 @@ if ($id_usuario_logado > 0) {
             card.style.display = !termo || texto.includes(termo) ? '' : 'none';
           });
         });
+      }
+
+      const adminMenuButton = document.getElementById('adminMenuButton');
+      const adminMenu = document.getElementById('adminMenu');
+      if (adminMenuButton && adminMenu) {
+          adminMenuButton.addEventListener('click', (event) => {
+              event.stopPropagation();
+              const isOpen = adminMenu.style.display === 'block';
+              adminMenu.style.display = isOpen ? 'none' : 'block';
+              adminMenuButton.setAttribute('aria-expanded', String(!isOpen));
+          });
+
+          document.addEventListener('click', (event) => {
+              if (!event.target.closest('.admin-menu-wrapper')) {
+                  adminMenu.style.display = 'none';
+                  adminMenuButton.setAttribute('aria-expanded', 'false');
+              }
+          });
+      }
+
+      const noticeModal = document.getElementById('noticeModal');
+      const noticeModalClose = document.getElementById('noticeModalClose');
+      if (noticeModal) {
+          const closeNoticeModal = () => noticeModal.classList.remove('active');
+          if (noticeModalClose) {
+              noticeModalClose.addEventListener('click', closeNoticeModal);
+          }
+          noticeModal.addEventListener('click', (event) => {
+              if (event.target === noticeModal) closeNoticeModal();
+          });
       }
 </script>
 

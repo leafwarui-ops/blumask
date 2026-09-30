@@ -20,6 +20,10 @@ $db = "bd_blumask";
 // Cria uma nova conexão MySQLi orientada a objetos com os parâmetros definidos acima
 $conn = new mysqli($host, $user, $pass, $db);
 
+if (!$conn->connect_error) {
+    $conn->set_charset('utf8mb4');
+}
+
 // Verifica se houve erro na conexão (ex: banco não existe, credenciais incorretas, servidor desligado)
 if ($conn->connect_error) {
     // Se houver erro, exibe mensagem de falha e interrompe a execução do script

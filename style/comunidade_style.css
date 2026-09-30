@@ -433,6 +433,10 @@ footer.bottombar {
     border-radius: 20px;
     padding: 25px 25px 20px;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
     height: fit-content;
     position: sticky;
     top: 20px;
@@ -458,10 +462,11 @@ footer.bottombar {
     width: 120px;
     height: 120px;
     border-radius: 50%;
-    margin-bottom: 20px;
+    margin: 0 auto 20px;
     object-fit: cover;
     border: 4px solid white;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    display: block;
 }
 
 .comunidade-card h2 {
@@ -1317,8 +1322,9 @@ footer.bottombar {
 
     .search-container {
         width: 100%;
-        margin: 16px auto 20px;
+        margin: 20px auto 16px;
         padding: 0 12px;
+        order: 1;
     }
 
     .search-results-dropdown {
@@ -1328,23 +1334,39 @@ footer.bottombar {
 
     .content-wrapper {
         grid-template-columns: 1fr;
-        padding: 0 12px 40px;
-        gap: 20px;
+        padding: 0 12px 20px;
+        gap: 16px;
+        display: flex;
+        flex-direction: column;
     }
 
     .comunidade-card {
+        order: 2;
         position: static;
         width: 100%;
         padding: 18px 16px 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .posts-section {
+        order: 3;
+        width: 100%;
     }
 
     .comunidade-card img {
         width: 100px;
         height: 100px;
+        margin: 0 auto 16px;
     }
 
     .comunidade-card h2 {
         font-size: 1.4rem;
+    }
+
+    footer.bottombar {
+        margin-top: auto;
     }
 
     .posts-section h3 {
