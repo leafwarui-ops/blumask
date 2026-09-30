@@ -524,6 +524,20 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
       background: #d93025;
       color: #fff;
     }
+
+    @media (max-width: 768px) {
+      .edit-actions-row {
+        align-items: center;
+      }
+
+      .edit-actions {
+        justify-content: center;
+      }
+
+      .delete-account-area {
+        justify-content: center;
+      }
+    }
   </style>
 
   <!-- SCRIPT DE INTERAÇÃO E VALIDAÇÕES EM TEMPO REAL -->

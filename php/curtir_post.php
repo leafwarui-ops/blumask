@@ -2,6 +2,7 @@
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
+require_once __DIR__ . "/community_bans.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -40,11 +41,17 @@ if ($id_post <= 0) {
 }
 
 // 5. Verificar se o post existe
-$sql_check_post = "SELECT id_post FROM post WHERE id_post = $id_post LIMIT 1";
+$sql_check_post = "SELECT id_post, id_comunidade FROM post WHERE id_post = $id_post LIMIT 1";
 $resultado_check = mysqli_query($conn, $sql_check_post);
 
 if (!$resultado_check || mysqli_num_rows($resultado_check) === 0) {
     echo json_encode(["sucesso" => false, "mensagem" => "Post não encontrado."]);
+    exit;
+}
+
+$post = mysqli_fetch_assoc($resultado_check);
+if (is_user_banned_from_community($conn, $id_usuario, intval($post['id_comunidade']))) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Você foi banido desta comunidade e não pode curtir posts."]);
     exit;
 }
 

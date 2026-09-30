@@ -758,10 +758,7 @@
     }
 
     .center-col {
-      display: block;
-      width: 100%;
-      max-width: 100%;
-      order: 1;
+      display: contents;
     }
 
     .profile-panel,

@@ -2,6 +2,7 @@
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
+require_once __DIR__ . "/community_bans.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -33,13 +34,20 @@ if (mb_strlen($conteudo) < 2) {
 global $conn;
 
 // Verifica autor do comentário
-$res = mysqli_query($conn, "SELECT id_usuario FROM comentario WHERE id_comentario = $id_comentario LIMIT 1");
+$res = mysqli_query($conn, "SELECT c.id_usuario, p.id_comunidade
+    FROM comentario c INNER JOIN post p ON p.id_post = c.id_post
+    WHERE c.id_comentario = $id_comentario LIMIT 1");
 if (!$res || mysqli_num_rows($res) === 0) {
     echo json_encode(["sucesso" => false, "mensagem" => "Comentário não encontrado."]);
     exit;
 }
 $row = mysqli_fetch_assoc($res);
 $id_autor = intval($row['id_usuario']);
+
+if (is_user_banned_from_community($conn, $id_usuario, intval($row['id_comunidade']))) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Você foi banido desta comunidade e não pode editar comentários."]);
+    exit;
+}
 
 if ($id_autor !== $id_usuario) {
     echo json_encode(["sucesso" => false, "mensagem" => "Você só pode editar seus próprios comentários."]);

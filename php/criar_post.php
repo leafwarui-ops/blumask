@@ -3,6 +3,7 @@ require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/activity_timestamps.php";
+require_once __DIR__ . "/community_bans.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -40,6 +41,11 @@ $conteudo_raw = str_replace(["\r\n", "\r"], "\n", trim($_POST['conteudo'] ?? '')
 // 4. Validações
 if ($id_comunidade <= 0) {
     echo json_encode(["sucesso" => false, "mensagem" => "ID da comunidade inválido."]);
+    exit;
+}
+
+if (is_user_banned_from_community($conn, $id_usuario, $id_comunidade)) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Você foi banido desta comunidade e não pode publicar."]);
     exit;
 }
 

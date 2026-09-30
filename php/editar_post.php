@@ -2,6 +2,7 @@
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
+require_once __DIR__ . "/community_bans.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -70,6 +71,11 @@ $post = mysqli_fetch_assoc($resultado_post);
 
 if (intval($post['id_comunidade']) !== $id_comunidade) {
     echo json_encode(["sucesso" => false, "mensagem" => "O post não pertence a esta comunidade."]);
+    exit;
+}
+
+if (is_user_banned_from_community($conn, $id_usuario, $id_comunidade)) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Você foi banido desta comunidade e não pode editar posts."]);
     exit;
 }
 

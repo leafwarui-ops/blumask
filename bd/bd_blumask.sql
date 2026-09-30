@@ -59,6 +59,16 @@ foreign key (id_usuario) references usuario(id_usuario),
 foreign key (id_comunidade) references comunidade(id_comunidade)
 );
 
+create table if not exists banimento_comunidade(
+id_banimento int primary key auto_increment,
+id_comunidade int not null,
+id_usuario int not null,
+id_usuario_baniu int not null,
+data_banimento datetime not null default current_timestamp,
+unique key uq_banimento_comunidade_usuario (id_comunidade, id_usuario),
+key idx_banimento_usuario (id_usuario)
+);
+
 create table comentario(
 id_comentario int primary key auto_increment,
 id_usuario int,

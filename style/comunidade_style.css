@@ -1324,7 +1324,7 @@ footer.bottombar {
         width: 100%;
         margin: 20px auto 16px;
         padding: 0 12px;
-        order: 1;
+        order: -1;
     }
 
     .search-results-dropdown {

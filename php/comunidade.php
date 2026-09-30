@@ -3,6 +3,7 @@ require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/media.php";
+require_once __DIR__ . "/community_bans.php";
 
 // Obtém o ID da comunidade da URL
 $id_comunidade = intval($_GET['id'] ?? 0);
@@ -29,6 +30,7 @@ if (!$resultado_comunidade || mysqli_num_rows($resultado_comunidade) === 0) {
 }
 
 $comunidade = mysqli_fetch_assoc($resultado_comunidade);
+$is_community_banned = is_user_banned_from_community($conn, $id_usuario, $id_comunidade);
 
 // Verificar se o usuário é membro da comunidade
 $sql_membro = "SELECT cargo FROM membro_comunidade 
@@ -54,6 +56,7 @@ if ($is_community_owner && !$eh_membro) {
 
 // Buscar posts da comunidade
 $sqlPosts = "SELECT p.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil, u.id_usuario,
+             (SELECT mc.cargo FROM membro_comunidade mc WHERE mc.id_comunidade = p.id_comunidade AND mc.id_usuario = p.id_usuario LIMIT 1) as cargo_autor_comunidade,
              (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) as total_curtidas,
              (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario) as curtiu,
              (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) as total_comentarios
@@ -196,6 +199,16 @@ if ($resultado_count) {
         </div>
     </div>
 
+    <div class="modal-overlay<?= $is_community_banned ? ' ativo' : '' ?>" id="communityBannedModal">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="communityBannedTitle">
+            <div class="modal-header" id="communityBannedTitle">Banido da comunidade</div>
+            <div class="modal-message">Você foi banido desta comunidade. Não pode voltar a segui-la, publicar, comentar ou curtir nesta comunidade.</div>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-confirm" onclick="sairDaComunidadeBanida()">Entendi</button>
+            </div>
+        </div>
+    </div>
+
     <dialog id="login-box">
         <form id="popup-form" action="../index.php" method="post">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
@@ -222,25 +235,25 @@ if ($resultado_count) {
         </header>
 
         <main>
-            <!-- CONTEÚDO PRINCIPAL -->
-            <div class="content-wrapper">
-                <!-- BARRA DE BUSCA -->
-                <div class="search-container">
-                    <div class="search-bar-interactive">
-                        <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2.5">
-                            <circle cx="11" cy="11" r="7"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        <input type="text" id="input-busca" class="search-input" placeholder="Procurando por Algo? (usuários, comunidades...)" autocomplete="off">
-                        <div class="search-actions">
-                            <div class="search-spinner" id="busca-spinner" title="Buscando..."></div>
-                            <button type="button" class="btn-clear-search" id="btn-limpar-busca" title="Limpar busca">&times;</button>
-                        </div>
+            <!-- BARRA DE BUSCA -->
+            <div class="search-container">
+                <div class="search-bar-interactive">
+                    <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="2.5">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="input-busca" class="search-input" placeholder="Procurando por Algo? (usuários, comunidades...)" autocomplete="off">
+                    <div class="search-actions">
+                        <div class="search-spinner" id="busca-spinner" title="Buscando..."></div>
+                        <button type="button" class="btn-clear-search" id="btn-limpar-busca" title="Limpar busca">&times;</button>
                     </div>
-
-                    <div class="search-results-dropdown" id="busca-resultados-dropdown"></div>
                 </div>
 
+                <div class="search-results-dropdown" id="busca-resultados-dropdown"></div>
+            </div>
+
+            <!-- CONTEÚDO PRINCIPAL -->
+            <div class="content-wrapper">
                 <!-- CARD DA COMUNIDADE (ESQUERDA) -->
                 <div class="comunidade-card">
                     <button type="button" class="community-back-btn community-back-btn-card" title="Voltar para a página anterior" aria-label="Voltar para a página anterior" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '../index.php'; } return false;">
@@ -252,7 +265,9 @@ if ($resultado_count) {
                     <h2><?= htmlspecialchars($comunidade['nome'], ENT_QUOTES, 'UTF-8') ?></h2>
                     <p class="descricao"><?= htmlspecialchars($comunidade['descricao'] ?? '', ENT_QUOTES, 'UTF-8', false) ?></p>
 
-                    <?php if (!$eh_membro): ?>
+                    <?php if ($is_community_banned): ?>
+                        <button class="btn-seguir ja-membro" type="button" disabled>Banido desta comunidade</button>
+                    <?php elseif (!$eh_membro): ?>
                         <?php if (isset($_SESSION['usuario'])): ?>
                             <button class="btn-seguir" onclick="entrarComunidade(<?= $id_comunidade ?>)">Seguir +</button>
                         <?php else: ?>
@@ -358,6 +373,11 @@ if ($resultado_count) {
                                                     <button class="post-menu-btn" type="button" onclick="fixarPost(<?= $post['id_post'] ?>)">
                                                         <?= !empty($comunidade['id_post_fixado']) && (int) $post['id_post'] === (int) $comunidade['id_post_fixado'] ? 'Desfixar post' : 'Fixar post' ?>
                                                     </button>
+                                                    <?php if ((int) $post['id_usuario'] !== $id_usuario
+                                                        && (int) $post['id_usuario'] !== (int) $comunidade['id_usuario']
+                                                        && (int) ($post['cargo_autor_comunidade'] ?? 0) !== 1): ?>
+                                                        <button class="post-menu-btn danger" type="button" onclick='abrirModalBanirUsuario(<?= (int) $post['id_usuario'] ?>, <?= json_encode($post['nome_de_exibicao'] ?? 'este usuário', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)'>Banir da comunidade</button>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                             </div>
                                         </div>
@@ -420,8 +440,28 @@ if ($resultado_count) {
     <script>
         const postsMap = <?php echo json_encode($postsMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         const ehMembro = <?= $eh_membro ? 'true' : 'false' ?>;
+        const comunidadeBanido = <?= $is_community_banned ? 'true' : 'false' ?>;
         let csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
         let acaoAtual = null;
+
+        function sairDaComunidadeBanida() {
+            window.location.href = '../index.php';
+        }
+
+        if (<?= $id_usuario > 0 && !$is_community_banned ? 'true' : 'false' ?>) {
+            const verificarBanimento = () => {
+                if (document.hidden) return;
+                fetch(`../php/banir_usuario_comunidade.php?verificar=1&id_comunidade=<?= $id_comunidade ?>`, { cache: 'no-store' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.banido) {
+                            document.getElementById('communityBannedModal')?.classList.add('ativo');
+                        }
+                    })
+                    .catch(() => {});
+            };
+            window.setInterval(verificarBanimento, 8000);
+        }
 
         function mostrarPopupLoginComunidade() {
             const modal = document.getElementById('loginCommunityModal');
@@ -597,6 +637,23 @@ if ($resultado_count) {
             abrirModal('Excluir Post', 'Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.', true);
             acaoAtual = function() {
                 excluirPost(idPost);
+            };
+        }
+
+        function abrirModalBanirUsuario(idUsuario, nomeUsuario) {
+            abrirModal('Banir usuário', `Tem certeza que deseja banir ${nomeUsuario} desta comunidade? A pessoa será removida e não poderá voltar a participar.`, true);
+            acaoAtual = function() {
+                fetch('../php/banir_usuario_comunidade.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `csrf_token=${encodeURIComponent(csrfToken)}&id_comunidade=<?= $id_comunidade ?>&id_usuario=${encodeURIComponent(idUsuario)}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    abrirModal(data.sucesso ? 'Usuário banido' : 'Não foi possível banir', data.mensagem || 'Tente novamente.');
+                    if (data.sucesso) acaoAtual = () => window.location.reload();
+                })
+                .catch(() => abrirModal('Erro', 'Não foi possível concluir o banimento. Tente novamente.'));
             };
         }
 

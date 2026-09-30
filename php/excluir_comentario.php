@@ -3,6 +3,7 @@ require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/profile_pins.php";
+require_once __DIR__ . "/community_bans.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -38,9 +39,14 @@ $id_autor = intval($row['id_usuario']);
 $id_post = intval($row['id_post']);
 
 // Buscar autor do post.
-$res2 = mysqli_query($conn, "SELECT id_usuario FROM post WHERE id_post = $id_post LIMIT 1");
+$res2 = mysqli_query($conn, "SELECT id_usuario, id_comunidade FROM post WHERE id_post = $id_post LIMIT 1");
 $post_row = $res2 && mysqli_num_rows($res2) > 0 ? mysqli_fetch_assoc($res2) : null;
 $id_post_autor = $post_row ? intval($post_row['id_usuario']) : 0;
+
+if ($post_row && is_user_banned_from_community($conn, $id_usuario, intval($post_row['id_comunidade']))) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Você foi banido desta comunidade e não pode excluir comentários."]);
+    exit;
+}
 
 // Permissão: autor do comentário ou dono do post
 if ($id_autor !== $id_usuario && $id_post_autor !== $id_usuario) {

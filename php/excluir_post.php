@@ -3,6 +3,7 @@ require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/profile_pins.php";
+require_once __DIR__ . "/community_bans.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -61,6 +62,11 @@ $id_comunidade = intval($post['id_comunidade']);
 $comunidade_dono = intval($post['comunidade_dono']);
 $autor_id = intval($post['autor_id']);
 $cargo_usuario = intval($post['cargo_usuario'] ?? 0);
+
+if (is_user_banned_from_community($conn, $id_usuario, $id_comunidade)) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Você foi banido desta comunidade e não pode excluir posts."]);
+    exit;
+}
 
 // 6. Verificar se o usuário é o dono do post, o dono da comunidade ou administrador da comunidade
 $permitido = ($autor_id === $id_usuario) || ($comunidade_dono === $id_usuario) || ($cargo_usuario === 1);
