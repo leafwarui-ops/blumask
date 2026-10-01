@@ -36,6 +36,8 @@ $error_message   = '';
 $success_message = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    require_same_origin_for_state_change();
+
     // 0. Validação de CSRF Token
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
         $error_message = "Token de segurança (CSRF) inválido. Recarregue a página e tente novamente.";

@@ -52,6 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || ($_POST['acao'] ?? '') !== 'fechar'
     admin_message_json(['sucesso' => false, 'mensagem' => 'Método inválido.'], 405);
 }
 
+require_same_origin_for_state_change();
+
 if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
     admin_message_json(['sucesso' => false, 'mensagem' => 'Token CSRF inválido.'], 403);
 }

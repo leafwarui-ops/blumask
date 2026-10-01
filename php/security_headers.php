@@ -176,6 +176,52 @@ function verify_csrf_token($token) {
     // Timing attacks tentam adivinhar o token medindo quanto tempo leva para a comparação
     return hash_equals($_SESSION['csrf_token'], $token);
 }
+
+/**
+ * Função: is_same_origin_request()
+ * DESCRIÇÃO: Verifica se a requisição veio do mesmo host do site.
+ * Objetivo: impedir que ações destrutivas sejam disparadas por origem externa
+ * mesmo quando o front-end for alterado ou um formulário for forjado.
+ */
+function is_same_origin_request() {
+    $serverHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? ''));
+    $serverHost = preg_replace('/^www\./i', '', $serverHost);
+
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    if ($origin !== '') {
+        $originHost = parse_url($origin, PHP_URL_HOST);
+        $originHost = strtolower((string) ($originHost ?? ''));
+        $originHost = preg_replace('/^www\./i', '', $originHost);
+        return $originHost !== '' && $originHost === $serverHost;
+    }
+
+    $referer = $_SERVER['HTTP_REFERER'] ?? '';
+    if ($referer !== '') {
+        $refererHost = parse_url($referer, PHP_URL_HOST);
+        $refererHost = strtolower((string) ($refererHost ?? ''));
+        $refererHost = preg_replace('/^www\./i', '', $refererHost);
+        return $refererHost !== '' && $refererHost === $serverHost;
+    }
+
+    return true;
+}
+
+/**
+ * Função: require_same_origin_for_state_change()
+ * DESCRIÇÃO: Bloqueia qualquer alteração de estado vinda de domínio externo
+ * sem depender do comportamento de botões ou scripts do cliente.
+ */
+function require_same_origin_for_state_change() {
+    if (!is_same_origin_request()) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'sucesso' => false,
+            'mensagem' => 'Origem da requisição inválida. Ação bloqueada por segurança.'
+        ]);
+        exit;
+    }
+}
 // ============================================================================
 // FIM DO ARQUIVO security_headers.php
 // ============================================================================

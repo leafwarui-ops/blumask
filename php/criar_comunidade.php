@@ -37,6 +37,8 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     exit;
 }
 
+require_same_origin_for_state_change();
+
 // 1.3 - Verifica se o token CSRF é válido (proteção contra ataques CSRF)
 if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
     // Token inválido ou ausente: requisição suspeita
@@ -63,14 +65,13 @@ if ($isAdmin) {
     exit;
 }
 
-// 1.4 - Verifica Rate Limit: máximo 3 comunidades por hora (3600 segundos)
-// Proteção contra spam de criação de comunidades
-if (!check_rate_limit('create_community', 3, 3600)) {
-    // Calcula tempo de espera formatado
-    $wait = get_rate_limit_wait_time('create_community', 3600);
+// 1.4 - Verifica Rate Limit: permite até 5 comunidades em 10 minutos
+// Se exceder o limite, bloqueia mais criações por 10 minutos sem suspender a conta.
+if (!check_rate_limit('create_community', 5, 600)) {
+    $wait = get_rate_limit_wait_time('create_community', 600);
     echo json_encode([
-        "sucesso" => false, 
-        "mensagem" => "Limite de criação excedido. Por favor, aguarde $wait para criar uma nova comunidade."
+        "sucesso" => false,
+        "mensagem" => "Você atingiu o limite de criação de comunidades. Aguarde $wait para criar outra comunidade."
     ]);
     exit;
 }

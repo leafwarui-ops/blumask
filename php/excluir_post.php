@@ -4,6 +4,7 @@ require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/profile_pins.php";
 require_once __DIR__ . "/community_bans.php";
+require_once __DIR__ . "/admin_helpers.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -17,6 +18,8 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     echo json_encode(["sucesso" => false, "mensagem" => "Método inválido."]);
     exit;
 }
+
+require_same_origin_for_state_change();
 
 // 2. Verificação de CSRF Token
 if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -68,8 +71,8 @@ if (is_user_banned_from_community($conn, $id_usuario, $id_comunidade)) {
     exit;
 }
 
-// 6. Verificar se o usuário é o dono do post, o dono da comunidade ou administrador da comunidade
-$permitido = ($autor_id === $id_usuario) || ($comunidade_dono === $id_usuario) || ($cargo_usuario === 1);
+// 6. Verificar se o usuário é o dono do post, o dono da comunidade, administrador da comunidade ou administrador do sistema
+$permitido = ($autor_id === $id_usuario) || ($comunidade_dono === $id_usuario) || ($cargo_usuario === 1) || is_site_admin($conn, $id_usuario);
 
 if (!$permitido) {
     echo json_encode(["sucesso" => false, "mensagem" => "Você não tem permissão para excluir este post."]);

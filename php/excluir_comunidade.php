@@ -16,6 +16,8 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     exit;
 }
 
+require_same_origin_for_state_change();
+
 // 2. Verificação de CSRF Token
 if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
     echo json_encode(["sucesso" => false, "mensagem" => "Token de segurança inválido."]);

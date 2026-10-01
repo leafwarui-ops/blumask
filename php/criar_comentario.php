@@ -17,6 +17,8 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     exit;
 }
 
+require_same_origin_for_state_change();
+
 if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
     echo json_encode(["sucesso" => false, "mensagem" => "Token de segurança (CSRF) inválido."]);
     exit;
@@ -86,7 +88,12 @@ if (!$postingLimit['allowed']) {
     $wait = (int) $postingLimit['retry_after'];
     http_response_code(429);
     header('Retry-After: ' . $wait);
-    echo json_encode(["sucesso" => false, "limite_atingido" => true]);
+    echo json_encode([
+        "sucesso" => false,
+        "limite_atingido" => true,
+        "retry_after" => $wait,
+        "mensagem" => "Você precisa esperar $wait segundo(s) antes de comentar novamente."
+    ]);
     exit;
 }
 

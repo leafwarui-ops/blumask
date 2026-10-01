@@ -4,6 +4,7 @@ require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/profile_pins.php";
 require_once __DIR__ . "/community_bans.php";
+require_once __DIR__ . "/admin_helpers.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -16,10 +17,12 @@ if ($id_usuario <= 0) {
     exit;
 }
 
-if (!isset($_SESSION['csrf_token']) || $csrf !== $_SESSION['csrf_token']) {
+if (!verify_csrf_token($csrf)) {
     echo json_encode(["sucesso" => false, "mensagem" => "Token CSRF inválido."]);
     exit;
 }
+
+require_same_origin_for_state_change();
 
 if ($id_comentario <= 0) {
     echo json_encode(["sucesso" => false, "mensagem" => "Comentário inválido."]);
@@ -48,8 +51,8 @@ if ($post_row && is_user_banned_from_community($conn, $id_usuario, intval($post_
     exit;
 }
 
-// Permissão: autor do comentário ou dono do post
-if ($id_autor !== $id_usuario && $id_post_autor !== $id_usuario) {
+// Permissão: autor do comentário, dono do post ou administrador do sistema
+if ($id_autor !== $id_usuario && $id_post_autor !== $id_usuario && !is_site_admin($conn, $id_usuario)) {
     echo json_encode(["sucesso" => false, "mensagem" => "Você não tem permissão para excluir este comentário."]);
     exit;
 }

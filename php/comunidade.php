@@ -361,7 +361,7 @@ if ($resultado_count) {
                                             <?= date('d/m/Y', strtotime($post['Data_post'])) ?>
                                         </div>
                                     </div>
-                                    <?php if ((int) $post['id_usuario'] === $id_usuario || $is_community_admin): ?>
+                                    <?php if ((int) $post['id_usuario'] === $id_usuario || $is_community_admin || $is_site_admin_user): ?>
                                         <div class="post-menu-wrapper">
                                             <button class="post-menu-toggle" type="button" aria-label="Opções do post" onclick="togglePostMenu(this)">⋯</button>
                                             <div class="post-menu-dropdown">
@@ -369,7 +369,7 @@ if ($resultado_count) {
                                                     <button class="post-menu-btn" type="button" onclick="abrirModalEditarPost(<?= $post['id_post'] ?>)">Editar post</button>
                                                 <?php endif; ?>
 
-                                                <?php if ((int) $post['id_usuario'] === $id_usuario || $is_community_admin): ?>
+                                                <?php if ((int) $post['id_usuario'] === $id_usuario || $is_community_admin || $is_site_admin_user): ?>
                                                     <button class="post-menu-btn danger" type="button" onclick="abrirModalExcluirPost(<?= $post['id_post'] ?>)">Excluir post</button>
                                                 <?php endif; ?>
 
@@ -395,18 +395,15 @@ if ($resultado_count) {
                                 <div class="post-content"><?= htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8', false) ?></div>
 
                                 <div class="post-actions">
-                                    <span class="post-action" onclick="curtirPost(<?= $post['id_post'] ?>, this)">
+                                    <span class="post-action" <?= $is_site_admin_user ? 'aria-disabled="true" style="cursor:default; opacity:0.8;"' : 'onclick="curtirPost(' . $post['id_post'] . ', this)"' ?>>
                                         <span><?php echo intval($post['curtiu']) === 1 ? '❤️' : '🤍'; ?></span>
                                         <span><?= intval($post['total_curtidas']) ?></span>
                                     </span>
 
-                                    <?php if (!$is_site_admin_user): ?>
-                                        <button type="button" class="post-action comment-toggle" data-post-id="<?= $post['id_post'] ?>" aria-label="Comentar">
-                                            <span>💬</span>
-                                            <span><?= intval($post['total_comentarios']) ?></span>
-                                        </button>
-                                    <?php endif; ?>
-
+                                    <span class="post-action" aria-label="Comentários">
+                                        <span>💬</span>
+                                        <span><?= intval($post['total_comentarios']) ?></span>
+                                    </span>
                                 </div>
 
                                 <?php if (!$is_site_admin_user): ?>
@@ -457,6 +454,35 @@ if ($resultado_count) {
         const comunidadeBanido = <?= $is_community_banned ? 'true' : 'false' ?>;
         let csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
         let acaoAtual = null;
+
+        function mostrarAvisoCooldown(form, segundos, acao = 'postar') {
+            if (!form) return;
+            const totalSegundos = Math.max(1, Number(segundos) || 1);
+            const aviso = form.querySelector('.rate-limit-warning') || document.createElement('div');
+            aviso.className = 'rate-limit-warning';
+            aviso.style.cssText = 'display:block; color:#b42318; background:#fee4e2; border:1px solid #fca5a5; border-radius:8px; padding:10px 12px; margin-bottom:10px; font-weight:700; line-height:1.4;';
+
+            const deadline = Date.now() + totalSegundos * 1000;
+            const atualizarTexto = () => {
+                const restante = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+                aviso.textContent = `Você precisa esperar ${restante} segundo(s) antes de ${acao} novamente.`;
+                if (restante <= 0) {
+                    aviso.remove();
+                    if (form._cooldownInterval) {
+                        clearInterval(form._cooldownInterval);
+                        form._cooldownInterval = null;
+                    }
+                }
+            };
+
+            if (form._cooldownInterval) {
+                clearInterval(form._cooldownInterval);
+            }
+
+            form.prepend(aviso);
+            atualizarTexto();
+            form._cooldownInterval = setInterval(atualizarTexto, 1000);
+        }
 
         function sairDaComunidadeBanida() {
             window.location.href = '../index.php';
@@ -862,6 +888,11 @@ if ($resultado_count) {
                 return;
             <?php endif; ?>
 
+            <?php if ($is_site_admin_user): ?>
+                alert('Administradores não podem curtir posts.');
+                return;
+            <?php endif; ?>
+
             fetch('../php/curtir_post.php', {
                 method: 'POST',
                 headers: {
@@ -873,6 +904,8 @@ if ($resultado_count) {
             .then(data => {
                 if (data.sucesso) {
                     location.reload();
+                } else if (data.mensagem) {
+                    alert(data.mensagem);
                 }
             })
             .catch(error => console.error('Erro:', error));
@@ -949,7 +982,10 @@ if ($resultado_count) {
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.limite_atingido) return;
+                    if (data.limite_atingido) {
+                        mostrarAvisoCooldown(formAtual, Number(data.retry_after) || 60, 'comentar');
+                        return;
+                    }
                     if (data.sucesso) {
                         location.reload();
                     } else if (data.mensagem && data.mensagem.toLowerCase().includes('seguir esta comunidade')) {
@@ -1028,7 +1064,10 @@ if ($resultado_count) {
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.limite_atingido) return;
+                    if (data.limite_atingido) {
+                        mostrarAvisoCooldown(formAtual, Number(data.retry_after) || 60, 'postar');
+                        return;
+                    }
                     if (data.sucesso) {
                         location.reload();
                     } else if (data.mensagem && data.mensagem.toLowerCase().includes('seguir esta comunidade')) {

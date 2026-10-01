@@ -199,11 +199,13 @@ if ($resultado_comentarios) {
                         </div>
                         <div class="post-date"><?= date('d/m/Y', strtotime($post['Data_post'])) ?></div>
                     </div>
-                    <?php if ($is_post_owner): ?>
+                    <?php if ($is_post_owner || $is_site_admin_user): ?>
                         <div class="post-menu-wrapper">
                             <button class="post-menu-toggle" type="button" aria-label="Opções do post" onclick="togglePostDetailMenu(this)">⋯</button>
                             <div class="post-menu-dropdown">
-                                <button class="post-menu-btn" type="button" onclick="abrirEdicaoPost()">Editar post</button>
+                                <?php if ($is_post_owner): ?>
+                                    <button class="post-menu-btn" type="button" onclick="abrirEdicaoPost()">Editar post</button>
+                                <?php endif; ?>
                                 <button class="post-menu-btn danger" type="button" onclick="abrirExclusaoPost()">Excluir post</button>
                             </div>
                         </div>
@@ -286,7 +288,7 @@ if ($resultado_comentarios) {
                                     <?php $is_post_owner = (int) $post['id_usuario'] === $id_usuario; ?>
                                     <?php $is_comentario_autor = (int) $comentario['id_usuario'] === $id_usuario; ?>
 
-                                    <?php if ($is_comentario_autor || $is_post_owner): ?>
+                                    <?php if ($is_comentario_autor || $is_post_owner || $is_site_admin_user): ?>
                                         <div class="post-menu-wrapper" style="margin-left:8px;">
                                             <button class="post-menu-toggle" type="button" aria-label="Opções do comentário" onclick="toggleCommentMenu(this)">⋯</button>
                                             <div class="post-menu-dropdown">
@@ -294,7 +296,7 @@ if ($resultado_comentarios) {
                                                     <button class="post-menu-btn" type="button" onclick="abrirEditorComentario(<?= $comentario['id_comentario'] ?>)">Editar</button>
                                                 <?php endif; ?>
 
-                                                <?php if ($is_comentario_autor || $is_post_owner): ?>
+                                                <?php if ($is_comentario_autor || $is_post_owner || $is_site_admin_user): ?>
                                                     <button class="post-menu-btn danger" type="button" onclick="excluirComentario(<?= $comentario['id_comentario'] ?>)">Excluir</button>
                                                 <?php endif; ?>
 
@@ -333,6 +335,35 @@ if ($resultado_comentarios) {
         const loginPostContent = document.getElementById('pop-div');
         const loginPostEnter = document.getElementById('btn-entrar-dialog');
         const loginPostRegister = document.getElementById('btn-cadastrar-dialog');
+
+        function mostrarAvisoCooldown(form, segundos, acao = 'comentar') {
+            if (!form) return;
+            const totalSegundos = Math.max(1, Number(segundos) || 1);
+            const aviso = form.querySelector('.rate-limit-warning') || document.createElement('div');
+            aviso.className = 'rate-limit-warning';
+            aviso.style.cssText = 'display:block; color:#b42318; background:#fee4e2; border:1px solid #fca5a5; border-radius:8px; padding:10px 12px; margin-bottom:10px; font-weight:700; line-height:1.4;';
+
+            const deadline = Date.now() + totalSegundos * 1000;
+            const atualizarTexto = () => {
+                const restante = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+                aviso.textContent = `Você precisa esperar ${restante} segundo(s) antes de ${acao} novamente.`;
+                if (restante <= 0) {
+                    aviso.remove();
+                    if (form._cooldownInterval) {
+                        clearInterval(form._cooldownInterval);
+                        form._cooldownInterval = null;
+                    }
+                }
+            };
+
+            if (form._cooldownInterval) {
+                clearInterval(form._cooldownInterval);
+            }
+
+            form.prepend(aviso);
+            atualizarTexto();
+            form._cooldownInterval = setInterval(atualizarTexto, 1000);
+        }
 
         function marcarAbaLoginPost(ativa) {
             loginPostEnter?.classList.toggle('active-tab', ativa === 'entrar');
@@ -673,6 +704,11 @@ if ($resultado_comentarios) {
                 return;
             <?php endif; ?>
 
+            <?php if ($is_site_admin_user): ?>
+                alert('Administradores não podem curtir posts.');
+                return;
+            <?php endif; ?>
+
             const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
 
             fetch('curtir_post.php', {
@@ -686,6 +722,8 @@ if ($resultado_comentarios) {
             .then(data => {
                 if (data.sucesso) {
                     location.reload();
+                } else if (data.mensagem) {
+                    alert(data.mensagem);
                 }
             })
             .catch(error => console.error('Erro:', error));
@@ -729,7 +767,10 @@ if ($resultado_comentarios) {
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.limite_atingido) return;
+                    if (data.limite_atingido) {
+                        mostrarAvisoCooldown(formAtual, Number(data.retry_after) || 60, 'comentar');
+                        return;
+                    }
                     if (data.sucesso) {
                         location.reload();
                     } else if (data.mensagem && data.mensagem.toLowerCase().includes('seguir esta comunidade')) {

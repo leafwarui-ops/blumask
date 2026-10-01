@@ -27,6 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     community_ban_response(['sucesso' => false, 'mensagem' => 'Método inválido.'], 405);
 }
 
+require_same_origin_for_state_change();
+
 if ($id_usuario <= 0) {
     community_ban_response(['sucesso' => false, 'mensagem' => 'Você precisa estar logado para banir alguém.'], 401);
 }

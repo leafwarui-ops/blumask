@@ -3,6 +3,7 @@ require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/community_bans.php";
+require_once __DIR__ . "/admin_helpers.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -16,6 +17,8 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     echo json_encode(["sucesso" => false, "mensagem" => "Método inválido."]);
     exit;
 }
+
+require_same_origin_for_state_change();
 
 // 2. Verificação de CSRF Token
 if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -33,6 +36,11 @@ global $conn;
 
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
 $id_post = intval($_POST['id_post'] ?? 0);
+
+if (is_site_admin($conn, $id_usuario)) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Administradores não podem curtir posts."]);
+    exit;
+}
 
 // 4. Validação
 if ($id_post <= 0) {
