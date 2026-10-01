@@ -7,6 +7,20 @@ require_once __DIR__ . "/admin_helpers.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
+function ensure_post_image_column(mysqli $conn): bool {
+    $result = $conn->query("SHOW COLUMNS FROM post LIKE 'imagem'");
+    if ($result && $result->num_rows > 0) {
+        return true;
+    }
+
+    return $conn->query("ALTER TABLE post ADD COLUMN imagem VARCHAR(255) NULL AFTER assunto") !== false;
+}
+
+if (!ensure_post_image_column($conn)) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Não foi possível preparar o campo de imagem do post."]);
+    exit;
+}
+
 // 1. Verificação de Autenticação
 if (!isset($_SESSION['usuario'])) {
     echo json_encode(["sucesso" => false, "mensagem" => "Você precisa estar logado para criar um post."]);
@@ -86,6 +100,58 @@ $conteudo = $conteudo_raw;
 $assunto_esc = mysqli_real_escape_string($conn, $assunto);
 $conteudo_esc = mysqli_real_escape_string($conn, $conteudo);
 
+$imagem_path = null;
+$uploadMaxBytes = 2 * 1024 * 1024;
+$allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'];
+
+if (isset($_FILES['imagem']) && is_array($_FILES['imagem']) && ($_FILES['imagem']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+    if ($_FILES['imagem']['error'] !== UPLOAD_ERR_OK) {
+        echo json_encode(["sucesso" => false, "mensagem" => "Erro ao receber a imagem do post."]);
+        exit;
+    }
+
+    if ((int) $_FILES['imagem']['size'] > $uploadMaxBytes) {
+        echo json_encode(["sucesso" => false, "mensagem" => "A imagem do post deve ter no máximo 2 MB."]);
+        exit;
+    }
+
+    $tmpName = $_FILES['imagem']['tmp_name'] ?? '';
+    $mimeType = function_exists('mime_content_type') ? mime_content_type($tmpName) : null;
+    $extension = strtolower(pathinfo($_FILES['imagem']['name'], PATHINFO_EXTENSION));
+    $validExtension = in_array($extension, ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'avif'], true);
+    if (!$tmpName || !is_uploaded_file($tmpName) || (!in_array($mimeType, $allowedMimeTypes, true) && !$validExtension)) {
+        echo json_encode(["sucesso" => false, "mensagem" => "Formato de imagem inválido. Use JPG, JPEG, JFIF, PNG, GIF, WEBP ou AVIF."]);
+        exit;
+    }
+
+    $uploadDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'posts';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0777, true);
+    }
+
+    $ext = strtolower(pathinfo($_FILES['imagem']['name'], PATHINFO_EXTENSION));
+    if ($ext === '') {
+        $ext = match ($mimeType) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            'image/avif' => 'avif',
+            default => 'jpg',
+        };
+    }
+
+    $fileName = uniqid('post_', true) . '.' . $ext;
+    $destination = $uploadDir . DIRECTORY_SEPARATOR . $fileName;
+
+    if (!move_uploaded_file($tmpName, $destination)) {
+        echo json_encode(["sucesso" => false, "mensagem" => "Não foi possível salvar a imagem do post."]);
+        exit;
+    }
+
+    $imagem_path = 'uploads/posts/' . $fileName;
+}
+
 // 8. Inserir o post
 if (!ensure_activity_timestamp_columns($conn)) {
     echo json_encode(["sucesso" => false, "mensagem" => "Não foi possível preparar a data do post."]);
@@ -112,8 +178,10 @@ if (!$postingLimit['allowed']) {
 }
 
 $data_post = date("Y-m-d H:i:s");
-$sql_insert = "INSERT INTO post (id_comunidade, Data_post, conteudo, id_usuario, assunto)
-               VALUES ($id_comunidade, '$data_post', '$conteudo_esc', $id_usuario, '$assunto_esc')";
+$imagem_sql = $imagem_path ? ", imagem" : "";
+$imagem_value = $imagem_path ? ", '" . mysqli_real_escape_string($conn, $imagem_path) . "'" : "";
+$sql_insert = "INSERT INTO post (id_comunidade, Data_post, conteudo, id_usuario, assunto" . $imagem_sql . ")
+               VALUES ($id_comunidade, '$data_post', '$conteudo_esc', $id_usuario, '$assunto_esc'" . $imagem_value . ")";
 
 if (mysqli_query($conn, $sql_insert)) {
     $id_post = mysqli_insert_id($conn);

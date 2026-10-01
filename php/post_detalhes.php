@@ -177,10 +177,7 @@ if ($resultado_comentarios) {
                             <div id="notificationList" class="notification-list"></div>
                         </div>
                     </div>
-                    <a href="comunidade.php?id=<?= intval($post['id_comunidade']) ?>" style="text-decoration: none; color: #ffffff; font-weight: bold; font-size: 14px;">Voltar para a comunidade</a>
                 </div>
-            <?php else: ?>
-                <a href="comunidade.php?id=<?= intval($post['id_comunidade']) ?>" style="text-decoration: none; color: #ffffff; font-weight: bold; font-size: 14px;">Voltar para a comunidade</a>
             <?php endif; ?>
         </header>
 
@@ -243,6 +240,15 @@ if ($resultado_comentarios) {
                 </div>
                 <h2 class="post-detail-title"><?= htmlspecialchars($post['assunto'], ENT_QUOTES, 'UTF-8', false) ?></h2>
                 <div class="post-content"><?= htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8', false) ?></div>
+
+                <?php if (!empty($post['imagem'])): ?>
+                    <?php $post_imagem_url = resolve_media_url($post['imagem'] ?? '', '', '../'); ?>
+                    <?php if ($post_imagem_url !== ''): ?>
+                        <div class="post-image-wrap">
+                            <img class="post-image" src="<?= $post_imagem_url ?>" alt="Imagem do post">
+                        </div>
+                    <?php endif; ?>
+                <?php endif; ?>
 
                 <div class="post-actions post-detail-actions">
                     <span class="post-action" onclick="curtirPost(<?= $post['id_post'] ?>, this)">
@@ -863,8 +869,15 @@ if ($resultado_comentarios) {
 
             const setBadge = (count) => {
                 const total = Number(count) || 0;
+                if (total <= 0) {
+                    badge.textContent = '';
+                    badge.style.display = 'none';
+                    badge.setAttribute('aria-hidden', 'true');
+                    return;
+                }
                 badge.textContent = total > 99 ? '99+' : String(total);
-                badge.style.display = total > 0 ? 'flex' : 'none';
+                badge.style.display = 'flex';
+                badge.setAttribute('aria-hidden', 'false');
             };
 
             const renderNotifications = (items = []) => {
@@ -877,7 +890,10 @@ if ($resultado_comentarios) {
                     const author = escapeHtml(item.nome_remetente || 'Alguém');
                     const avatarUrl = escapeHtml(item.foto_perfil || '');
                     const message = escapeHtml(item.mensagem || 'Nova notificação.');
-                    const postLink = item.id_post ? `post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}` : '../index.php';
+                    const targetCommentId = Number(item.id_comentario) || 0;
+                    const postLink = item.id_post
+                        ? `post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}${targetCommentId ? `#comment-${encodeURIComponent(targetCommentId)}` : ''}`
+                        : '../index.php';
                     const initial = (String(item.nome_remetente || 'A').trim().charAt(0) || 'A').toUpperCase();
                     const avatarMarkup = avatarUrl
                         ? `<img src="${avatarUrl}" alt="${author}">`

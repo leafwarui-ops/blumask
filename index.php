@@ -232,6 +232,7 @@ $sql_recent_posts = "SELECT
     p.Data_post,
     p.conteudo,
     p.assunto,
+    p.imagem,
     c.nome AS nome_comunidade,
     c.imagem AS imagem_comunidade,
     (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) AS total_curtidas,
@@ -281,6 +282,7 @@ if ($id_usuario_logado > 0) {
         p.Data_post,
         p.conteudo,
         p.assunto,
+        p.imagem,
         c.nome AS nome_comunidade,
         c.imagem AS imagem_comunidade,
         (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) AS total_curtidas,
@@ -357,7 +359,7 @@ if ($id_usuario_logado > 0) {
         .notification-badge {
             position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px;
             border-radius: 999px; background: linear-gradient(180deg, #ff4d4d, #d62828); color: #fff; font-size: 0.68rem;
-            font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid #567fd9;
+            font-weight: 800; display: none; align-items: center; justify-content: center; border: 2px solid #567fd9;
             box-shadow: 0 6px 12px rgba(214, 40, 40, 0.35);
         }
         .notification-menu {
@@ -638,6 +640,15 @@ if ($id_usuario_logado > 0) {
 
                     <div class="post-content"><?= $conteudo ?></div>
 
+                    <?php if (!empty($post['imagem'])): ?>
+                      <?php $post_imagem_url = resolve_index_asset_url($post['imagem'] ?? '', ''); ?>
+                      <?php if ($post_imagem_url !== ''): ?>
+                        <div class="post-image-wrap">
+                          <img class="post-image" src="<?= $post_imagem_url ?>" alt="Imagem do post" loading="lazy">
+                        </div>
+                      <?php endif; ?>
+                    <?php endif; ?>
+
                     <div class="post-actions">
                       <button type="button" class="post-action btn-curtir-action <?= $curtiu ? 'curtido' : '' ?>" onclick="event.stopPropagation(); curtirPostRecente(<?= $id_post ?>, this)" title="<?= $curtiu ? 'Descurtir post' : 'Curtir post' ?>">
                         <span class="like-icon"><?= $curtiu ? '❤️' : '🤍' ?></span>
@@ -799,6 +810,15 @@ if ($id_usuario_logado > 0) {
                     <?php endif; ?>
 
                     <div class="post-content"><?= $conteudo ?></div>
+
+                    <?php if (!empty($post['imagem'])): ?>
+                      <?php $post_imagem_url = resolve_index_asset_url($post['imagem'] ?? '', ''); ?>
+                      <?php if ($post_imagem_url !== ''): ?>
+                        <div class="post-image-wrap">
+                          <img class="post-image" src="<?= $post_imagem_url ?>" alt="Imagem do post" loading="lazy">
+                        </div>
+                      <?php endif; ?>
+                    <?php endif; ?>
 
                     <div class="post-actions">
                       <button type="button" class="post-action btn-curtir-action <?= $curtiu ? 'curtido' : '' ?>" onclick="event.stopPropagation(); curtirPostRecente(<?= $id_post ?>, this)" title="<?= $curtiu ? 'Descurtir post' : 'Curtir post' ?>">
@@ -1329,8 +1349,15 @@ if ($id_usuario_logado > 0) {
 
             const setBadge = (count) => {
                 const total = Number(count) || 0;
+                if (total <= 0) {
+                    badge.textContent = '';
+                    badge.style.display = 'none';
+                    badge.setAttribute('aria-hidden', 'true');
+                    return;
+                }
                 badge.textContent = total > 99 ? '99+' : String(total);
-                badge.style.display = total > 0 ? 'flex' : 'none';
+                badge.style.display = 'flex';
+                badge.setAttribute('aria-hidden', 'false');
             };
 
             const renderNotifications = (items = []) => {
@@ -1343,7 +1370,10 @@ if ($id_usuario_logado > 0) {
                     const author = escapeHtml(item.nome_remetente || 'Alguém');
                     const avatarUrl = escapeHtml(item.foto_perfil || '');
                     const message = escapeHtml(item.mensagem || 'Nova notificação.');
-                    const postLink = item.id_post ? `php/post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}` : 'index.php';
+                    const targetCommentId = Number(item.id_comentario) || 0;
+                    const postLink = item.id_post
+                        ? `php/post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}${targetCommentId ? `#comment-${encodeURIComponent(targetCommentId)}` : ''}`
+                        : 'index.php';
                     const initial = (String(item.nome_remetente || 'A').trim().charAt(0) || 'A').toUpperCase();
                     const avatarMarkup = avatarUrl
                         ? `<img src="${avatarUrl}" alt="${author}">`

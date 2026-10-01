@@ -1,5 +1,3 @@
-create database bd_blumask character set utf8mb4 collate utf8mb4_unicode_ci;
-use bd_blumask;
 
 create table usuario(
 id_usuario int primary key auto_increment,

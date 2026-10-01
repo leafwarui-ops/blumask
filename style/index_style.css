@@ -1095,44 +1095,48 @@
 
   .notification-bell {
     position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 46px;
-    height: 46px;
-    border: 1px solid rgba(38, 57, 90, 0.12);
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.96);
-    color: #1d2a39;
+    width: 46px !important;
+    height: 46px !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.09)) !important;
+    color: #fff !important;
     cursor: pointer;
-    box-shadow: 0 8px 18px rgba(18, 31, 58, 0.18);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    font-size: 1.2rem;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.15rem !important;
+    padding: 0 !important;
+    box-shadow: 0 8px 18px rgba(16, 30, 49, 0.18) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+    appearance: none;
+    -webkit-appearance: none;
   }
 
   .notification-bell:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 10px 24px rgba(18, 31, 58, 0.2);
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 10px 22px rgba(16, 30, 49, 0.24) !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.12)) !important;
   }
 
   .notification-badge {
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    border-radius: 999px;
-    background: linear-gradient(135deg, #ff4d4f, #d92828);
-    color: #fff;
-    font-size: 0.68rem;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid #fff;
-    box-shadow: 0 6px 12px rgba(214, 40, 40, 0.35);
-    line-height: 1;
+    position: absolute !important;
+    top: -6px !important;
+    right: -4px !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    padding: 0 5px !important;
+    border-radius: 999px !important;
+    background: linear-gradient(180deg, #ff4d4d, #d62828) !important;
+    color: #fff !important;
+    font-size: 0.68rem !important;
+    font-weight: 800 !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 2px solid #567fd9 !important;
+    box-shadow: 0 6px 12px rgba(214, 40, 40, 0.35) !important;
+    line-height: 1 !important;
   }
 
   .notification-menu {
@@ -1146,6 +1150,31 @@
     box-shadow: 0 18px 40px rgba(16, 30, 49, 0.18);
     z-index: 40;
     overflow: hidden;
+  }
+
+  @media (max-width: 520px) {
+    .topbar-right {
+      position: static;
+    }
+
+    .notification-wrapper {
+      position: static;
+    }
+
+    .notification-menu {
+      position: fixed !important;
+      left: 50% !important;
+      right: auto !important;
+      top: 72px !important;
+      transform: translateX(-50%) !important;
+      width: min(320px, calc(100vw - 18px)) !important;
+      max-height: min(68vh, 420px) !important;
+      z-index: 120 !important;
+    }
+
+    .notification-list {
+      max-height: min(60vh, 360px);
+    }
   }
 
   .notification-header {

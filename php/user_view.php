@@ -110,6 +110,7 @@ if ($profileUser) {
                 p.Data_post,
                 p.conteudo,
                 p.assunto,
+                p.imagem,
                 c.nome AS nome_comunidade,
                 c.imagem AS imagem_comunidade,
                 u.nome_de_exibicao,
@@ -163,6 +164,7 @@ if ($profileUser) {
             p.Data_post,
             p.conteudo,
             p.assunto,
+            p.imagem,
             c.nome AS nome_comunidade,
             c.imagem AS imagem_comunidade,
             u.nome_de_exibicao,
@@ -439,6 +441,15 @@ function userAvatar($user) {
 
                       <div class="post-content"><?= $conteudo ?></div>
 
+                      <?php if (!empty($post['imagem'])): ?>
+                        <?php $postImageUrl = resolve_asset_url($post['imagem'] ?? '', ''); ?>
+                        <?php if ($postImageUrl !== ''): ?>
+                          <div class="post-image-wrap">
+                            <img class="post-image" src="<?= $postImageUrl ?>" alt="Imagem do post" loading="lazy">
+                          </div>
+                        <?php endif; ?>
+                      <?php endif; ?>
+
                       <div class="post-actions">
                         <button type="button" class="post-action btn-curtir-action <?= $curtiu ? 'curtido' : '' ?>" onclick="curtirPostRecente(<?= $id_post ?>, this)" title="<?= $curtiu ? 'Descurtir post' : 'Curtir post' ?>">
                           <span class="like-icon"><?= $curtiu ? '❤️' : '🤍' ?></span>
@@ -559,6 +570,15 @@ function userAvatar($user) {
                       <?php endif; ?>
 
                       <div class="post-content"><?= $conteudo ?></div>
+
+                      <?php if (!empty($post['imagem'])): ?>
+                        <?php $postImageUrl = resolve_asset_url($post['imagem'] ?? '', ''); ?>
+                        <?php if ($postImageUrl !== ''): ?>
+                          <div class="post-image-wrap">
+                            <img class="post-image" src="<?= $postImageUrl ?>" alt="Imagem do post" loading="lazy">
+                          </div>
+                        <?php endif; ?>
+                      <?php endif; ?>
 
                       <div class="post-actions">
                         <button type="button" class="post-action btn-curtir-action <?= $curtiu ? 'curtido' : '' ?>" onclick="curtirPostRecente(<?= $id_post ?>, this)" title="<?= $curtiu ? 'Descurtir post' : 'Curtir post' ?>">
@@ -838,8 +858,15 @@ function userAvatar($user) {
 
         const setBadge = (count) => {
             const total = Number(count) || 0;
+            if (total <= 0) {
+                badge.textContent = '';
+                badge.style.display = 'none';
+                badge.setAttribute('aria-hidden', 'true');
+                return;
+            }
             badge.textContent = total > 99 ? '99+' : String(total);
-            badge.style.display = total > 0 ? 'flex' : 'none';
+            badge.style.display = 'flex';
+            badge.setAttribute('aria-hidden', 'false');
         };
 
         const renderNotifications = (items = []) => {
@@ -852,7 +879,10 @@ function userAvatar($user) {
                 const author = escapeHtml(item.nome_remetente || 'Alguém');
                 const avatarUrl = escapeHtml(item.foto_perfil || '');
                 const message = escapeHtml(item.mensagem || 'Nova notificação.');
-                const postLink = item.id_post ? `post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}` : '../index.php';
+                const targetCommentId = Number(item.id_comentario) || 0;
+                const postLink = item.id_post
+                    ? `post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}${targetCommentId ? `#comment-${encodeURIComponent(targetCommentId)}` : ''}`
+                    : '../index.php';
                 const initial = (String(item.nome_remetente || 'A').trim().charAt(0) || 'A').toUpperCase();
                 const avatarMarkup = avatarUrl
                     ? `<img src="${avatarUrl}" alt="${author}">`

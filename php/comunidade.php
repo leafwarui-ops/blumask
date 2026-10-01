@@ -326,13 +326,21 @@ if ($resultado_count) {
                         <!-- Área para criar novo post (apenas para membros) -->
                         <div class="form-novo-post" id="formContainer">
                             <h3>Criar novo post</h3>
-                            <form id="formNovoPost">
+                            <form id="formNovoPost" enctype="multipart/form-data">
                                 <input type="hidden" name="csrf_token" value="<?php echo isset($_SESSION['csrf_token']) ? htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') : ''; ?>">
                                 <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
                                 
                                 <input type="text" id="novo-post-assunto" name="assunto" placeholder="Título do post (mín. 3 caracteres)" minlength="3" maxlength="150" required>
                                 
                                 <textarea id="novo-post-conteudo" name="conteudo" placeholder="O que você quer compartilhar? (mín. 5 caracteres)" minlength="5" maxlength="5000" required></textarea>
+
+                                <div class="novo-post-upload">
+                                    <label class="novo-post-upload-btn" for="novo-post-imagem">Anexar imagem</label>
+                                    <input type="file" id="novo-post-imagem" name="imagem" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" hidden>
+                                    <div id="novo-post-preview" class="novo-post-preview" style="display: none;">
+                                        <img id="novo-post-preview-img" src="" alt="Preview da imagem do post">
+                                    </div>
+                                </div>
                                 
                                 <div class="form-novo-post-actions">
                                     <button type="button" class="btn-descartar" onclick="descartarNovoPost()">Descartar</button>
@@ -413,6 +421,15 @@ if ($resultado_count) {
                                 <?php endif; ?>
                                 <div class="post-title"><?= htmlspecialchars($post['assunto'] ?? 'Sem assunto', ENT_QUOTES, 'UTF-8', false) ?></div>
                                 <div class="post-content"><?= htmlspecialchars($post['conteudo'], ENT_QUOTES, 'UTF-8', false) ?></div>
+
+                                <?php if (!empty($post['imagem'])): ?>
+                                    <?php $post_imagem_url = resolve_media_url($post['imagem'] ?? '', '', '../'); ?>
+                                    <?php if ($post_imagem_url !== ''): ?>
+                                        <div class="post-image-wrap">
+                                            <img class="post-image" src="<?= $post_imagem_url ?>" alt="Imagem do post">
+                                        </div>
+                                    <?php endif; ?>
+                                <?php endif; ?>
 
                                 <div class="post-actions">
                                     <span class="post-action" <?= $is_site_admin_user ? 'aria-disabled="true" style="cursor:default; opacity:0.8;"' : 'onclick="curtirPost(' . $post['id_post'] . ', this)"' ?>>
@@ -837,7 +854,13 @@ if ($resultado_count) {
         function descartarNovoPost() {
             const form = document.getElementById('formNovoPost');
             const formContainer = document.getElementById('formContainer');
+            const inputImagemPost = document.getElementById('novo-post-imagem');
+            const previewImagemPost = document.getElementById('novo-post-preview');
+            const previewImagemPostImg = document.getElementById('novo-post-preview-img');
             if (form) form.reset();
+            if (inputImagemPost) inputImagemPost.value = '';
+            if (previewImagemPostImg) previewImagemPostImg.src = '';
+            if (previewImagemPost) previewImagemPost.style.display = 'none';
             if (formContainer) formContainer.classList.remove('ativo');
         }
 
@@ -1046,6 +1069,48 @@ if ($resultado_count) {
 
         // ===== NEW POST FORM =====
         const formNovoPost = document.getElementById('formNovoPost');
+        const inputImagemPost = document.getElementById('novo-post-imagem');
+        const previewImagemPost = document.getElementById('novo-post-preview');
+        const previewImagemPostImg = document.getElementById('novo-post-preview-img');
+        const maxPostImageSize = 2 * 1024 * 1024;
+
+        if (inputImagemPost) {
+            inputImagemPost.addEventListener('change', function() {
+                const file = this.files && this.files[0];
+                if (!file) {
+                    if (previewImagemPost) previewImagemPost.style.display = 'none';
+                    return;
+                }
+
+                if (file.size > maxPostImageSize) {
+                    alert('A imagem do post deve ter no máximo 2 MB para não ficar muito pesada.');
+                    this.value = '';
+                    if (previewImagemPost) previewImagemPost.style.display = 'none';
+                    return;
+                }
+
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'];
+                const allowedExtensions = ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'avif'];
+                if ((!allowedTypes.includes(file.type) && !(file.name && allowedExtensions.some(ext => file.name.toLowerCase().endsWith('.' + ext)))) || !file.type) {
+                    alert('Formato inválido. Use JPG, JPEG, JFIF, PNG, GIF, WEBP ou AVIF.');
+                    this.value = '';
+                    if (previewImagemPost) previewImagemPost.style.display = 'none';
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    if (previewImagemPostImg) {
+                        previewImagemPostImg.src = event.target.result;
+                    }
+                    if (previewImagemPost) {
+                        previewImagemPost.style.display = 'block';
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
         if (formNovoPost) {
             formNovoPost.addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -1257,8 +1322,15 @@ if ($resultado_count) {
 
             const setBadge = (count) => {
                 const total = Number(count) || 0;
+                if (total <= 0) {
+                    badge.textContent = '';
+                    badge.style.display = 'none';
+                    badge.setAttribute('aria-hidden', 'true');
+                    return;
+                }
                 badge.textContent = total > 99 ? '99+' : String(total);
-                badge.style.display = total > 0 ? 'flex' : 'none';
+                badge.style.display = 'flex';
+                badge.setAttribute('aria-hidden', 'false');
             };
 
             const renderNotifications = (items = []) => {
@@ -1271,7 +1343,10 @@ if ($resultado_count) {
                     const author = escapeHtml(item.nome_remetente || 'Alguém');
                     const avatarUrl = escapeHtml(item.foto_perfil || '');
                     const message = escapeHtml(item.mensagem || 'Nova notificação.');
-                    const postLink = item.id_post ? `post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}` : '../index.php';
+                    const targetCommentId = Number(item.id_comentario) || 0;
+                    const postLink = item.id_post
+                        ? `post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}${targetCommentId ? `#comment-${encodeURIComponent(targetCommentId)}` : ''}`
+                        : '../index.php';
                     const initial = (String(item.nome_remetente || 'A').trim().charAt(0) || 'A').toUpperCase();
                     const avatarMarkup = avatarUrl
                         ? `<img src="${avatarUrl}" alt="${author}">`

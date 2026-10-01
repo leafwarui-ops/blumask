@@ -159,15 +159,24 @@ function delete_user_account_data(mysqli $conn, int $userId, array $user, ?strin
         }
         $run("DELETE l FROM curtida l
             LEFT JOIN post p ON p.id_post = l.id_post
-            WHERE l.id_usuario = $userId OR p.id_usuario = $userId");
+            LEFT JOIN comunidade c ON c.id_comunidade = p.id_comunidade
+            WHERE l.id_usuario = $userId
+               OR p.id_usuario = $userId
+               OR c.id_usuario = $userId");
         $run("DELETE c FROM comentario c
             LEFT JOIN post p ON p.id_post = c.id_post
-            WHERE c.id_usuario = $userId OR p.id_usuario = $userId");
-        $run("DELETE FROM post WHERE id_usuario = $userId");
-        $run("DELETE FROM membro_comunidade WHERE id_usuario = $userId");
-        $run("DELETE FROM banimento_comunidade WHERE id_usuario = $userId OR id_usuario_baniu = $userId");
+            LEFT JOIN comunidade comu ON comu.id_comunidade = p.id_comunidade
+            WHERE c.id_usuario = $userId
+               OR p.id_usuario = $userId
+               OR comu.id_usuario = $userId");
+        $run("DELETE p FROM post p
+            LEFT JOIN comunidade comu ON comu.id_comunidade = p.id_comunidade
+            WHERE p.id_usuario = $userId OR comu.id_usuario = $userId");
+        $run("DELETE FROM membro_comunidade WHERE id_usuario = $userId OR id_comunidade IN (SELECT id_comunidade FROM comunidade WHERE id_usuario = $userId)");
+        $run("DELETE FROM banimento_comunidade WHERE id_usuario = $userId OR id_usuario_baniu = $userId OR id_comunidade IN (SELECT id_comunidade FROM comunidade WHERE id_usuario = $userId)");
+        $run("DELETE FROM notificacao WHERE id_usuario = $userId OR id_remetente = $userId");
         $run("DELETE FROM mensagem_administrativa WHERE id_destinatario = $userId OR id_remetente = $userId");
-        $run("UPDATE comunidade SET id_usuario = NULL WHERE id_usuario = $userId");
+        $run("DELETE FROM comunidade WHERE id_usuario = $userId");
         $run("DELETE FROM usuario WHERE id_usuario = $userId AND is_admin = 0");
 
         if ($conn->affected_rows !== 1) {
