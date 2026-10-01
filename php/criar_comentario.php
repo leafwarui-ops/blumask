@@ -46,7 +46,7 @@ if (mb_strlen($conteudo_raw) < 2 || mb_strlen($conteudo_raw) > 2000) {
     exit;
 }
 
-$sql_check_post = "SELECT p.id_post, p.id_comunidade FROM post p WHERE p.id_post = $id_post LIMIT 1";
+$sql_check_post = "SELECT p.id_post, p.id_comunidade, p.id_usuario AS post_autor_id FROM post p WHERE p.id_post = $id_post LIMIT 1";
 $resultado_post = mysqli_query($conn, $sql_check_post);
 
 if (!$resultado_post || mysqli_num_rows($resultado_post) === 0) {
@@ -56,6 +56,7 @@ if (!$resultado_post || mysqli_num_rows($resultado_post) === 0) {
 
 $post = mysqli_fetch_assoc($resultado_post);
 $id_comunidade = intval($post['id_comunidade']);
+$post_autor_id = intval($post['post_autor_id'] ?? 0);
 
 if (is_user_banned_from_community($conn, $id_usuario, $id_comunidade)) {
     echo json_encode(["sucesso" => false, "mensagem" => "Você foi banido desta comunidade e não pode comentar."]);
@@ -102,6 +103,15 @@ $data_comentario = date('Y-m-d H:i:s');
 $sql_insert = "INSERT INTO comentario (id_usuario, id_post, conteudo, data_comentario) VALUES ($id_usuario, $id_post, '$conteudo_esc', '$data_comentario')";
 
 if (mysqli_query($conn, $sql_insert)) {
+    $id_comentario = (int) $conn->insert_id;
+
+    if ($post_autor_id > 0 && $post_autor_id !== $id_usuario) {
+        $nome_autor = trim((string) ($_SESSION['usuario']['nome_de_exibicao'] ?? ''));
+        $nome_mensagem = $nome_autor !== '' ? $nome_autor : 'Alguém';
+        $mensagem = $nome_mensagem . ' comentou no seu post.';
+        create_post_comment_notification($conn, $post_autor_id, $id_usuario, $id_post, $id_comentario, $mensagem);
+    }
+
     echo json_encode(["sucesso" => true, "mensagem" => "Comentário enviado com sucesso!"]);
 } else {
     echo json_encode(["sucesso" => false, "mensagem" => "Erro ao cadastrar comentário."]);

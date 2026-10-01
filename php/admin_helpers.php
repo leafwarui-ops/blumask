@@ -17,6 +17,59 @@ function ensure_admin_schema($conn) {
     }
 }
 
+function ensure_notification_schema($conn) {
+    $sql = "CREATE TABLE IF NOT EXISTS notificacao (
+        id_notificacao INT PRIMARY KEY AUTO_INCREMENT,
+        id_usuario INT NOT NULL,
+        id_remetente INT NULL,
+        id_post INT NULL,
+        id_comentario INT NULL,
+        tipo VARCHAR(40) NOT NULL DEFAULT 'comentario',
+        mensagem TEXT NOT NULL,
+        lida TINYINT(1) NOT NULL DEFAULT 0,
+        criada_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_notificacao_comentario (id_usuario, id_post, id_comentario, tipo),
+        KEY idx_notificacao_usuario_lida (id_usuario, lida, criada_em),
+        KEY idx_notificacao_post (id_post),
+        CONSTRAINT fk_notificacao_destinatario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+        CONSTRAINT fk_notificacao_remetente FOREIGN KEY (id_remetente) REFERENCES usuario(id_usuario) ON DELETE SET NULL,
+        CONSTRAINT fk_notificacao_post FOREIGN KEY (id_post) REFERENCES post(id_post) ON DELETE CASCADE,
+        CONSTRAINT fk_notificacao_comentario FOREIGN KEY (id_comentario) REFERENCES comentario(id_comentario) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
+
+    return $conn->query($sql) !== false;
+}
+
+function create_post_comment_notification(mysqli $conn, int $destinatarioId, int $remetenteId, int $postId, int $comentarioId, ?string $mensagem = null): bool {
+    if ($destinatarioId <= 0 || $remetenteId <= 0 || $postId <= 0 || $comentarioId <= 0 || $destinatarioId === $remetenteId) {
+        return false;
+    }
+
+    ensure_notification_schema($conn);
+
+    $textoMensagem = trim((string) ($mensagem ?? ''));
+    if ($textoMensagem === '') {
+        $textoMensagem = 'comentou no seu post.';
+    }
+
+    $tipo = 'comentario';
+    $mensagemEscapada = $conn->real_escape_string($textoMensagem);
+
+    $stmt = $conn->prepare("INSERT INTO notificacao (id_usuario, id_remetente, id_post, id_comentario, tipo, mensagem, lida, criada_em)
+        VALUES (?, ?, ?, ?, ?, ?, 0, NOW())
+        ON DUPLICATE KEY UPDATE mensagem = VALUES(mensagem), lida = 0, criada_em = NOW()");
+
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param('iiiiss', $destinatarioId, $remetenteId, $postId, $comentarioId, $tipo, $mensagemEscapada);
+    $executado = $stmt->execute();
+    $stmt->close();
+
+    return $executado;
+}
+
 function is_user_suspended($user) {
     $suspensoAte = trim((string) ($user['suspenso_ate'] ?? ''));
     if ($suspensoAte === '') {

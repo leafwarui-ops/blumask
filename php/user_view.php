@@ -264,7 +264,23 @@ function userAvatar($user) {
             $headerAvatar = !empty($loggedUser['foto_perfil'])
               ? resolve_asset_url($loggedUser['foto_perfil'], "https://ui-avatars.com/api/?name=" . urlencode(($loggedUser['nome_de_exibicao'] ?? $loggedUser['nome_de_usuario'] ?? 'User')) . "&background=random")
               : "https://ui-avatars.com/api/?name=" . urlencode(($loggedUser['nome_de_exibicao'] ?? $loggedUser['nome_de_usuario'] ?? 'User')) . "&background=random";
+            $userUnreadNotifications = 0;
+            $userUnreadResult = mysqli_query($conn, "SELECT COUNT(*) AS total FROM notificacao WHERE id_usuario = " . intval($_SESSION['usuario']['id_usuario']) . " AND lida = 0 LIMIT 1");
+            if ($userUnreadResult && $userUnreadResult->num_rows > 0) {
+              $userUnreadRow = mysqli_fetch_assoc($userUnreadResult);
+              $userUnreadNotifications = (int) ($userUnreadRow['total'] ?? 0);
+            }
           ?>
+          <div class="notification-wrapper">
+            <button type="button" id="notificationBellButton" class="notification-bell" aria-label="Notificações" aria-expanded="false">
+              <span aria-hidden="true">🔔</span>
+              <span id="notificationBadge" class="notification-badge" style="display: <?= $userUnreadNotifications > 0 ? 'flex' : 'none'; ?>;"><?= $userUnreadNotifications > 99 ? '99+' : $userUnreadNotifications ?></span>
+            </button>
+            <div id="notificationMenu" class="notification-menu" style="display:none;" role="menu" aria-live="polite">
+              <div class="notification-header">Notificações</div>
+              <div id="notificationList" class="notification-list"></div>
+            </div>
+          </div>
           <button class="profile-avatar-button" type="button" onclick="window.location.href='../index.php'" title="Voltar para o início" aria-label="Voltar para o início">
             <img src="<?= $headerAvatar ?>" alt="Foto do perfil">
           </button>
@@ -434,7 +450,7 @@ function userAvatar($user) {
                             <span>Desfixar</span>
                           </button>
                         <?php endif; ?>
-                        <a href="post_detalhes.php?id_post=<?= $id_post ?>" class="post-action post-comment-action" title="Ver post completo">
+                        <a href="post_detalhes.php?id_post=<?= $id_post ?>#formComentarioDetalhe" class="post-action post-comment-action" title="Comentar neste post" onclick="event.stopPropagation();">
                           <span class="comment-icon">💬</span>
                           <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
                         </a>
@@ -549,7 +565,7 @@ function userAvatar($user) {
                           <span class="like-icon"><?= $curtiu ? '❤️' : '🤍' ?></span>
                           <span class="like-count"><?= $total_curtidas ?></span>
                         </button>
-                        <a href="post_detalhes.php?id_post=<?= $id_post ?>" class="post-action post-comment-action" title="Ver post completo">
+                        <a href="post_detalhes.php?id_post=<?= $id_post ?>#formComentarioDetalhe" class="post-action post-comment-action" title="Comentar neste post" onclick="event.stopPropagation();">
                           <span class="comment-icon">💬</span>
                           <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
                         </a>
@@ -801,6 +817,113 @@ function userAvatar($user) {
             });
         });
     });
+
+    (function() {
+        const bellButton = document.getElementById('notificationBellButton');
+        const notificationMenu = document.getElementById('notificationMenu');
+        const notificationList = document.getElementById('notificationList');
+        const badge = document.getElementById('notificationBadge');
+        const csrfToken = '<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>';
+
+        if (!bellButton || !notificationMenu || !notificationList || !badge) {
+            return;
+        }
+
+        const escapeHtml = (value = '') => String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        const setBadge = (count) => {
+            const total = Number(count) || 0;
+            badge.textContent = total > 99 ? '99+' : String(total);
+            badge.style.display = total > 0 ? 'flex' : 'none';
+        };
+
+        const renderNotifications = (items = []) => {
+            if (!items.length) {
+                notificationList.innerHTML = '<div class="notification-empty">Nenhuma notificação ainda.</div>';
+                return;
+            }
+
+            notificationList.innerHTML = items.map((item) => {
+                const author = escapeHtml(item.nome_remetente || 'Alguém');
+                const avatarUrl = escapeHtml(item.foto_perfil || '');
+                const message = escapeHtml(item.mensagem || 'Nova notificação.');
+                const postLink = item.id_post ? `post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}` : '../index.php';
+                const initial = (String(item.nome_remetente || 'A').trim().charAt(0) || 'A').toUpperCase();
+                const avatarMarkup = avatarUrl
+                    ? `<img src="${avatarUrl}" alt="${author}">`
+                    : `<span>${escapeHtml(initial)}</span>`;
+
+                return `
+                    <a href="${postLink}" class="notification-item ${item.lida ? 'is-read' : 'is-unread'}">
+                        <div class="notification-item-avatar">${avatarMarkup}</div>
+                        <div class="notification-item-content">
+                            <strong>${author}</strong>
+                            <span>${message}</span>
+                        </div>
+                    </a>
+                `;
+            }).join('');
+        };
+
+        const loadNotifications = async () => {
+            try {
+                const response = await fetch('notificacoes.php?action=list&limit=20', { credentials: 'same-origin' });
+                if (!response.ok) {
+                    return;
+                }
+                const data = await response.json();
+                if (!data || !data.ok) {
+                    return;
+                }
+                renderNotifications(data.notifications || []);
+                setBadge(data.unread_count || 0);
+            } catch (error) {
+                console.error('Erro ao carregar notificações:', error);
+            }
+        };
+
+        const markNotificationsAsRead = async () => {
+            try {
+                const response = await fetch('notificacoes.php', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                    body: new URLSearchParams({ action: 'read', csrf_token: csrfToken }).toString()
+                });
+
+                if (response.ok) {
+                    await loadNotifications();
+                }
+            } catch (error) {
+                console.error('Erro ao marcar notificações como lidas:', error);
+            }
+        };
+
+        bellButton.addEventListener('click', async () => {
+            const isOpen = notificationMenu.style.display === 'block';
+            notificationMenu.style.display = isOpen ? 'none' : 'block';
+            bellButton.setAttribute('aria-expanded', String(!isOpen));
+
+            if (!isOpen) {
+                await markNotificationsAsRead();
+            }
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!bellButton.contains(event.target) && !notificationMenu.contains(event.target)) {
+                notificationMenu.style.display = 'none';
+                bellButton.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        loadNotifications();
+        window.setInterval(loadNotifications, 30000);
+    })();
   </script>
 </body>
 </html>

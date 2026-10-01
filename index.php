@@ -10,6 +10,7 @@ ensure_admin_schema($conn);
 ensure_admin_user($conn);
 ensure_profile_pin_tables($conn);
 ensure_activity_timestamp_columns($conn);
+ensure_notification_schema($conn);
 
 $siteNoticeMessage = '';
 if (!empty($_COOKIE['blumask_notice'])) {
@@ -339,6 +340,55 @@ if ($id_usuario_logado > 0) {
     <link rel="stylesheet" href="style/index_style.css?v=<?= time() ?>">
     <link rel="stylesheet" href="style/comunidade_style.css?v=<?= time() ?>">
     <link rel="stylesheet" href="style/busca_style.css?v=<?= time() ?>">
+    <style>
+        .notification-wrapper { position: relative; display: inline-block; }
+        .notification-bell {
+            position: relative; background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.09));
+            border: 1px solid rgba(255,255,255,0.25); color: #fff; border-radius: 999px; width: 46px; height: 46px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.15rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            box-shadow: 0 8px 18px rgba(16, 30, 49, 0.18);
+        }
+        .notification-bell:hover {
+            transform: translateY(-1px) scale(1.02);
+            box-shadow: 0 10px 22px rgba(16, 30, 49, 0.24);
+            background: linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.12));
+        }
+        .notification-badge {
+            position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px;
+            border-radius: 999px; background: linear-gradient(180deg, #ff4d4d, #d62828); color: #fff; font-size: 0.68rem;
+            font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid #567fd9;
+            box-shadow: 0 6px 12px rgba(214, 40, 40, 0.35);
+        }
+        .notification-menu {
+            position: absolute; right: 0; top: calc(100% + 12px); width: min(360px, 88vw); background: #fff;
+            border: 1px solid rgba(19, 31, 52, 0.08); border-radius: 18px; box-shadow: 0 18px 40px rgba(16, 30, 49, 0.18);
+            z-index: 40; overflow: hidden;
+        }
+        .notification-header {
+            padding: 12px 16px; font-weight: 800; color: #1d2a39; border-bottom: 1px solid rgba(19,31,52,0.08);
+            background: linear-gradient(180deg, #f6f8ff, #ffffff);
+        }
+        .notification-list { max-height: 360px; overflow-y: auto; background: #fff; }
+        .notification-item {
+            display: flex; gap: 10px; padding: 12px 14px; border-bottom: 1px solid rgba(19,31,52,0.06);
+            color: #1d2a39; text-decoration: none; transition: background 0.2s ease, transform 0.2s ease;
+        }
+        .notification-item:hover { background: #f7f9ff; }
+        .notification-item.is-unread { background: #edf4ff; }
+        .notification-item-avatar {
+            width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg, #7aa2ff, #4f6fe5);
+            display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; flex-shrink: 0;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
+        }
+        .notification-item-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .notification-item-content { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .notification-item-content strong { font-size: 0.88rem; }
+        .notification-item-content span { font-size: 0.78rem; line-height: 1.35; color: #48586d; word-break: break-word; }
+        .notification-empty {
+            padding: 22px 14px; text-align: center; color: #5b6b82; font-size: 0.82rem;
+        }
+    </style>
 </head>
 <body data-id-usuario="<?= isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0 ?>">
 
@@ -360,8 +410,30 @@ if ($id_usuario_logado > 0) {
       <h1 style="margin: 0; font-size: 20px;">BluMask</h1>
     </div>
     <?php if (isset($_SESSION['usuario'])): ?>
-        <?php $is_admin_session = (int) ($_SESSION['usuario']['is_admin'] ?? 0) === 1; ?>
+        <?php
+            $is_admin_session = (int) ($_SESSION['usuario']['is_admin'] ?? 0) === 1;
+            $userUnreadNotifications = 0;
+            $userUnreadResult = mysqli_query($conn, "SELECT COUNT(*) AS total FROM notificacao WHERE id_usuario = " . intval($_SESSION['usuario']['id_usuario']) . " AND lida = 0 LIMIT 1");
+            if ($userUnreadResult && $userUnreadResult->num_rows > 0) {
+                $userUnreadRow = mysqli_fetch_assoc($userUnreadResult);
+                $userUnreadNotifications = (int) ($userUnreadRow['total'] ?? 0);
+            }
+        ?>
         <div class="topbar-right" style="display:flex; align-items:center; gap:12px; position:relative;">
+            <div class="notification-wrapper">
+                <button type="button" id="notificationBellButton" class="notification-bell" aria-label="Notificações" aria-expanded="false">
+                    <span aria-hidden="true">🔔</span>
+                    <?php if ($userUnreadNotifications > 0): ?>
+                        <span id="notificationBadge" class="notification-badge"><?= $userUnreadNotifications > 99 ? '99+' : $userUnreadNotifications ?></span>
+                    <?php else: ?>
+                        <span id="notificationBadge" class="notification-badge" style="display:none;">0</span>
+                    <?php endif; ?>
+                </button>
+                <div id="notificationMenu" class="notification-menu" style="display:none;" role="menu" aria-live="polite">
+                    <div class="notification-header">Notificações</div>
+                    <div id="notificationList" class="notification-list"></div>
+                </div>
+            </div>
             <?php if ($is_admin_session): ?>
                 <div class="admin-menu-wrapper" style="position:relative;">
                     <button type="button" class="topbar-admin-menu" id="adminMenuButton" aria-label="Menu de administração" aria-expanded="false" style="border:none; border-radius:8px; background:#ffffff; color:#1d2a39; font-weight:700; cursor:pointer; padding:8px 10px; font-size:0.85rem;">☰</button>
@@ -1235,6 +1307,117 @@ if ($id_usuario_logado > 0) {
           });
       }
 </script>
+
+    <script>
+        (function() {
+            const bellButton = document.getElementById('notificationBellButton');
+            const notificationMenu = document.getElementById('notificationMenu');
+            const notificationList = document.getElementById('notificationList');
+            const badge = document.getElementById('notificationBadge');
+            const csrfToken = '<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>';
+
+            if (!bellButton || !notificationMenu || !notificationList || !badge) {
+                return;
+            }
+
+            const escapeHtml = (value = '') => String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+
+            const setBadge = (count) => {
+                const total = Number(count) || 0;
+                badge.textContent = total > 99 ? '99+' : String(total);
+                badge.style.display = total > 0 ? 'flex' : 'none';
+            };
+
+            const renderNotifications = (items = []) => {
+                if (!items.length) {
+                    notificationList.innerHTML = '<div class="notification-empty">Nenhuma notificação ainda.</div>';
+                    return;
+                }
+
+                notificationList.innerHTML = items.map((item) => {
+                    const author = escapeHtml(item.nome_remetente || 'Alguém');
+                    const avatarUrl = escapeHtml(item.foto_perfil || '');
+                    const message = escapeHtml(item.mensagem || 'Nova notificação.');
+                    const postLink = item.id_post ? `php/post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}` : 'index.php';
+                    const initial = (String(item.nome_remetente || 'A').trim().charAt(0) || 'A').toUpperCase();
+                    const avatarMarkup = avatarUrl
+                        ? `<img src="${avatarUrl}" alt="${author}">`
+                        : `<span>${escapeHtml(initial)}</span>`;
+
+                    return `
+                        <a href="${postLink}" class="notification-item ${item.lida ? 'is-read' : 'is-unread'}">
+                            <div class="notification-item-avatar">${avatarMarkup}</div>
+                            <div class="notification-item-content">
+                                <strong>${author}</strong>
+                                <span>${message}</span>
+                            </div>
+                        </a>
+                    `;
+                }).join('');
+            };
+
+            const loadNotifications = async () => {
+                try {
+                    const response = await fetch('php/notificacoes.php?action=list&limit=20', { credentials: 'same-origin' });
+                    if (!response.ok) {
+                        return;
+                    }
+                    const data = await response.json();
+                    if (!data || !data.ok) {
+                        return;
+                    }
+                    renderNotifications(data.notifications || []);
+                    setBadge(data.unread_count || 0);
+                } catch (error) {
+                    console.error('Erro ao carregar notificações:', error);
+                }
+            };
+
+            const markNotificationsAsRead = async () => {
+                try {
+                    const response = await fetch('php/notificacoes.php', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+                        },
+                        body: new URLSearchParams({ action: 'read', csrf_token: csrfToken }).toString()
+                    });
+
+                    if (response.ok) {
+                        await loadNotifications();
+                    }
+                } catch (error) {
+                    console.error('Erro ao marcar notificações como lidas:', error);
+                }
+            };
+
+            bellButton.addEventListener('click', async () => {
+                const isOpen = notificationMenu.style.display === 'block';
+                notificationMenu.style.display = isOpen ? 'none' : 'block';
+                bellButton.setAttribute('aria-expanded', String(!isOpen));
+
+                if (!isOpen) {
+                    await markNotificationsAsRead();
+                }
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!bellButton.contains(event.target) && !notificationMenu.contains(event.target)) {
+                    notificationMenu.style.display = 'none';
+                    bellButton.setAttribute('aria-expanded', 'false');
+                }
+            });
+
+            loadNotifications();
+            window.setInterval(loadNotifications, 30000);
+        })();
+    </script>
 
 <?php if (isset($login_error)): ?>
 <!-- Reabertura automática unificada em caso de erro de autenticação -->

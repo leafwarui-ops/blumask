@@ -103,6 +103,25 @@ foreign key (id_usuario) references usuario(id_usuario),
 foreign key (id_post) references post(id_post)
 );
 
+create table if not exists notificacao(
+    id_notificacao int primary key auto_increment,
+    id_usuario int not null,
+    id_remetente int null,
+    id_post int null,
+    id_comentario int null,
+    tipo varchar(40) not null default 'comentario',
+    mensagem text not null,
+    lida tinyint(1) not null default 0,
+    criada_em datetime not null default current_timestamp,
+    unique key uq_notificacao_comentario (id_usuario, id_post, id_comentario, tipo),
+    key idx_notificacao_usuario_lida (id_usuario, lida, criada_em),
+    key idx_notificacao_post (id_post),
+    constraint fk_notificacao_destinatario foreign key (id_usuario) references usuario(id_usuario) on delete cascade,
+    constraint fk_notificacao_remetente foreign key (id_remetente) references usuario(id_usuario) on delete set null,
+    constraint fk_notificacao_post foreign key (id_post) references post(id_post) on delete cascade,
+    constraint fk_notificacao_comentario foreign key (id_comentario) references comentario(id_comentario) on delete cascade
+) charset=utf8mb4 collate=utf8mb4_unicode_ci;
+
 create table curtida(
 id_curtida int primary key auto_increment,
 id_usuario int,
