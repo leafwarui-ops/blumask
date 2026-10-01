@@ -6,11 +6,46 @@ require_once __DIR__ . "/media.php";
 require_once __DIR__ . "/community_bans.php";
 require_once __DIR__ . "/admin_helpers.php";
 
-// Obtém o ID da comunidade da URL
-$id_comunidade = intval($_GET['id'] ?? 0);
+ensure_community_slug_column($conn);
+ensure_post_public_id_column($conn);
+ensure_comment_image_column($conn);
+
+// Obtém o ID da comunidade da URL. Aceita rota amigável /comunidade/slug ou o formato antigo ?id=
+$id_comunidade = 0;
+$requestedSlug = trim((string) ($_GET['slug'] ?? ''));
+
+if ($requestedSlug !== '') {
+    $slugEscaped = mysqli_real_escape_string($conn, $requestedSlug);
+    $slugResult = mysqli_query($conn, "SELECT id_comunidade, nome, slug FROM comunidade WHERE slug = '$slugEscaped' LIMIT 1");
+    if (!$slugResult || mysqli_num_rows($slugResult) === 0) {
+        header("Location: ../");
+        exit;
+    }
+
+    $communityBySlug = mysqli_fetch_assoc($slugResult);
+    $id_comunidade = intval($communityBySlug['id_comunidade'] ?? 0);
+    $canonicalSlug = trim((string) ($communityBySlug['slug'] ?? ''));
+    if ($canonicalSlug !== '' && $requestedSlug !== $canonicalSlug) {
+        header('Location: ../comunidade/' . rawurlencode($canonicalSlug), true, 301);
+        exit;
+    }
+} else {
+    $id_comunidade = intval($_GET['id'] ?? 0);
+    if ($id_comunidade > 0) {
+        $communityLookup = mysqli_query($conn, "SELECT id_comunidade, nome, slug FROM comunidade WHERE id_comunidade = $id_comunidade LIMIT 1");
+        if ($communityLookup && mysqli_num_rows($communityLookup) > 0) {
+            $communityRow = mysqli_fetch_assoc($communityLookup);
+            $canonicalSlug = trim((string) ($communityRow['slug'] ?? ''));
+            if ($canonicalSlug !== '') {
+                header('Location: ../comunidade/' . rawurlencode($canonicalSlug), true, 301);
+                exit;
+            }
+        }
+    }
+}
 
 if ($id_comunidade <= 0) {
-    header("Location: ../index.php");
+    header("Location: ../");
     exit;
 }
 
@@ -27,11 +62,13 @@ $sql_comunidade = "SELECT c.*, u.nome_de_exibicao, u.nome_de_usuario
 $resultado_comunidade = mysqli_query($conn, $sql_comunidade);
 
 if (!$resultado_comunidade || mysqli_num_rows($resultado_comunidade) === 0) {
-    header("Location: ../index.php");
+    header("Location: ../");
     exit;
 }
 
 $comunidade = mysqli_fetch_assoc($resultado_comunidade);
+$_SESSION['blumask_current_community_id'] = $id_comunidade;
+$communityContextToken = isset($_SESSION['usuario']) ? build_community_context_token($id_comunidade, (int) $_SESSION['usuario']['id_usuario']) : '';
 $is_community_banned = is_user_banned_from_community($conn, $id_usuario, $id_comunidade);
 
 // Verificar se o usuário é membro da comunidade
@@ -127,6 +164,7 @@ if ($resultado_count) {
                 <input type="hidden" name="csrf_token" value="<?php echo isset($_SESSION['csrf_token']) ? htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') : ''; ?>">
                 <input type="hidden" name="id_post" value="">
                 <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
+                <input type="hidden" name="community_token" value="<?= htmlspecialchars($communityContextToken, ENT_QUOTES, 'UTF-8') ?>">
 
                 <label for="editarAssunto">Título do post</label>
                 <input type="text" id="editarAssunto" name="assunto" minlength="3" maxlength="150" placeholder="Título do post (mín. 3 caracteres)" required>
@@ -143,6 +181,7 @@ if ($resultado_count) {
             <form id="formEditarComunidade" class="modal-form" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="<?php echo isset($_SESSION['csrf_token']) ? htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') : ''; ?>">
                 <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
+                <input type="hidden" name="community_token" value="<?= htmlspecialchars($communityContextToken, ENT_QUOTES, 'UTF-8') ?>">
 
                 <div class="criar-comunidade-body" style="margin-bottom: 12px;">
                     <div class="criar-comunidade-campos">
@@ -196,7 +235,11 @@ if ($resultado_count) {
             <div class="modal-message">Você precisa seguir esta comunidade para publicar posts e comentar.</div>
             <div class="modal-actions">
                 <button type="button" class="modal-btn modal-btn-confirm" onclick="fecharPopupSeguirComunidade()">Entendi</button>
-                <button type="button" class="modal-btn modal-btn-confirm" onclick="abrirLoginComunidade()">Entrar</button>
+                <?php if (!isset($_SESSION['usuario'])): ?>
+                    <button type="button" class="modal-btn modal-btn-confirm" onclick="abrirLoginComunidade()">Entrar</button>
+                <?php elseif (!$eh_membro && !$is_site_admin_user && !$is_community_banned): ?>
+                    <button type="button" class="modal-btn modal-btn-confirm" onclick="entrarComunidade(<?= $id_comunidade ?>, this)">Seguir comunidade</button>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -212,9 +255,9 @@ if ($resultado_count) {
     </div>
 
     <dialog id="login-box">
-        <form id="popup-form" action="../index.php" method="post">
+        <form id="popup-form" action="../" method="post">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
-            <input type="hidden" name="return_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '../index.php', ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '../', ENT_QUOTES, 'UTF-8') ?>">
             <div class="dialog-tabs">
                 <button type="button" id="btn-entrar-dialog">entrar</button>
                 <button type="button" id="btn-cadastrar-dialog">cadastrar</button>
@@ -226,7 +269,7 @@ if ($resultado_count) {
     <div class="page">
         <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9; border-bottom: 1px solid rgba(255,255,255,0.2); position: sticky; top: 0; z-index: 100;">
             <div style="display: flex; align-items: center; gap: 12px;">
-                <a href="../index.php" style="text-decoration: none; display: flex; align-items: center; gap: 8px; color: #fff;">
+                <a href="../" style="text-decoration: none; display: flex; align-items: center; gap: 8px; color: #fff;">
                     <img src="../style/blumaskWhiteLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
                     <h1 style="margin: 0; font-size: 20px; color: #fff;">BluMask</h1>
                 </a>
@@ -251,7 +294,7 @@ if ($resultado_count) {
                             <div id="notificationList" class="notification-list"></div>
                         </div>
                     </div>
-                    <a href="../index.php?logout=1" class="topbar-logout">Sair</a>
+                    <a href="../?logout=1" class="topbar-logout">Sair</a>
                 </div>
             <?php endif; ?>
         </header>
@@ -278,7 +321,7 @@ if ($resultado_count) {
             <div class="content-wrapper">
                 <!-- CARD DA COMUNIDADE (ESQUERDA) -->
                 <div class="comunidade-card">
-                    <button type="button" class="community-back-btn community-back-btn-card" title="Voltar para a página anterior" aria-label="Voltar para a página anterior" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '../index.php'; } return false;">
+                    <button type="button" class="community-back-btn community-back-btn-card" title="Voltar para a página anterior" aria-label="Voltar para a página anterior" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '../'; } return false;">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18L9 12L15 6"/></svg>
                     </button>
 
@@ -292,14 +335,14 @@ if ($resultado_count) {
                     <?php elseif (!$eh_membro): ?>
                         <?php if (!$is_site_admin_user): ?>
                             <?php if (isset($_SESSION['usuario'])): ?>
-                                <button class="btn-seguir" onclick="entrarComunidade(<?= $id_comunidade ?>)">Seguir +</button>
+                                <button type="button" class="btn-seguir" onclick="entrarComunidade(<?= $id_comunidade ?>, this)">Seguir +</button>
                             <?php else: ?>
                                 <button class="btn-seguir" onclick="mostrarPopupLoginComunidade()">Seguir +</button>
                             <?php endif; ?>
                         <?php endif; ?>
                     <?php else: ?>
                         <?php if (!$is_community_owner && $cargo_usuario !== 1): ?>
-                            <button class="btn-seguir ja-membro" onclick="sairComunidade(<?= $id_comunidade ?>)">Sair da comunidade</button>
+                            <button type="button" class="btn-seguir ja-membro" onclick="sairComunidade(<?= $id_comunidade ?>, this)">Sair da comunidade</button>
                         <?php else: ?>
                             <button class="btn-seguir ja-membro" onclick="event.preventDefault()">✓ Seguindo</button>
                         <?php endif; ?>
@@ -329,6 +372,7 @@ if ($resultado_count) {
                             <form id="formNovoPost" enctype="multipart/form-data">
                                 <input type="hidden" name="csrf_token" value="<?php echo isset($_SESSION['csrf_token']) ? htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') : ''; ?>">
                                 <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
+                                <input type="hidden" name="community_token" value="<?= htmlspecialchars($communityContextToken, ENT_QUOTES, 'UTF-8') ?>">
                                 
                                 <input type="text" id="novo-post-assunto" name="assunto" placeholder="Título do post (mín. 3 caracteres)" minlength="3" maxlength="150" required>
                                 
@@ -353,7 +397,7 @@ if ($resultado_count) {
                     <!-- LISTA DE POSTS -->
                     <?php if (count($posts) > 0): ?>
                         <?php foreach ($posts as $post): ?>
-                            <div class="post" data-post-id="<?= $post['id_post'] ?>">
+                            <div class="post" data-post-id="<?= $post['id_post'] ?>" data-public-id="<?= htmlspecialchars($post['public_id'], ENT_QUOTES, 'UTF-8') ?>">
                                 <div class="post-header">
                                     <?php $usuarioDeletado = trim((string) ($post['nome_de_exibicao'] ?? '')) === 'Usuário deletado' || stripos((string) ($post['nome_de_usuario'] ?? ''), 'usuario_deletado_') === 0; ?>
                                     <?php if ($usuarioDeletado): ?>
@@ -363,7 +407,7 @@ if ($resultado_count) {
                                             </div>
                                         </div>
                                     <?php else: ?>
-                                        <a href="user_view.php?id=<?= (int) $post['id_usuario'] ?>" class="post-author-link" onclick="event.stopPropagation();" aria-label="Ver perfil de <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>">
+                                        <a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($post['nome_de_usuario'] ?? '')))) ?>" class="post-author-link" onclick="event.stopPropagation();" aria-label="Ver perfil de <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>">
                                             <div class="post-avatar">
                                                 <img src="<?= resolve_avatar_url($post['foto_perfil'] ?? null, $post['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar">
                                             </div>
@@ -378,7 +422,7 @@ if ($resultado_count) {
                                                 </div>
                                             </div>
                                         <?php else: ?>
-                                            <a href="user_view.php?id=<?= (int) $post['id_usuario'] ?>" class="post-user-link" onclick="event.stopPropagation();">
+                                            <a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($post['nome_de_usuario'] ?? '')))) ?>" class="post-user-link" onclick="event.stopPropagation();">
                                                 <div class="post-user-info">
                                                     <h4><?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></h4>
                                                     <p>@<?= htmlspecialchars($post['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?></p>
@@ -445,10 +489,17 @@ if ($resultado_count) {
 
                                 <?php if (!$is_site_admin_user): ?>
                                 <div class="comment-form-wrap" id="comment-form-<?= $post['id_post'] ?>" style="display: none;">
-                                    <form class="form-comentario" data-post-id="<?= $post['id_post'] ?>">
+                                    <form class="form-comentario" data-post-id="<?= $post['id_post'] ?>" enctype="multipart/form-data">
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
-                                        <textarea name="conteudo" rows="3" minlength="2" maxlength="2000" placeholder="Escreva um comentário... (mín. 2 caracteres)" required></textarea>
+                                        <textarea name="conteudo" rows="3" maxlength="2000" placeholder="Escreva um comentário... (mín. 2 caracteres)"></textarea>
+                                        <div class="comment-image-tools">
+                                            <label class="comment-image-button" for="comment-image-<?= (int) $post['id_post'] ?>">Anexar imagem</label>
+                                            <input type="file" id="comment-image-<?= (int) $post['id_post'] ?>" name="imagem" class="comment-image-input" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" hidden>
+                                            <span class="comment-image-filename" aria-live="polite"></span>
+                                            <button type="button" class="comment-image-remove" hidden>Remover</button>
+                                        </div>
+                                        <img class="comment-image-preview" alt="Prévia da imagem do comentário" hidden>
                                         <div style="display:flex; gap:8px; margin-top:8px;">
                                             <button type="button" class="btn-descartar" onclick="descartarComentarioInline(<?= $post['id_post'] ?>)">Descartar</button>
                                             <button type="submit">Comentar</button>
@@ -489,6 +540,7 @@ if ($resultado_count) {
         const postsMap = <?php echo json_encode($postsMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
         const ehMembro = <?= $eh_membro ? 'true' : 'false' ?>;
         const comunidadeBanido = <?= $is_community_banned ? 'true' : 'false' ?>;
+        const communityContextToken = <?= json_encode($communityContextToken, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
         let csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
         let acaoAtual = null;
 
@@ -522,7 +574,7 @@ if ($resultado_count) {
         }
 
         function sairDaComunidadeBanida() {
-            window.location.href = '../index.php';
+            window.location.href = '../';
         }
 
         if (<?= $id_usuario > 0 && !$is_community_banned ? 'true' : 'false' ?>) {
@@ -675,12 +727,12 @@ if ($resultado_count) {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_comunidade=${idComunidade}`
+                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_comunidade=${idComunidade}&community_token=${encodeURIComponent(communityContextToken)}`
             })
             .then(response => response.json())
             .then(data => {
                 if (data.sucesso) {
-                    window.location.href = '../index.php';
+                    window.location.href = '../';
                 } else {
                     console.error(data.mensagem);
                 }
@@ -864,47 +916,56 @@ if ($resultado_count) {
             if (formContainer) formContainer.classList.remove('ativo');
         }
 
-        function entrarComunidade(idComunidade) {
-            const btn = event.target;
+        function entrarComunidade(idComunidade, btn) {
+            if (!btn) return;
+            const originalText = btn.textContent;
             btn.disabled = true;
             btn.textContent = 'Carregando...';
 
             fetch('../php/entrar_comunidade.php', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_comunidade=${idComunidade}`
+                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_comunidade=${idComunidade}&community_token=${encodeURIComponent(communityContextToken)}`
             })
-            .then(response => response.json())
-            .then(data => {
+            .then(async response => ({ response, data: await response.json() }))
+            .then(({ response, data }) => {
                 if (data.sucesso) {
                     location.reload();
                 } else {
                     btn.disabled = false;
-                    btn.textContent = 'Seguir +';
+                    btn.textContent = originalText;
+                    if (response.status === 401) {
+                        mostrarPopupLoginComunidade();
+                    } else {
+                        alert(data.mensagem || 'Não foi possível seguir a comunidade. Tente novamente.');
+                    }
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
                 btn.disabled = false;
-                btn.textContent = 'Seguir +';
+                btn.textContent = originalText;
+                alert('Não foi possível seguir a comunidade. Verifique sua conexão e tente novamente.');
             });
         }
 
-        function sairComunidade(idComunidade) {
-            const btn = event.target;
+        function sairComunidade(idComunidade, btn) {
             if (!btn) return;
 
+            const originalText = btn.textContent;
             btn.disabled = true;
             btn.textContent = 'Saindo...';
 
             fetch('../php/sair_comunidade.php', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_comunidade=${idComunidade}`
+                body: `csrf_token=${encodeURIComponent(csrfToken)}&id_comunidade=${idComunidade}&community_token=${encodeURIComponent(communityContextToken)}`
             })
             .then(response => response.json())
             .then(data => {
@@ -912,14 +973,14 @@ if ($resultado_count) {
                     location.reload();
                 } else {
                     btn.disabled = false;
-                    btn.textContent = 'Sair da comunidade';
+                    btn.textContent = originalText;
                     alert(data.mensagem || 'Não foi possível sair da comunidade.');
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
                 btn.disabled = false;
-                btn.textContent = 'Sair da comunidade';
+                btn.textContent = originalText;
                 alert('Erro ao sair da comunidade. Tente novamente.');
             });
         }
@@ -961,9 +1022,9 @@ if ($resultado_count) {
                     return;
                 }
 
-                const postId = this.dataset.postId;
-                if (postId) {
-                    window.location.href = `post_detalhes.php?id_post=${postId}`;
+                const publicId = this.dataset.publicId;
+                if (publicId) {
+                    window.location.href = `../post/${publicId}`;
                 }
             });
         });
@@ -988,6 +1049,49 @@ if ($resultado_count) {
             });
         });
 
+        function configurarImagemComentario(input) {
+            const form = input.closest('form');
+            const preview = form.querySelector('.comment-image-preview');
+            const filename = form.querySelector('.comment-image-filename');
+            const removeButton = form.querySelector('.comment-image-remove');
+
+            const clearSelection = () => {
+                input.value = '';
+                preview.removeAttribute('src');
+                preview.hidden = true;
+                filename.textContent = '';
+                removeButton.hidden = true;
+            };
+
+            input.addEventListener('change', () => {
+                const file = input.files[0];
+                if (!file) {
+                    clearSelection();
+                    return;
+                }
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('A imagem do comentário deve ter no máximo 2 MB.');
+                    clearSelection();
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.addEventListener('load', () => {
+                    if (input.files[0] !== file) return;
+                    preview.src = reader.result;
+                    preview.hidden = false;
+                    filename.textContent = file.name;
+                    removeButton.hidden = false;
+                });
+                reader.readAsDataURL(file);
+            });
+
+            removeButton.addEventListener('click', clearSelection);
+            form.addEventListener('reset', () => window.setTimeout(clearSelection, 0));
+        }
+
+        document.querySelectorAll('.comment-image-input').forEach(configurarImagemComentario);
+
         document.querySelectorAll('.form-comentario').forEach(form => {
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -1004,8 +1108,9 @@ if ($resultado_count) {
                 }
 
                 const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
-                if (conteudo.length < 2) {
-                    alert('O comentário deve ter no mínimo 2 caracteres.');
+                const image = this.querySelector('input[name="imagem"]')?.files?.[0];
+                if (conteudo.length < 2 && !image) {
+                    alert('Escreva ao menos 2 caracteres ou anexe uma imagem.');
                     return;
                 }
 
@@ -1344,9 +1449,9 @@ if ($resultado_count) {
                     const avatarUrl = escapeHtml(item.foto_perfil || '');
                     const message = escapeHtml(item.mensagem || 'Nova notificação.');
                     const targetCommentId = Number(item.id_comentario) || 0;
-                    const postLink = item.id_post
-                        ? `post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}${targetCommentId ? `#comment-${encodeURIComponent(targetCommentId)}` : ''}`
-                        : '../index.php';
+                    const postLink = item.public_id
+                        ? `../post/${encodeURIComponent(item.public_id)}${targetCommentId ? `#comment-${encodeURIComponent(targetCommentId)}` : ''}`
+                        : '../';
                     const initial = (String(item.nome_remetente || 'A').trim().charAt(0) || 'A').toUpperCase();
                     const avatarMarkup = avatarUrl
                         ? `<img src="${avatarUrl}" alt="${author}">`
@@ -1366,7 +1471,7 @@ if ($resultado_count) {
 
             const loadNotifications = async () => {
                 try {
-                    const response = await fetch('notificacoes.php?action=list&limit=20', { credentials: 'same-origin' });
+                    const response = await fetch('../php/notificacoes.php?action=list&limit=20', { credentials: 'same-origin' });
                     if (!response.ok) {
                         return;
                     }
@@ -1383,7 +1488,7 @@ if ($resultado_count) {
 
             const markNotificationsAsRead = async () => {
                 try {
-                    const response = await fetch('notificacoes.php', {
+                    const response = await fetch('../php/notificacoes.php', {
                         method: 'POST',
                         credentials: 'same-origin',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },

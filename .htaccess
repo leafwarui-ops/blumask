@@ -6,6 +6,25 @@ Options -Indexes
     RewriteEngine On
     RewriteCond %{REQUEST_METHOD} ^(TRACE|TRACK|PUT|DELETE|PATCH) [NC]
     RewriteRule .* - [F,L]
+
+    RewriteRule ^admin/?$ admin.php [L,QSA]
+    RewriteRule ^perfil/editar/?$ php/usr_edit.php [L,QSA]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^comunidade/([^/]+)/?$ php/comunidade.php?slug=$1 [L,QSA]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^usuario/([^/]+)/?$ php/user_view.php?slug=$1 [L,QSA]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^post/([a-f0-9]{32})/?$ php/post_detalhes.php?public_id=$1 [L,QSA,NC]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^post/([0-9]+)/?$ php/post_detalhes.php?id_post=$1 [L,QSA]
 </IfModule>
 
 # Bloquear acesso a arquivos sensíveis (SQL, ENV, Logs, Configurações, Git, etc)

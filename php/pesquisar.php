@@ -2,6 +2,7 @@
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 require_once __DIR__ . "/bd.php";
+require_once __DIR__ . "/admin_helpers.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -20,6 +21,7 @@ if (!check_rate_limit('search_query', 60, 60)) {
 hit_rate_limit('search_query');
 
 global $conn;
+ensure_community_slug_column($conn);
 
 function normalize_search_asset_path($value) {
     if (empty($value)) {
@@ -119,13 +121,13 @@ if ($tipo === 'todos' || $tipo === 'usuarios') {
 
 // 4. Busca de Comunidades (se tipo for 'todos' ou 'comunidades')
 if ($tipo === 'todos' || $tipo === 'comunidades') {
-    $sql_comunidades = "SELECT c.id_comunidade, c.nome, c.descricao, c.imagem, c.data_criacao,
+    $sql_comunidades = "SELECT c.id_comunidade, c.nome, c.slug, c.descricao, c.imagem, c.data_criacao,
                                COUNT(mc.id_membro_comunidade) AS total_membros
                         FROM comunidade c
                         LEFT JOIN membro_comunidade mc ON mc.id_comunidade = c.id_comunidade
                         WHERE c.nome LIKE '%$termo_esc%' 
                            OR c.descricao LIKE '%$termo_esc%'
-                        GROUP BY c.id_comunidade, c.nome, c.descricao, c.imagem, c.data_criacao
+                        GROUP BY c.id_comunidade, c.nome, c.slug, c.descricao, c.imagem, c.data_criacao
                         ORDER BY 
                             CASE 
                                 WHEN c.nome LIKE '$termo_esc%' THEN 1
@@ -146,6 +148,7 @@ if ($tipo === 'todos' || $tipo === 'comunidades') {
             $comunidades[] = [
                 "id_comunidade" => intval($row['id_comunidade']),
                 "nome"          => $nome_com,
+                "slug"          => trim((string) ($row['slug'] ?? '')),
                 "descricao"     => $row['descricao'] ?? '',
                 "imagem"        => $imagem,
                 "data_criacao"  => $row['data_criacao'] ?: null,

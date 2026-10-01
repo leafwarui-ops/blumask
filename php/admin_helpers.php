@@ -3,10 +3,34 @@
  * Helpers para admin e controle de suspensão de usuários.
  */
 
+function slugify_text(string $value): string {
+    $normalized = trim((string) $value);
+    $normalized = strtolower($normalized);
+    $normalized = strtr($normalized, [
+        'á' => 'a', 'à' => 'a', 'ã' => 'a', 'â' => 'a', 'ä' => 'a',
+        'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
+        'í' => 'i', 'ì' => 'i', 'î' => 'i', 'ï' => 'i',
+        'ó' => 'o', 'ò' => 'o', 'õ' => 'o', 'ô' => 'o', 'ö' => 'o',
+        'ú' => 'u', 'ù' => 'u', 'û' => 'u', 'ü' => 'u',
+        'ç' => 'c', 'ñ' => 'n', 'ß' => 'ss',
+        ' ' => '-', '_' => '-', '/' => '-', '\\' => '-',
+    ]);
+    $normalized = preg_replace('/[^a-z0-9\-]+/', '-', $normalized);
+    $normalized = preg_replace('/-+/', '-', $normalized);
+    $normalized = trim($normalized, '-');
+
+    return $normalized !== '' ? $normalized : 'comunidade';
+}
+
 function ensure_admin_schema($conn) {
     $columns = [
         ['usuario', 'is_admin', 'TINYINT(1) NOT NULL DEFAULT 0'],
         ['usuario', 'suspenso_ate', 'DATETIME NULL DEFAULT NULL'],
+        ['usuario', 'id_post_fixado', 'INT NULL DEFAULT NULL'],
+        ['usuario', 'id_comentario_fixado', 'INT NULL DEFAULT NULL'],
+        ['comunidade', 'id_post_fixado', 'INT NULL DEFAULT NULL'],
+        ['post', 'id_comentario_fixado', 'INT NULL DEFAULT NULL'],
+        ['post', 'imagem', 'VARCHAR(255) NULL DEFAULT NULL'],
     ];
 
     foreach ($columns as [$table, $column, $definition]) {
@@ -15,6 +39,147 @@ function ensure_admin_schema($conn) {
             $conn->query("ALTER TABLE `" . $table . "` ADD COLUMN `" . $column . "` " . $definition);
         }
     }
+}
+
+function ensure_community_slug_column(mysqli $conn): bool {
+    $exists = $conn->query("SHOW COLUMNS FROM comunidade LIKE 'slug'");
+    if (!$exists) {
+        return false;
+    }
+
+    if ($exists->num_rows === 0 && !$conn->query("ALTER TABLE comunidade ADD COLUMN slug VARCHAR(120) NULL AFTER nome")) {
+        return false;
+    }
+
+    $communities = $conn->query("SELECT id_comunidade, nome, slug FROM comunidade ORDER BY id_comunidade ASC");
+    $update = $conn->prepare("UPDATE comunidade SET slug = ? WHERE id_comunidade = ?");
+    if (!$communities || !$update) {
+        return false;
+    }
+
+    $usedSlugs = [];
+    while ($community = $communities->fetch_assoc()) {
+        $currentSlug = trim((string) ($community['slug'] ?? ''));
+        $baseSlug = slugify_text($currentSlug !== '' ? $currentSlug : (string) ($community['nome'] ?? 'comunidade'));
+        $slug = $baseSlug;
+        $counter = 2;
+
+        while (isset($usedSlugs[$slug])) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
+
+        $usedSlugs[$slug] = true;
+        if ($currentSlug !== $slug) {
+            $communityId = (int) $community['id_comunidade'];
+            $update->bind_param('si', $slug, $communityId);
+            if (!$update->execute()) {
+                $update->close();
+                return false;
+            }
+        }
+    }
+    $update->close();
+
+    $index = $conn->query("SHOW INDEX FROM comunidade WHERE Key_name = 'uq_comunidade_slug'");
+    if (!$index) {
+        return false;
+    }
+    if ($index->num_rows === 0 && !$conn->query("CREATE UNIQUE INDEX uq_comunidade_slug ON comunidade(slug)")) {
+        return false;
+    }
+
+    return true;
+}
+
+function ensure_post_public_id_column(mysqli $conn): bool {
+    $exists = $conn->query("SHOW COLUMNS FROM post LIKE 'public_id'");
+    if (!$exists) {
+        return false;
+    }
+
+    if ($exists->num_rows === 0 && !$conn->query("ALTER TABLE post ADD COLUMN public_id CHAR(32) NULL AFTER id_post")) {
+        return false;
+    }
+
+    $missing = $conn->query("SELECT id_post FROM post WHERE public_id IS NULL OR public_id = ''");
+    $update = $conn->prepare("UPDATE post SET public_id = ? WHERE id_post = ?");
+    if (!$missing || !$update) {
+        return false;
+    }
+
+    while ($post = $missing->fetch_assoc()) {
+        $publicId = bin2hex(random_bytes(16));
+        $postId = (int) $post['id_post'];
+        $update->bind_param('si', $publicId, $postId);
+        if (!$update->execute()) {
+            $update->close();
+            return false;
+        }
+    }
+    $update->close();
+
+    $index = $conn->query("SHOW INDEX FROM post WHERE Key_name = 'uq_post_public_id'");
+    if (!$index) {
+        return false;
+    }
+    if ($index->num_rows === 0 && !$conn->query("CREATE UNIQUE INDEX uq_post_public_id ON post(public_id)")) {
+        return false;
+    }
+
+    return true;
+}
+
+function ensure_comment_image_column(mysqli $conn): bool {
+    $exists = $conn->query("SHOW COLUMNS FROM comentario LIKE 'imagem'");
+    if (!$exists) {
+        return false;
+    }
+
+    return $exists->num_rows > 0
+        || $conn->query("ALTER TABLE comentario ADD COLUMN imagem VARCHAR(255) NULL AFTER conteudo") !== false;
+}
+
+function sync_community_slug(mysqli $conn, int $communityId, string $communityName): string {
+    ensure_community_slug_column($conn);
+
+    $base = slugify_text($communityName);
+    $slug = $base;
+    $counter = 2;
+
+    while (true) {
+        $escaped = $conn->real_escape_string($slug);
+        $res = $conn->query("SELECT id_comunidade FROM comunidade WHERE slug = '$escaped' AND id_comunidade <> $communityId LIMIT 1");
+        if (!$res || $res->num_rows === 0) {
+            break;
+        }
+        $slug = $base . '-' . $counter;
+        $counter++;
+    }
+
+    $conn->query("UPDATE comunidade SET slug = '" . $conn->real_escape_string($slug) . "' WHERE id_comunidade = $communityId");
+
+    return $slug;
+}
+
+function build_community_url(int $communityId, ?string $communityName = null, ?string $slug = null): string {
+    $safeSlug = trim((string) ($slug ?? ''));
+    if ($safeSlug === '') {
+        $safeSlug = slugify_text((string) ($communityName ?? 'comunidade'));
+    }
+
+    return '/blumask/comunidade/' . rawurlencode($safeSlug);
+}
+
+function ensure_legacy_schema_compatibility($conn): void {
+    ensure_admin_schema($conn);
+    ensure_post_public_id_column($conn);
+    ensure_comment_image_column($conn);
+    ensure_notification_schema($conn);
+    require_once __DIR__ . '/profile_pins.php';
+    ensure_profile_pin_tables($conn);
+    require_once __DIR__ . '/admin_message_store.php';
+    ensure_admin_message_schema($conn);
 }
 
 function ensure_notification_schema($conn) {

@@ -1,16 +1,41 @@
 <?php
 require_once "php/security_headers.php";
 require_once "php/rate_limit.php";
+
+$requestPath = parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+$scriptPath = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php'));
+$canonicalIndexPath = rtrim(dirname($scriptPath), '/') . '/index.php';
+if (is_string($requestPath) && strcasecmp($requestPath, $canonicalIndexPath) === 0) {
+  $appRootPath = rtrim(dirname($scriptPath), '/');
+  $canonicalHome = ($appRootPath === '' ? '/' : $appRootPath . '/');
+  $queryString = trim((string) ($_SERVER['QUERY_STRING'] ?? ''));
+  if ($queryString !== '') {
+    $canonicalHome .= '?' . $queryString;
+  }
+  header('Location: ' . $canonicalHome, true, 301);
+  exit;
+}
+
 include "php/bd.php";
 require_once "php/admin_helpers.php";
 require_once "php/media.php";
 require_once "php/profile_pins.php";
 require_once "php/activity_timestamps.php";
-ensure_admin_schema($conn);
+ensure_legacy_schema_compatibility($conn);
+ensure_community_slug_column($conn);
 ensure_admin_user($conn);
-ensure_profile_pin_tables($conn);
 ensure_activity_timestamp_columns($conn);
-ensure_notification_schema($conn);
+
+function ensure_post_image_column(mysqli $conn): bool {
+    $result = $conn->query("SHOW COLUMNS FROM post LIKE 'imagem'");
+    if ($result && $result->num_rows > 0) {
+        return true;
+    }
+
+    return $conn->query("ALTER TABLE post ADD COLUMN imagem VARCHAR(255) NULL AFTER assunto") !== false;
+}
+
+ensure_post_image_column($conn);
 
 $siteNoticeMessage = '';
 if (!empty($_COOKIE['blumask_notice'])) {
@@ -24,12 +49,12 @@ if ($siteNoticeMessage === '' && ($_GET['status'] ?? '') === 'suspenso') {
 function get_login_redirect_target() {
   $target = trim((string) ($_POST['return_to'] ?? ''));
   if ($target === '' || strpos($target, '\\') !== false || strpos($target, '//') === 0) {
-    return 'index.php';
+    return './';
   }
 
   $parts = parse_url($target);
   if ($parts === false || isset($parts['scheme']) || isset($parts['host']) || isset($parts['user']) || isset($parts['pass'])) {
-    return 'index.php';
+    return './';
   }
 
   return $target;
@@ -55,7 +80,7 @@ function resolve_index_avatar_url($foto_perfil, $nome_exibicao) {
 // Lógica de Sair (Logout)
 if (isset($_GET['logout'])) {
     session_destroy();
-    header("Location: index.php");
+  header("Location: ./");
     exit;
 }
 
@@ -227,6 +252,7 @@ if ($post_pin_column && mysqli_num_rows($post_pin_column) === 0) {
 }
 $sql_recent_posts = "SELECT 
     p.id_post,
+  p.public_id,
     p.id_comunidade,
     p.id_usuario AS autor_id,
     p.Data_post,
@@ -234,6 +260,7 @@ $sql_recent_posts = "SELECT
     p.assunto,
     p.imagem,
     c.nome AS nome_comunidade,
+    c.slug AS slug,
     c.imagem AS imagem_comunidade,
     (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) AS total_curtidas,
     (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) AS total_comentarios"
@@ -258,7 +285,7 @@ if ($id_usuario_logado <= 0) {
 $recent_items = [];
 if ($id_usuario_logado > 0) {
   // buscar comentários feitos pelo usuário
-  $sql_recent_comments = "SELECT c.id_comentario, c.id_post, c.conteudo, c.data_comentario, p.assunto, p.id_comunidade, p.id_usuario AS post_autor_id, p.conteudo AS post_conteudo, p.id_comentario_fixado, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil FROM comentario c INNER JOIN post p ON c.id_post = p.id_post INNER JOIN usuario u ON u.id_usuario = c.id_usuario WHERE c.id_usuario = $id_usuario_logado ORDER BY c.data_comentario DESC, c.id_comentario DESC LIMIT 30";
+  $sql_recent_comments = "SELECT c.id_comentario, c.id_post, p.public_id, c.conteudo, c.imagem, c.data_comentario, p.assunto, p.id_comunidade, p.id_usuario AS post_autor_id, p.conteudo AS post_conteudo, p.id_comentario_fixado, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil FROM comentario c INNER JOIN post p ON c.id_post = p.id_post INNER JOIN usuario u ON u.id_usuario = c.id_usuario WHERE c.id_usuario = $id_usuario_logado ORDER BY c.data_comentario DESC, c.id_comentario DESC LIMIT 30";
   $recent_comments = [];
   $res_recent_comments = mysqli_query($conn, $sql_recent_comments);
   if ($res_recent_comments) {
@@ -277,6 +304,7 @@ $pinned_comment_items = [];
 if ($id_usuario_logado > 0) {
     $sql_pinned_posts = "SELECT 
         p.id_post,
+      p.public_id,
         p.id_comunidade,
         p.id_usuario AS autor_id,
         p.Data_post,
@@ -284,6 +312,7 @@ if ($id_usuario_logado > 0) {
         p.assunto,
         p.imagem,
         c.nome AS nome_comunidade,
+        c.slug AS slug,
         c.imagem AS imagem_comunidade,
         (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) AS total_curtidas,
         (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) AS total_comentarios,
@@ -305,8 +334,10 @@ if ($id_usuario_logado > 0) {
     $sql_pinned_comments = "SELECT
         c.id_comentario,
         c.id_post,
+      p.public_id,
         c.id_usuario,
         c.conteudo,
+        c.imagem,
         c.data_comentario,
         pf.data_fixacao,
         p.id_comunidade,
@@ -440,7 +471,7 @@ if ($id_usuario_logado > 0) {
                 <div class="admin-menu-wrapper" style="position:relative;">
                     <button type="button" class="topbar-admin-menu" id="adminMenuButton" aria-label="Menu de administração" aria-expanded="false" style="border:none; border-radius:8px; background:#ffffff; color:#1d2a39; font-weight:700; cursor:pointer; padding:8px 10px; font-size:0.85rem;">☰</button>
                     <div class="admin-menu" id="adminMenu" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:#fff; border:1px solid rgba(0,0,0,.08); border-radius:10px; box-shadow:0 8px 20px rgba(0,0,0,.12); min-width:148px; overflow:hidden; z-index:20;">
-                      <a href="admin.php" style="display:block; padding:9px 12px; text-decoration:none; color:#1d2a39; font-weight:700; font-size:0.8rem;">Admin</a>
+                      <a href="admin" style="display:block; padding:9px 12px; text-decoration:none; color:#1d2a39; font-weight:700; font-size:0.8rem;">Admin</a>
                     </div>
                 </div>
             <?php endif; ?>
@@ -477,7 +508,7 @@ if ($id_usuario_logado > 0) {
         <?php if (!empty($descricao_usr)): ?>
           <p style="font-size: 0.9rem; color: #444; margin-bottom: 15px; font-style: italic; font-weight: 500; word-break: break-word;"><?= $descricao_usr ?></p>
         <?php endif; ?>
-        <button onclick="window.location.href='php/usr_edit.php'" class="btn-entrar" id="btn-editar-perfil" style="display: block; width: 100%; cursor: pointer;">Editar</button>
+        <button onclick="window.location.href='perfil/editar'" class="btn-entrar" id="btn-editar-perfil" style="display: block; width: 100%; cursor: pointer;">Editar</button>
       </div>
       <?php else: ?>
       <div class="panel-header">
@@ -597,7 +628,7 @@ if ($id_usuario_logado > 0) {
                         }
                     }
                   ?>
-                  <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-community-id="<?= $id_comunidade ?>">
+                  <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-public-id="<?= htmlspecialchars($post['public_id'], ENT_QUOTES, 'UTF-8') ?>" data-community-id="<?= $id_comunidade ?>">
                     <div class="feed-item-badge" style="display:inline-block; margin-bottom:10px; padding:4px 8px; border-radius:999px; background:#e8e2ff; color:#3b2d85; font-size:11px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;">
                       Post fixado
                     </div>
@@ -608,7 +639,7 @@ if ($id_usuario_logado > 0) {
                             <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>" style="opacity:0.8;">
                           </span>
                         <?php else: ?>
-                          <a href="php/user_view.php?id=<?= $autor_id ?>" title="Ver perfil de <?= $authorName ?>" onclick="event.stopPropagation();">
+                          <a href="usuario/<?= rawurlencode(strtolower(trim((string) ($authorsCache[$autor_id]['nome_de_usuario'] ?? '')))) ?>" title="Ver perfil de <?= $authorName ?>" onclick="event.stopPropagation();">
                             <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>">
                           </a>
                         <?php endif; ?>
@@ -619,7 +650,7 @@ if ($id_usuario_logado > 0) {
                             <?php if ($authorIsDeleted): ?>
                               <span class="post-community-name" style="cursor:default; color:inherit;"><?= $authorName ?></span>
                             <?php else: ?>
-                              <a href="php/user_view.php?id=<?= $autor_id ?>" class="post-community-name" onclick="event.stopPropagation();">
+                              <a href="usuario/<?= rawurlencode(strtolower(trim((string) ($authorsCache[$autor_id]['nome_de_usuario'] ?? '')))) ?>" class="post-community-name" onclick="event.stopPropagation();">
                                 <?= $authorName ?>
                               </a>
                             <?php endif; ?>
@@ -662,7 +693,7 @@ if ($id_usuario_logado > 0) {
                         </button>
                       <?php endif; ?>
 
-                      <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-action post-comment-action" title="Ver comentários na comunidade" onclick="event.stopPropagation();">
+                      <a href="comunidade/<?= rawurlencode($post['slug'] ?? slugify_text((string) ($post['nome_comunidade'] ?? 'comunidade'))) ?>" class="post-action post-comment-action" title="Ver comentários na comunidade" onclick="event.stopPropagation();">
                         <span class="comment-icon">💬</span>
                         <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
                       </a>
@@ -681,26 +712,28 @@ if ($id_usuario_logado > 0) {
                     $comment_conteudo = htmlspecialchars($comment['conteudo'], ENT_QUOTES, 'UTF-8', false);
                     $comment_date = date('d/m/Y', strtotime($comment['data_comentario']));
                   ?>
-                  <article class="post post-card-feed comment-entry" data-post-id="<?= $comment_post_id ?>" data-comment-id="<?= $comment_id ?>">
+                  <article class="post post-card-feed comment-entry" data-post-id="<?= $comment_post_id ?>" data-public-id="<?= htmlspecialchars($comment['public_id'], ENT_QUOTES, 'UTF-8') ?>" data-comment-id="<?= $comment_id ?>">
                     <div class="feed-item-badge" style="display:inline-block; margin-bottom:10px; padding:4px 8px; border-radius:999px; background:#e0f2fe; color:#0f4c81; font-size:11px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;">
                       Comentário fixado
                     </div>
                     <div class="post-header">
                       <div class="post-avatar">
-                        <a href="php/user_view.php?id=<?= intval($comment['id_usuario']) ?>" title="Ver perfil de <?= $comment_author_name ?>" onclick="event.stopPropagation();">
+                        <a href="usuario/<?= rawurlencode(strtolower(trim((string) ($comment['nome_de_usuario'] ?? '')))) ?>" title="Ver perfil de <?= $comment_author_name ?>" onclick="event.stopPropagation();">
                           <img src="<?= $comment_avatar ?>" alt="<?= $comment_author_name ?>" style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%;">
                         </a>
                       </div>
                       <div class="post-header-info">
                         <div class="post-user-info">
-                          <h4><a href="php/user_view.php?id=<?= intval($comment['id_usuario']) ?>" onclick="event.stopPropagation();" style="text-decoration:none; color:inherit;"><?= $comment_author_name ?></a></h4>
-                          <?php if ($comment_author_handle !== ''): ?><div class="post-user-handle"><a href="php/user_view.php?id=<?= intval($comment['id_usuario']) ?>" onclick="event.stopPropagation();" style="text-decoration:none; color:inherit;">@<?= $comment_author_handle ?></a></div><?php endif; ?>
+                          <h4><a href="usuario/<?= rawurlencode(strtolower(trim((string) ($comment['nome_de_usuario'] ?? '')))) ?>" onclick="event.stopPropagation();" style="text-decoration:none; color:inherit;"><?= $comment_author_name ?></a></h4>
+                          <?php if ($comment_author_handle !== ''): ?><div class="post-user-handle"><a href="usuario/<?= rawurlencode(strtolower(trim((string) ($comment['nome_de_usuario'] ?? '')))) ?>" onclick="event.stopPropagation();" style="text-decoration:none; color:inherit;">@<?= $comment_author_handle ?></a></div><?php endif; ?>
                           <?php if ($comment_assunto !== ''): ?><div class="post-user-handle">Em: <?= $comment_assunto ?></div><?php endif; ?>
                         </div>
                         <div class="post-date"><?= $comment_date ?></div>
                       </div>
                     </div>
                     <div class="post-content"><?= nl2br($comment_conteudo) ?></div>
+                    <?php $commentImageUrl = resolve_index_asset_url($comment['imagem'] ?? '', ''); ?>
+                    <?php if ($commentImageUrl !== ''): ?><div class="post-image-wrap comment-image-wrap"><img class="post-image comment-image" src="<?= $commentImageUrl ?>" alt="Imagem anexada ao comentário" loading="lazy"></div><?php endif; ?>
                     <div class="post-actions">
                       <button type="button" class="post-action post-pin-action" onclick="event.stopPropagation(); fixarComentarioRecente(<?= $comment_post_id ?>, <?= $comment_id ?>, this)" title="Desfixar comentário">
                         <span>📌</span>
@@ -778,20 +811,20 @@ if ($id_usuario_logado > 0) {
                           }
                       }
                 ?>
-                  <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-community-id="<?= $id_comunidade ?>">
+                  <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-public-id="<?= htmlspecialchars($post['public_id'], ENT_QUOTES, 'UTF-8') ?>" data-community-id="<?= $id_comunidade ?>">
                     <div class="feed-item-badge" style="display:inline-block; margin-bottom:10px; padding:4px 8px; border-radius:999px; background:#e8e2ff; color:#3b2d85; font-size:11px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;">
                       Post
                     </div>
                     <div class="post-header">
                       <div class="post-avatar">
-                        <a href="php/user_view.php?id=<?= $autor_id ?>" title="Ver perfil de <?= $authorName ?>" onclick="event.stopPropagation();">
+                        <a href="usuario/<?= rawurlencode(strtolower(trim((string) ($authorsCache[$autor_id]['nome_de_usuario'] ?? '')))) ?>" title="Ver perfil de <?= $authorName ?>" onclick="event.stopPropagation();">
                           <img src="<?= $authorAvatar ?>" alt="<?= $authorName ?>">
                         </a>
                       </div>
                       <div class="post-header-info">
                         <div class="post-user-info">
                           <h4>
-                              <a href="php/user_view.php?id=<?= $autor_id ?>" class="post-community-name" onclick="event.stopPropagation();">
+                              <a href="usuario/<?= rawurlencode(strtolower(trim((string) ($authorsCache[$autor_id]['nome_de_usuario'] ?? '')))) ?>" class="post-community-name" onclick="event.stopPropagation();">
                                 <?= $authorName ?>
                               </a>
                           </h4>
@@ -834,7 +867,7 @@ if ($id_usuario_logado > 0) {
                         <span><?= $postJaFixado ? 'Desfixar' : 'Fixar' ?></span>
                       </button>
 
-                      <a href="php/comunidade.php?id=<?= $id_comunidade ?>" class="post-action post-comment-action" title="Ver comentários na comunidade" onclick="event.stopPropagation();">
+                      <a href="comunidade/<?= rawurlencode($post['slug'] ?? slugify_text((string) ($post['nome_comunidade'] ?? 'comunidade'))) ?>" class="post-action post-comment-action" title="Ver comentários na comunidade" onclick="event.stopPropagation();">
                         <span class="comment-icon">💬</span>
                         <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
                       </a>
@@ -852,26 +885,28 @@ if ($id_usuario_logado > 0) {
                       $commentUserHandle = htmlspecialchars($c['nome_de_usuario'] ?? ($_SESSION['usuario']['nome_de_usuario'] ?? ''), ENT_QUOTES, 'UTF-8');
                       $commentAvatar = resolve_index_avatar_url($c['foto_perfil'] ?? ($_SESSION['usuario']['foto_perfil'] ?? null), $c['nome_de_exibicao'] ?? ($_SESSION['usuario']['nome_de_exibicao'] ?? 'Você'));
                 ?>
-                  <article class="post post-card-feed comment-entry" data-post-id="<?= $id_post ?>" data-comment-id="<?= intval($c['id_comentario']) ?>">
+                  <article class="post post-card-feed comment-entry" data-post-id="<?= $id_post ?>" data-public-id="<?= htmlspecialchars($c['public_id'], ENT_QUOTES, 'UTF-8') ?>" data-comment-id="<?= intval($c['id_comentario']) ?>">
                     <div class="feed-item-badge" style="display:inline-block; margin-bottom:10px; padding:4px 8px; border-radius:999px; background:#e0f2fe; color:#0f4c81; font-size:11px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;">
                       Comentário
                     </div>
                     <div class="post-header">
                       <div class="post-avatar">
-                        <a href="php/user_view.php?id=<?= $id_usuario_logado ?>" title="Ver perfil" onclick="event.stopPropagation();">
+                        <a href="usuario/<?= rawurlencode(strtolower(trim((string) ($c['nome_de_usuario'] ?? '')))) ?>" title="Ver perfil" onclick="event.stopPropagation();">
                           <img src="<?= $commentAvatar ?>" alt="<?= $commentUserName ?>" style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%;">
                         </a>
                       </div>
                       <div class="post-header-info">
                         <div class="post-user-info">
-                          <h4><a href="php/user_view.php?id=<?= $id_usuario_logado ?>" onclick="event.stopPropagation();" style="text-decoration:none; color:inherit;"><?= $commentUserName ?></a></h4>
-                          <?php if ($commentUserHandle !== ''): ?><div class="post-user-handle"><a href="php/user_view.php?id=<?= $id_usuario_logado ?>" onclick="event.stopPropagation();" style="text-decoration:none; color:inherit;">@<?= $commentUserHandle ?></a></div><?php endif; ?>
+                          <h4><a href="usuario/<?= rawurlencode(strtolower(trim((string) ($c['nome_de_usuario'] ?? '')))) ?>" onclick="event.stopPropagation();" style="text-decoration:none; color:inherit;"><?= $commentUserName ?></a></h4>
+                          <?php if ($commentUserHandle !== ''): ?><div class="post-user-handle"><a href="usuario/<?= rawurlencode(strtolower(trim((string) ($c['nome_de_usuario'] ?? '')))) ?>" onclick="event.stopPropagation();" style="text-decoration:none; color:inherit;">@<?= $commentUserHandle ?></a></div><?php endif; ?>
                           <?php if (!empty($post_assunto)): ?><div class="post-user-handle">Em: <?= $post_assunto ?></div><?php endif; ?>
                         </div>
                         <div class="post-date"><?= $data_formatada ?></div>
                       </div>
                     </div>
                     <div class="post-content"><?= nl2br($comentario_conteudo) ?></div>
+                    <?php $commentImageUrl = resolve_index_asset_url($c['imagem'] ?? '', ''); ?>
+                    <?php if ($commentImageUrl !== ''): ?><div class="post-image-wrap comment-image-wrap"><img class="post-image comment-image" src="<?= $commentImageUrl ?>" alt="Imagem anexada ao comentário" loading="lazy"></div><?php endif; ?>
                     <div class="post-actions">
                       <?php $comentarioJaFixado = false; ?>
                       <?php $pin_check = mysqli_query($conn, "SELECT 1 FROM perfil_comentario_fixado WHERE id_usuario = $id_usuario_logado AND id_comentario = " . intval($c['id_comentario']) . " LIMIT 1"); ?>
@@ -1124,17 +1159,17 @@ if ($id_usuario_logado > 0) {
             const isInteractive = event.target.closest('button, a, input, textarea, select, .post-action, .post-pin-action, .post-comment-action, .btn-curtir-action');
             if (isInteractive) return;
 
-            const idPost = this.dataset.postId;
+            const publicId = this.dataset.publicId;
             const commentId = this.dataset.commentId;
             const communityId = this.dataset.communityId;
 
-            if (idPost && commentId) {
-                window.location.href = `php/post_detalhes.php?id_post=${idPost}#comment-${commentId}`;
+            if (publicId && commentId) {
+              window.location.href = `post/${publicId}#comment-${commentId}`;
                 return;
             }
 
-            if (idPost && communityId) {
-                window.location.href = `php/post_detalhes.php?id_post=${idPost}`;
+            if (publicId && communityId) {
+              window.location.href = `post/${publicId}`;
             }
         });
     });
@@ -1371,9 +1406,9 @@ if ($id_usuario_logado > 0) {
                     const avatarUrl = escapeHtml(item.foto_perfil || '');
                     const message = escapeHtml(item.mensagem || 'Nova notificação.');
                     const targetCommentId = Number(item.id_comentario) || 0;
-                    const postLink = item.id_post
-                        ? `php/post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}${targetCommentId ? `#comment-${encodeURIComponent(targetCommentId)}` : ''}`
-                        : 'index.php';
+                    const postLink = item.public_id
+                      ? `post/${encodeURIComponent(item.public_id)}${targetCommentId ? `#comment-${encodeURIComponent(targetCommentId)}` : ''}`
+                        : './';
                     const initial = (String(item.nome_remetente || 'A').trim().charAt(0) || 'A').toUpperCase();
                     const avatarMarkup = avatarUrl
                         ? `<img src="${avatarUrl}" alt="${author}">`

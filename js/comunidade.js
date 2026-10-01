@@ -144,9 +144,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const cargoTag = comunidade.cargo === 1 ? '<span class="cargo-admin-tag">admin</span>' : "";
         const safeId = parseInt(comunidade.id_comunidade, 10) || 0;
 
+        const communitySlug = (comunidade.slug || comunidade.nome || '').toString().trim();
+        const communityHref = communitySlug ? `comunidade/${encodeURIComponent(communitySlug.replace(/\s+/g, '-').toLowerCase())}` : `comunidade/${safeId}`;
         item.innerHTML = `
             <img class="community-avatar" src="${src}" alt="Avatar">
-            <a href="php/comunidade.php?id=${safeId}">${htmlspecialchars(comunidade.nome)}</a>
+            <a href="${communityHref}">${htmlspecialchars(comunidade.nome)}</a>
             ${cargoTag}
         `;
         listaComunidades.prepend(item);

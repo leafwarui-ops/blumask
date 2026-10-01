@@ -10,6 +10,7 @@
 // Inclui módulos de segurança (CSRF) e rate limiting (protege contra spam)
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
+require_once __DIR__ . "/admin_helpers.php";
 // Inclui arquivo de conexão com banco de dados
 include __DIR__ . "/bd.php";
 
@@ -75,6 +76,8 @@ if (!check_rate_limit('create_community', 5, 600)) {
     ]);
     exit;
 }
+
+ensure_community_slug_column($conn);
 
 // Registra a tentativa de criação (conta para o rate limit)
 hit_rate_limit('create_community');
@@ -207,8 +210,10 @@ mysqli_begin_transaction($conn);
 
 try {
     // Query 1: Insere a nova comunidade na tabela
-    $sql_comunidade = "INSERT INTO comunidade (data_criacao, descricao, nome, id_usuario, imagem)
-                       VALUES ('$data_criacao', '$descricao_esc', '$nome_esc', $id_usuario, $imagem_sql)";
+    $slug_value = sync_community_slug($conn, 0, $nome);
+    $slug_esc = mysqli_real_escape_string($conn, $slug_value);
+    $sql_comunidade = "INSERT INTO comunidade (data_criacao, descricao, nome, slug, id_usuario, imagem)
+                       VALUES ('$data_criacao', '$descricao_esc', '$nome_esc', '$slug_esc', $id_usuario, $imagem_sql)";
 
     // Executa a inserção
     if (!mysqli_query($conn, $sql_comunidade)) {
@@ -218,6 +223,7 @@ try {
 
     // Obtém o ID auto-incrementado da comunidade criada
     $id_comunidade = mysqli_insert_id($conn);
+    sync_community_slug($conn, $id_comunidade, $nome);
 
     // Query 2: O criador se torna automaticamente administrador da comunidade
     $sql_membro = "INSERT INTO membro_comunidade (id_usuario, id_comunidade, cargo, data_entrada)
@@ -238,6 +244,7 @@ try {
         "comunidade" => [
             "id_comunidade" => $id_comunidade,
             "nome" => $nome,
+            "slug" => $slug_value,
             "descricao" => $descricao,
             "imagem" => $imagem_path,
             "cargo" => CARGO_ADMINISTRADOR

@@ -16,7 +16,16 @@ if ($id_usuario <= 0) {
     exit;
 }
 
-if (!isset($_SESSION['csrf_token']) || $csrf !== $_SESSION['csrf_token']) {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(["sucesso" => false, "mensagem" => "Método inválido."]);
+    exit;
+}
+
+require_same_origin_for_state_change();
+
+if (!verify_csrf_token($csrf)) {
+    http_response_code(403);
     echo json_encode(["sucesso" => false, "mensagem" => "Token CSRF inválido."]);
     exit;
 }

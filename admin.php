@@ -1,4 +1,16 @@
 <?php
+$requestPath = parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+if (is_string($requestPath) && preg_match('#/admin\.php$#i', $requestPath)) {
+    $appRootPath = rtrim(dirname(str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '/admin.php'))), '/');
+    $canonicalAdmin = ($appRootPath === '' ? '' : $appRootPath) . '/admin';
+    $queryString = trim((string) ($_SERVER['QUERY_STRING'] ?? ''));
+    if ($queryString !== '') {
+        $canonicalAdmin .= '?' . $queryString;
+    }
+    header('Location: ' . $canonicalAdmin, true, 301);
+    exit;
+}
+
 require_once __DIR__ . '/php/security_headers.php';
 require_once __DIR__ . '/php/bd.php';
 require_once __DIR__ . '/php/admin_helpers.php';
@@ -7,7 +19,8 @@ require_once __DIR__ . '/php/admin_message_store.php';
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 
-ensure_admin_schema($conn);
+ensure_legacy_schema_compatibility($conn);
+ensure_community_slug_column($conn);
 ensure_admin_user($conn);
 
 $adminMessage = '';
@@ -17,7 +30,7 @@ if (!in_array($activeTab, ['users', 'communities'], true)) {
 }
 
 if (!isset($_SESSION['usuario']) || empty($_SESSION['usuario']['id_usuario'])) {
-    header('Location: index.php');
+    header('Location: ./');
     exit;
 }
 
@@ -26,13 +39,13 @@ $currentAdminId = $currentUserId;
 $currentUser = $_SESSION['usuario'];
 
 if ((int) ($currentUser['is_admin'] ?? 0) !== 1) {
-    header('Location: index.php?acesso=negado');
+    header('Location: ./?acesso=negado');
     exit;
 }
 
 if (is_user_suspended($currentUser)) {
     session_destroy();
-    header('Location: index.php?admin=suspenso');
+    header('Location: ./?admin=suspenso');
     exit;
 }
 
@@ -176,11 +189,11 @@ if (($_GET['ajax'] ?? '') === 'users_refresh') {
 }
 
 $communitySearchTerm = trim((string) ($_GET['community_q'] ?? ''));
-$communitiesSql = "SELECT c.id_comunidade, c.nome, c.descricao, c.imagem, c.id_usuario, u.nome_de_exibicao AS criador_nome, u.nome_de_usuario AS criador_usuario, COUNT(mc.id_usuario) AS total_membros
+$communitiesSql = "SELECT c.id_comunidade, c.nome, c.slug, c.descricao, c.imagem, c.id_usuario, u.nome_de_exibicao AS criador_nome, u.nome_de_usuario AS criador_usuario, COUNT(mc.id_usuario) AS total_membros
     FROM comunidade c
     LEFT JOIN usuario u ON u.id_usuario = c.id_usuario
     LEFT JOIN membro_comunidade mc ON mc.id_comunidade = c.id_comunidade
-    GROUP BY c.id_comunidade, c.nome, c.descricao, c.imagem, c.id_usuario, u.nome_de_exibicao, u.nome_de_usuario";
+    GROUP BY c.id_comunidade, c.nome, c.slug, c.descricao, c.imagem, c.id_usuario, u.nome_de_exibicao, u.nome_de_usuario";
 if ($communitySearchTerm !== '') {
     $term = $conn->real_escape_string('%' . $communitySearchTerm . '%');
     $communitiesSql .= " HAVING c.nome LIKE '$term' OR c.descricao LIKE '$term' OR u.nome_de_exibicao LIKE '$term' OR u.nome_de_usuario LIKE '$term'";
@@ -643,8 +656,8 @@ $csrfToken = get_csrf_token();
         <header class="admin-header">
             <h1>Painel de Administração</h1>
             <div class="admin-links">
-                <a class="home-link" href="index.php">Voltar</a>
-                <a class="logout-link" href="index.php?logout=1">Sair</a>
+                <a class="home-link" href="./">Voltar</a>
+                <a class="logout-link" href="./?logout=1">Sair</a>
             </div>
         </header>
 
@@ -695,7 +708,7 @@ $csrfToken = get_csrf_token();
                                     <tr>
                                         <td>
                                             <div class="user-name">
-                                                <a href="php/user_view.php?id=<?= $userId ?>" class="user-name-link" title="Ver perfil de <?= $displayNameHtml ?>"><?= $displayNameHtml ?></a>
+                                                <a href="usuario/<?= rawurlencode(strtolower(trim((string) ($user['nome_de_usuario'] ?? '')))) ?>" class="user-name-link" title="Ver perfil de <?= $displayNameHtml ?>"><?= $displayNameHtml ?></a>
                                                 <?php if ($isAdminUser): ?>
                                                     <span class="badge badge-admin">Admin</span>
                                                 <?php elseif ($isSuspended): ?>
@@ -785,17 +798,18 @@ $csrfToken = get_csrf_token();
                                     <?php
                                         $communityId = (int) ($community['id_comunidade'] ?? 0);
                                         $communityName = htmlspecialchars(trim((string) ($community['nome'] ?? 'Comunidade')), ENT_QUOTES, 'UTF-8');
+                                        $communitySlug = trim((string) ($community['slug'] ?? '')) !== '' ? trim((string) $community['slug']) : slugify_text((string) ($community['nome'] ?? 'comunidade'));
                                         $communityCreator = htmlspecialchars(trim((string) ($community['criador_nome'] ?? $community['criador_usuario'] ?? 'Sem criador')), ENT_QUOTES, 'UTF-8');
                                         $communityDesc = htmlspecialchars(trim((string) ($community['descricao'] ?? '')), ENT_QUOTES, 'UTF-8');
                                         $communityMembers = (int) ($community['total_membros'] ?? 0);
                                     ?>
                                     <tr>
                                         <td>
-                                            <a href="php/comunidade.php?id=<?= $communityId ?>" class="community-name-link" title="Abrir comunidade <?= $communityName ?>"><?= $communityName ?></a>
+                                            <a href="comunidade/<?= rawurlencode($communitySlug) ?>" class="community-name-link" title="Abrir comunidade <?= $communityName ?>"><?= $communityName ?></a>
                                         </td>
                                         <td>
                                             <?php if (!empty($community['id_usuario'])): ?>
-                                                <a href="php/user_view.php?id=<?= (int) $community['id_usuario'] ?>" class="user-name-link" title="Ver perfil do criador"><?= $communityCreator ?></a>
+                                                <a href="usuario/<?= rawurlencode(strtolower(trim((string) ($community['criador_usuario'] ?? '')))) ?>" class="user-name-link" title="Ver perfil do criador"><?= $communityCreator ?></a>
                                             <?php else: ?>
                                                 <?= $communityCreator ?>
                                             <?php endif; ?>
@@ -929,7 +943,7 @@ $csrfToken = get_csrf_token();
                     userActionSubmit.style.color = '#2d1600';
                 }
                 userActionUserId.value = userId;
-                userActionForm.action = 'admin.php';
+                userActionForm.action = 'admin';
                 userActionModal.classList.add('open');
                 userActionModal.setAttribute('aria-hidden', 'false');
             });

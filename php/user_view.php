@@ -3,6 +3,10 @@ require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/bd.php";
 require_once __DIR__ . "/media.php";
 require_once __DIR__ . "/profile_pins.php";
+require_once __DIR__ . "/admin_helpers.php";
+ensure_post_public_id_column($conn);
+ensure_community_slug_column($conn);
+ensure_comment_image_column($conn);
 ensure_profile_pin_tables($conn);
 
 $usuarios = [];
@@ -15,6 +19,7 @@ if ($result) {
 
 $selectedUser = null;
 $requestedId = isset($_GET['id']) ? intval($_GET['id']) : 0;
+$requestedSlug = trim((string) ($_GET['slug'] ?? ''));
 
 $isDeletedUser = function ($user) {
     if (!$user) {
@@ -28,7 +33,32 @@ $isDeletedUser = function ($user) {
 };
 
 if (!empty($usuarios)) {
-    if ($requestedId > 0) {
+  if ($requestedSlug !== '') {
+    foreach ($usuarios as $user) {
+      $candidateSlug = strtolower(trim((string) ($user['nome_de_usuario'] ?? '')));
+      if ($candidateSlug === strtolower($requestedSlug)) {
+        $selectedUser = $user;
+        break;
+      }
+    }
+
+    if (!$selectedUser || $isDeletedUser($selectedUser)) {
+      header("Location: ../");
+      exit;
+    }
+
+    $canonicalProfileSlug = strtolower(trim((string) ($selectedUser['nome_de_usuario'] ?? '')));
+    if ($requestedSlug !== $canonicalProfileSlug) {
+      header('Location: ../usuario/' . rawurlencode($canonicalProfileSlug), true, 301);
+      exit;
+    }
+
+    $loggedUserId = (int) ($_SESSION['usuario']['id_usuario'] ?? 0);
+    if ((int) ($selectedUser['is_admin'] ?? 0) === 1 && $loggedUserId !== (int) $selectedUser['id_usuario']) {
+      header("Location: ../");
+      exit;
+    }
+  } elseif ($requestedId > 0) {
         foreach ($usuarios as $user) {
             if (intval($user['id_usuario']) === $requestedId) {
                 $selectedUser = $user;
@@ -37,22 +67,26 @@ if (!empty($usuarios)) {
         }
 
         if (!$selectedUser || $isDeletedUser($selectedUser)) {
-            header("Location: ../index.php");
+            header("Location: ../");
             exit;
         }
 
         $loggedUserId = (int) ($_SESSION['usuario']['id_usuario'] ?? 0);
         if ((int) ($selectedUser['is_admin'] ?? 0) === 1
           && $loggedUserId !== (int) $selectedUser['id_usuario']) {
-          header("Location: ../index.php");
+          header("Location: ../");
           exit;
         }
+
+        $canonicalProfileSlug = strtolower(trim((string) ($selectedUser['nome_de_usuario'] ?? '')));
+        header('Location: ../usuario/' . rawurlencode($canonicalProfileSlug), true, 301);
+        exit;
     } else {
-        header("Location: ../index.php");
+        header("Location: ../");
         exit;
     }
 } else {
-    header("Location: ../index.php");
+    header("Location: ../");
     exit;
 }
 
@@ -85,7 +119,7 @@ if ($profileUser) {
             $communityCount = intval($communityRow['total'] ?? 0);
         }
 
-        $communityQuery = "SELECT c.id_comunidade, c.nome, c.imagem
+        $communityQuery = "SELECT c.id_comunidade, c.nome, c.slug, c.imagem
                           FROM membro_comunidade mc
                           INNER JOIN comunidade c ON c.id_comunidade = mc.id_comunidade
                           WHERE mc.id_usuario = $profileUserId
@@ -106,6 +140,7 @@ if ($profileUser) {
         // 1. Posts fixados no perfil
         $sql_pinned = "SELECT 
                 p.id_post,
+          p.public_id,
                 p.id_comunidade,
                 p.Data_post,
                 p.conteudo,
@@ -134,8 +169,10 @@ if ($profileUser) {
           $sql_pinned_comments = "SELECT
             c.id_comentario,
             c.id_post,
+            p.public_id,
             c.id_usuario,
             c.conteudo,
+            c.imagem,
             c.data_comentario,
             p.id_comunidade,
             p.assunto,
@@ -160,6 +197,7 @@ if ($profileUser) {
         // 2. Posts recentes deste usuário
         $sql_recent = "SELECT 
             p.id_post,
+          p.public_id,
             p.id_comunidade,
             p.Data_post,
             p.conteudo,
@@ -189,7 +227,9 @@ if ($profileUser) {
         $sql_recent_comments = "SELECT
           c.id_comentario,
           c.id_post,
+          p.public_id,
           c.conteudo,
+          c.imagem,
           c.data_comentario,
           p.assunto,
           p.id_comunidade,
@@ -244,9 +284,9 @@ function userAvatar($user) {
 </head>
 <body data-id-usuario="<?= isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0 ?>">
   <dialog id="login-box">
-    <form id="popup-form" action="../index.php" method="post">
+    <form id="popup-form" action="../" method="post">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
-      <input type="hidden" name="return_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '../index.php', ENT_QUOTES, 'UTF-8') ?>">
+      <input type="hidden" name="return_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '../', ENT_QUOTES, 'UTF-8') ?>">
       <div class="dialog-tabs">
         <button type="button" id="btn-entrar-dialog">entrar</button>
         <button type="button" id="btn-cadastrar-dialog">cadastrar</button>
@@ -256,7 +296,7 @@ function userAvatar($user) {
   </dialog>
   <div class="page">
     <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9;">
-      <div style="display: flex; align-items: center; gap: 12px; cursor: pointer;" onclick="window.location.href='../index.php'">
+      <div style="display: flex; align-items: center; gap: 12px; cursor: pointer;" onclick="window.location.href='../'">
         <img src="../style/blumaskWhiteLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
         <h1 style="margin: 0; font-size: 20px; color: #fff;">BluMask</h1>
       </div>
@@ -283,10 +323,10 @@ function userAvatar($user) {
               <div id="notificationList" class="notification-list"></div>
             </div>
           </div>
-          <button class="profile-avatar-button" type="button" onclick="window.location.href='../index.php'" title="Voltar para o início" aria-label="Voltar para o início">
+          <button class="profile-avatar-button" type="button" onclick="window.location.href='../'" title="Voltar para o início" aria-label="Voltar para o início">
             <img src="<?= $headerAvatar ?>" alt="Foto do perfil">
           </button>
-          <a href="../index.php?logout=1" class="topbar-logout">Sair</a>
+          <a href="../?logout=1" class="topbar-logout">Sair</a>
         <?php endif; ?>
       </div>
     </header>
@@ -410,20 +450,20 @@ function userAvatar($user) {
                           $img_comunidade = "https://ui-avatars.com/api/?name=" . urlencode($post['nome_comunidade']) . "&background=2b17e0&color=fff";
                       }
                     ?>
-                    <article class="post post-card-feed" data-post-id="<?= $id_post ?>">
+                    <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-public-id="<?= htmlspecialchars($post['public_id'], ENT_QUOTES, 'UTF-8') ?>">
                       <div class="feed-item-badge" style="display:inline-block; margin-bottom:10px; padding:4px 8px; border-radius:999px; background:#e8e2ff; color:#3b2d85; font-size:11px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;">
                         Post fixado
                       </div>
                       <div class="post-header">
                         <div class="post-avatar">
-                          <a href="user_view.php?id=<?= $profileUserId ?>" title="Ver perfil de <?= $profileName ?>">
+                          <a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($profileUser['nome_de_usuario'] ?? '')))) ?>" title="Ver perfil de <?= $profileName ?>">
                             <img src="<?= $profileAvatar ?>" alt="<?= $profileName ?>">
                           </a>
                         </div>
                         <div class="post-header-info">
                           <div class="post-user-info">
                             <h4>
-                              <a href="user_view.php?id=<?= $profileUserId ?>" class="post-community-name">
+                              <a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($profileUser['nome_de_usuario'] ?? '')))) ?>" class="post-community-name">
                                 <?= $profileName ?>
                               </a>
                             </h4>
@@ -461,7 +501,7 @@ function userAvatar($user) {
                             <span>Desfixar</span>
                           </button>
                         <?php endif; ?>
-                        <a href="post_detalhes.php?id_post=<?= $id_post ?>#formComentarioDetalhe" class="post-action post-comment-action" title="Comentar neste post" onclick="event.stopPropagation();">
+                          <a href="../post/<?= rawurlencode((string) $post['public_id']) ?>#formComentarioDetalhe" class="post-action post-comment-action" title="Comentar neste post" onclick="event.stopPropagation();">
                           <span class="comment-icon">💬</span>
                           <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
                         </a>
@@ -480,19 +520,19 @@ function userAvatar($user) {
                       $comment_conteudo = htmlspecialchars($comment['conteudo'], ENT_QUOTES, 'UTF-8', false);
                       $comment_date = date('d/m/Y', strtotime($comment['data_comentario']));
                     ?>
-                    <article class="post post-card-feed comment-entry" data-post-id="<?= $comment_post_id ?>" data-comment-id="<?= $comment_id ?>">
+                    <article class="post post-card-feed comment-entry" data-post-id="<?= $comment_post_id ?>" data-public-id="<?= htmlspecialchars($comment['public_id'], ENT_QUOTES, 'UTF-8') ?>" data-comment-id="<?= $comment_id ?>">
                       <div class="feed-item-badge" style="display:inline-block; margin-bottom:10px; padding:4px 8px; border-radius:999px; background:#e0f2fe; color:#0f4c81; font-size:11px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;">
                         Comentário fixado
                       </div>
                       <div class="post-header">
                         <div class="post-avatar">
-                          <a href="user_view.php?id=<?= intval($comment['id_usuario']) ?>" title="Ver perfil de <?= $comment_author_name ?>">
+                          <a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($comment['nome_de_usuario'] ?? '')))) ?>" title="Ver perfil de <?= $comment_author_name ?>">
                             <img src="<?= $comment_avatar ?>" alt="<?= $comment_author_name ?>" style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%;">
                           </a>
                         </div>
                         <div class="post-header-info">
                           <div class="post-user-info">
-                            <h4><a href="user_view.php?id=<?= intval($comment['id_usuario']) ?>" style="text-decoration:none; color:inherit;"><?= $comment_author_name ?></a></h4>
+                            <h4><a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($comment['nome_de_usuario'] ?? '')))) ?>" style="text-decoration:none; color:inherit;"><?= $comment_author_name ?></a></h4>
                             <?php if ($comment_author_handle !== ''): ?><div class="post-user-handle">@<?= $comment_author_handle ?></div><?php endif; ?>
                             <?php if ($comment_assunto !== ''): ?><div class="post-user-handle">Em: <?= $comment_assunto ?></div><?php endif; ?>
                           </div>
@@ -500,6 +540,8 @@ function userAvatar($user) {
                         </div>
                       </div>
                       <div class="post-content"><?= nl2br($comment_conteudo) ?></div>
+                      <?php $commentImageUrl = resolve_asset_url($comment['imagem'] ?? '', ''); ?>
+                      <?php if ($commentImageUrl !== ''): ?><div class="post-image-wrap comment-image-wrap"><img class="post-image comment-image" src="<?= $commentImageUrl ?>" alt="Imagem anexada ao comentário" loading="lazy"></div><?php endif; ?>
                     </article>
                   <?php endforeach; ?>
                 </div>
@@ -540,20 +582,20 @@ function userAvatar($user) {
                           $img_comunidade = "https://ui-avatars.com/api/?name=" . urlencode($post['nome_comunidade']) . "&background=2b17e0&color=fff";
                       }
                     ?>
-                    <article class="post post-card-feed" data-post-id="<?= $id_post ?>">
+                    <article class="post post-card-feed" data-post-id="<?= $id_post ?>" data-public-id="<?= htmlspecialchars($post['public_id'], ENT_QUOTES, 'UTF-8') ?>">
                       <div class="feed-item-badge" style="display:inline-block; margin-bottom:10px; padding:4px 8px; border-radius:999px; background:#e8e2ff; color:#3b2d85; font-size:11px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;">
                         Post
                       </div>
                       <div class="post-header">
                         <div class="post-avatar">
-                          <a href="user_view.php?id=<?= $profileUserId ?>" title="Ver perfil de <?= $profileName ?>">
+                          <a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($profileUser['nome_de_usuario'] ?? '')))) ?>" title="Ver perfil de <?= $profileName ?>">
                             <img src="<?= $profileAvatar ?>" alt="<?= $profileName ?>">
                           </a>
                         </div>
                         <div class="post-header-info">
                           <div class="post-user-info">
                             <h4>
-                              <a href="user_view.php?id=<?= $profileUserId ?>" class="post-community-name">
+                              <a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($profileUser['nome_de_usuario'] ?? '')))) ?>" class="post-community-name">
                                 <?= $profileName ?>
                               </a>
                             </h4>
@@ -585,7 +627,7 @@ function userAvatar($user) {
                           <span class="like-icon"><?= $curtiu ? '❤️' : '🤍' ?></span>
                           <span class="like-count"><?= $total_curtidas ?></span>
                         </button>
-                        <a href="post_detalhes.php?id_post=<?= $id_post ?>#formComentarioDetalhe" class="post-action post-comment-action" title="Comentar neste post" onclick="event.stopPropagation();">
+                          <a href="../post/<?= rawurlencode((string) $post['public_id']) ?>#formComentarioDetalhe" class="post-action post-comment-action" title="Comentar neste post" onclick="event.stopPropagation();">
                           <span class="comment-icon">💬</span>
                           <span class="comment-count"><?= $total_comentarios ?> <?= $total_comentarios === 1 ? 'comentário' : 'comentários' ?></span>
                         </a>
@@ -604,19 +646,19 @@ function userAvatar($user) {
                       $comment_conteudo = htmlspecialchars($comment['conteudo'] ?? '', ENT_QUOTES, 'UTF-8', false);
                       $comment_date = date('d/m/Y', strtotime($comment['data_comentario']));
                     ?>
-                    <article class="post post-card-feed comment-entry" data-post-id="<?= $comment_post_id ?>" data-comment-id="<?= $comment_id ?>">
+                    <article class="post post-card-feed comment-entry" data-post-id="<?= $comment_post_id ?>" data-public-id="<?= htmlspecialchars($comment['public_id'], ENT_QUOTES, 'UTF-8') ?>" data-comment-id="<?= $comment_id ?>">
                       <div class="feed-item-badge" style="display:inline-block; margin-bottom:10px; padding:4px 8px; border-radius:999px; background:#e0f2fe; color:#0f4c81; font-size:11px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;">
                         Comentário
                       </div>
                       <div class="post-header">
                         <div class="post-avatar">
-                          <a href="user_view.php?id=<?= $profileUserId ?>" title="Ver perfil de <?= $profileName ?>">
+                          <a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($profileUser['nome_de_usuario'] ?? '')))) ?>" title="Ver perfil de <?= $profileName ?>">
                             <img src="<?= $comment_avatar ?>" alt="<?= $comment_author_name ?>" style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%;">
                           </a>
                         </div>
                         <div class="post-header-info">
                           <div class="post-user-info">
-                            <h4><a href="user_view.php?id=<?= $profileUserId ?>" style="text-decoration:none; color:inherit;"><?= $comment_author_name ?></a></h4>
+                            <h4><a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($profileUser['nome_de_usuario'] ?? '')))) ?>" style="text-decoration:none; color:inherit;"><?= $comment_author_name ?></a></h4>
                             <?php if ($comment_author_handle !== ''): ?><div class="post-user-handle">@<?= $comment_author_handle ?></div><?php endif; ?>
                             <?php if ($comment_assunto !== ''): ?><div class="post-user-handle">Em: <?= $comment_assunto ?></div><?php endif; ?>
                           </div>
@@ -624,6 +666,8 @@ function userAvatar($user) {
                         </div>
                       </div>
                       <div class="post-content"><?= nl2br($comment_conteudo) ?></div>
+                      <?php $commentImageUrl = resolve_asset_url($comment['imagem'] ?? '', ''); ?>
+                      <?php if ($commentImageUrl !== ''): ?><div class="post-image-wrap comment-image-wrap"><img class="post-image comment-image" src="<?= $commentImageUrl ?>" alt="Imagem anexada ao comentário" loading="lazy"></div><?php endif; ?>
                     </article>
                   <?php endforeach; ?>
                 </div>
@@ -652,7 +696,7 @@ function userAvatar($user) {
                   ? resolve_asset_url($community['imagem'], "https://ui-avatars.com/api/?name=" . urlencode($community['nome'] ?? 'Comunidade') . "&background=random")
                   : "https://ui-avatars.com/api/?name=" . urlencode($community['nome'] ?? 'Comunidade') . "&background=random";
               ?>
-              <a href="comunidade.php?id=<?= intval($community['id_comunidade']) ?>" class="community-item" title="Entrar na comunidade <?= $communityName ?>">
+              <a href="../comunidade/<?= rawurlencode((string) $community['slug']) ?>" class="community-item" title="Entrar na comunidade <?= $communityName ?>">
                 <img src="<?= $communityImage ?>" alt="<?= $communityName ?>" class="community-avatar-mini">
                 <span><?= $communityName ?></span>
               </a>
@@ -809,12 +853,12 @@ function userAvatar($user) {
                 return;
             }
 
-            const postId = post.dataset.postId;
+            const publicId = post.dataset.publicId;
             const commentId = post.dataset.commentId;
-            if (postId && commentId) {
-              window.location.href = `post_detalhes.php?id_post=${postId}#comment-${commentId}`;
-            } else if (postId) {
-              window.location.href = `post_detalhes.php?id_post=${postId}`;
+            if (publicId && commentId) {
+              window.location.href = `../post/${publicId}#comment-${commentId}`;
+            } else if (publicId) {
+              window.location.href = `../post/${publicId}`;
             }
         });
     });
@@ -880,9 +924,9 @@ function userAvatar($user) {
                 const avatarUrl = escapeHtml(item.foto_perfil || '');
                 const message = escapeHtml(item.mensagem || 'Nova notificação.');
                 const targetCommentId = Number(item.id_comentario) || 0;
-                const postLink = item.id_post
-                    ? `post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}${targetCommentId ? `#comment-${encodeURIComponent(targetCommentId)}` : ''}`
-                    : '../index.php';
+                const postLink = item.public_id
+                  ? `../post/${encodeURIComponent(item.public_id)}${targetCommentId ? `#comment-${encodeURIComponent(targetCommentId)}` : ''}`
+                    : '../';
                 const initial = (String(item.nome_remetente || 'A').trim().charAt(0) || 'A').toUpperCase();
                 const avatarMarkup = avatarUrl
                     ? `<img src="${avatarUrl}" alt="${author}">`
@@ -902,7 +946,7 @@ function userAvatar($user) {
 
         const loadNotifications = async () => {
             try {
-                const response = await fetch('notificacoes.php?action=list&limit=20', { credentials: 'same-origin' });
+                const response = await fetch('../php/notificacoes.php?action=list&limit=20', { credentials: 'same-origin' });
                 if (!response.ok) {
                     return;
                 }
@@ -919,7 +963,7 @@ function userAvatar($user) {
 
         const markNotificationsAsRead = async () => {
             try {
-                const response = await fetch('notificacoes.php', {
+                const response = await fetch('../php/notificacoes.php', {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },

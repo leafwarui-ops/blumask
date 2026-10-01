@@ -10,14 +10,24 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Detecta se o script está rodando dentro da pasta /php/ ou na raiz
-    // Necessário para construir URLs corretas dos endpoints
     const currentPath = window.location.pathname || "";
-    const isInsidePhpFolder = currentPath.includes("/php/") || currentPath.endsWith("/php");
-    const searchEndpoint = isInsidePhpFolder ? "pesquisar.php" : "php/pesquisar.php";
-    const userProfileEndpoint = isInsidePhpFolder ? "user_view.php" : "php/user_view.php";
-    const communityEndpoint = isInsidePhpFolder ? "comunidade.php" : "php/comunidade.php";
-    const profileEditEndpoint = isInsidePhpFolder ? "usr_edit.php" : "php/usr_edit.php";
+    const pathSegments = currentPath.split("/").filter(Boolean);
+    const routeSegmentIndex = pathSegments.findIndex((segment) => ["php", "comunidade", "usuario", "post", "admin", "perfil", "editar-perfil"].includes(segment));
+    const appRoot = routeSegmentIndex >= 0
+        ? `/${pathSegments.slice(0, routeSegmentIndex).join("/")}`.replace(/\/$/, "")
+        : currentPath.endsWith("/")
+            ? currentPath.replace(/\/$/, "")
+            : currentPath.slice(0, currentPath.lastIndexOf("/"));
+    const appUrl = (path) => `${appRoot}/${String(path).replace(/^\/+/, "")}`;
+    const searchEndpoint = appUrl("php/pesquisar.php");
+    const userProfileEndpoint = appUrl("usuario");
+    const communityEndpoint = appUrl("comunidade");
+
+    function buildCommunityUrl(comu) {
+        const slug = (comu && (comu.slug || comu.nome)) ? String(comu.slug || comu.nome).trim() : "";
+        const safeSlug = slug ? encodeURIComponent(slug.replace(/\s+/g, '-').toLowerCase()) : encodeURIComponent(String(parseInt(comu?.id_comunidade || 0, 10) || 0));
+        return `${communityEndpoint}/${safeSlug}`;
+    }
 
     function normalizarUrlImagem(path) {
         if (!path) return "";
@@ -32,14 +42,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (clean === "") return "";
 
         if (clean.startsWith("uploads/") || clean.startsWith("avatars/") || clean.startsWith("banners/") || clean.startsWith("style/") || clean.startsWith("php/") || clean.startsWith("js/")) {
-            return isInsidePhpFolder ? `../${clean}` : clean;
+            return appUrl(clean);
         }
 
         if (clean.startsWith("../") || clean.startsWith("./")) {
             return clean;
         }
 
-        return isInsidePhpFolder ? `../${clean}` : clean;
+        return appUrl(clean);
     }
 
     // ========================================================================
@@ -359,7 +369,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     if (!comu.id_comunidade) return;
                     fecharDropdown();
-                    window.location.href = `${communityEndpoint}?id=${encodeURIComponent(comu.id_comunidade)}`;
+                    window.location.href = buildCommunityUrl(comu);
                 });
                 listaComu.appendChild(li);
             });
@@ -407,7 +417,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const usuarioDeletado = user.nome_de_exibicao === "Usuário deletado" || String(user.nome_de_usuario || "").startsWith("usuario_deletado_");
         if (usuarioDeletado) return;
         fecharDropdown();
-        window.location.href = `${userProfileEndpoint}?id=${encodeURIComponent(user.id_usuario)}`;
+        const username = String(user.nome_de_usuario || "").trim().toLowerCase();
+        if (!username) return;
+        window.location.href = `${userProfileEndpoint}/${encodeURIComponent(username)}`;
     }
 
     /**
@@ -451,7 +463,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 btnAcessar.textContent = "Acessar";
                 actions.prepend(btnAcessar);
             }
-            btnAcessar.href = `${communityEndpoint}?id=${parseInt(comu.id_comunidade, 10) || 0}`;
+            btnAcessar.href = buildCommunityUrl(comu);
         }
 
         fecharDropdown();

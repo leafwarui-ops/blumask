@@ -12,6 +12,7 @@ define('CARGO_MEMBRO', 0);
 
 // 1. Verificação de Autenticação
 if (!isset($_SESSION['usuario'])) {
+    http_response_code(401);
     echo json_encode(["sucesso" => false, "mensagem" => "Você precisa estar logado para entrar em uma comunidade."]);
     exit;
 }
@@ -39,6 +40,12 @@ global $conn;
 
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
 $id_comunidade = intval($_POST['id_comunidade'] ?? 0);
+$community_token = (string) ($_POST['community_token'] ?? '');
+
+if ((int) ($_SESSION['blumask_current_community_id'] ?? 0) !== $id_comunidade || !verify_community_context_token($id_comunidade, $community_token)) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Contexto da comunidade inválido. A ação foi bloqueada por segurança."]);
+    exit;
+}
 
 if (is_site_admin($conn, $id_usuario)) {
     http_response_code(403);

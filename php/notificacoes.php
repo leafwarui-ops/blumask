@@ -43,6 +43,7 @@ if (!isset($_SESSION['usuario']['id_usuario'])) {
 }
 
 ensure_notification_schema($conn);
+ensure_post_public_id_column($conn);
 
 $usuarioId = (int) $_SESSION['usuario']['id_usuario'];
 $metodo = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
@@ -69,7 +70,7 @@ if ($metodo === 'POST' && $acao === 'read') {
 $limit = max(1, min(20, intval($_GET['limit'] ?? 10)));
 
 $lista = [];
-$result = $conn->query("SELECT n.*, u.nome_de_exibicao AS nome_remetente, u.nome_de_usuario AS usuario_remetente, u.foto_perfil, p.assunto AS assunto_post
+$result = $conn->query("SELECT n.*, u.nome_de_exibicao AS nome_remetente, u.nome_de_usuario AS usuario_remetente, u.foto_perfil, p.assunto AS assunto_post, p.public_id AS public_id
     FROM notificacao n
     LEFT JOIN usuario u ON u.id_usuario = n.id_remetente
     LEFT JOIN post p ON p.id_post = n.id_post
@@ -85,6 +86,7 @@ if ($result) {
         $lista[] = [
             'id_notificacao' => (int) ($row['id_notificacao'] ?? 0),
             'id_post' => (int) ($row['id_post'] ?? 0),
+            'public_id' => (string) ($row['public_id'] ?? ''),
             'id_comentario' => (int) ($row['id_comentario'] ?? 0),
             'nome_remetente' => $nomeRemetente,
             'usuario_remetente' => trim((string) ($row['usuario_remetente'] ?? '')),

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
+require_once __DIR__ . "/admin_helpers.php";
 include __DIR__ . "/bd.php";
 
 header('Content-Type: application/json; charset=utf-8');
@@ -35,8 +36,14 @@ global $conn;
 
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
 $id_comunidade = intval($_POST['id_comunidade'] ?? 0);
+$community_token = (string) ($_POST['community_token'] ?? '');
 $nome_raw = trim($_POST['nome'] ?? '');
 $descricao_raw = str_replace(["\r\n", "\r"], "\n", trim($_POST['descricao'] ?? ''));
+
+if ((int) ($_SESSION['blumask_current_community_id'] ?? 0) !== $id_comunidade || !verify_community_context_token($id_comunidade, $community_token)) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Contexto da comunidade inválido. A ação foi bloqueada por segurança."]);
+    exit;
+}
 
 if ($id_comunidade <= 0) {
     echo json_encode(["sucesso" => false, "mensagem" => "ID da comunidade inválido."]);
@@ -78,6 +85,8 @@ $descricao = $descricao_raw;
 
 $nome_esc = mysqli_real_escape_string($conn, $nome);
 $descricao_esc = mysqli_real_escape_string($conn, $descricao);
+ensure_community_slug_column($conn);
+sync_community_slug($conn, $id_comunidade, $nome);
 
 $imagem_sql = ($comunidade['imagem'] !== null && $comunidade['imagem'] !== '')
     ? "imagem = '" . mysqli_real_escape_string($conn, $comunidade['imagem']) . "'"

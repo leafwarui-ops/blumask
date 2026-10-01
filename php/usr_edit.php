@@ -1,10 +1,25 @@
 <?php
+$scriptPath = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '/php/usr_edit.php'));
+$appRootPath = rtrim(dirname(dirname($scriptPath)), '/');
+$appHomeUrl = ($appRootPath === '' ? '' : $appRootPath) . '/';
+$requestPath = parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+if (is_string($requestPath) && preg_match('#/php/usr_edit\.php$#i', $requestPath)) {
+  $canonicalEdit = ($appRootPath === '' ? '' : $appRootPath) . '/perfil/editar';
+  $queryString = trim((string) ($_SERVER['QUERY_STRING'] ?? ''));
+  if ($queryString !== '') {
+    $canonicalEdit .= '?' . $queryString;
+  }
+  header('Location: ' . $canonicalEdit, true, 301);
+  exit;
+}
+
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
+require_once __DIR__ . "/media.php";
 include __DIR__ . "/bd.php";
 
 if (!isset($_SESSION['usuario'])) {
-    header("Location: ../index.php");
+  header('Location: ' . $appHomeUrl);
     exit;
 }
 
@@ -78,7 +93,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             try {
               if ($conn->query($sql_anonymize) === TRUE) {
                 session_destroy();
-                header("Location: ../index.php?conta_excluida=1");
+                header('Location: ' . $appHomeUrl . '?conta_excluida=1');
                 exit;
               }
               $error_message = "Não foi possível excluir a conta no momento. Tente novamente.";
@@ -269,7 +284,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION['usuario']['banner']           = $uploaded_banner_path;
                 $_SESSION['usuario']['foto_perfil']      = $uploaded_avatar_path;
 
-                header("Location: ../index.php");
+                header('Location: ' . $appHomeUrl);
                 exit;
             } else {
                 $error_message = "Erro ao atualizar perfil no banco de dados.";
@@ -278,9 +293,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 }
 
-// Avatar URL inicial
-$avatarUrl = !empty($fotoPerfil) ? "../" . htmlspecialchars($fotoPerfil, ENT_QUOTES, 'UTF-8') : "https://ui-avatars.com/api/?name=" . urlencode($nomeExibicao) . "&background=random";
-$bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialchars($bannerPath, ENT_QUOTES, 'UTF-8') . "'); background-size: cover; background-position: center;" : "";
+$avatarDisplayName = trim((string) ($user['nome_de_exibicao'] ?? ''));
+$avatarFallback = generated_avatar_data_uri($avatarDisplayName);
+$avatarUrl = resolve_media_url($fotoPerfil, generated_avatar_url($avatarDisplayName), '../');
+$bannerUrl = resolve_media_url($bannerPath, '', '../');
+$bannerStyle = $bannerUrl !== '' ? "background-image: url('" . $bannerUrl . "'); background-size: cover; background-position: center;" : "";
 ?>
 
 <!DOCTYPE html>
@@ -297,7 +314,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
   <div class="page">
     <!-- TOPBAR -->
     <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px;">
-      <a href="../index.php" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;">
+      <a href="<?= htmlspecialchars($appHomeUrl, ENT_QUOTES, 'UTF-8') ?>" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;">
         <img src="../style/blumaskWhiteLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
         <h1 style="margin: 0; font-size: 20px;">BluMask</h1>
       </a>
@@ -319,7 +336,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
           
           <!-- FOTO DE PERFIL (AVATAR) -->
           <div class="edit-avatar-wrapper">
-            <img src="<?= $avatarUrl ?>" alt="Avatar" id="avatar-preview" class="edit-avatar">
+            <img src="<?= $avatarUrl ?>" alt="Avatar" id="avatar-preview" class="edit-avatar" onerror="this.onerror=null;this.src='<?= htmlspecialchars($avatarFallback, ENT_QUOTES, 'UTF-8') ?>'">
             <button type="button" class="btn-edit-avatar" id="btn-trigger-avatar" title="Editar Foto (máx 2 MB)">
               <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
             </button>
@@ -399,7 +416,7 @@ $bannerStyle = !empty($bannerPath) ? "background-image: url('../" . htmlspecialc
             <!-- BOTÕES DE AÇÃO -->
             <div class="edit-actions-row">
               <div class="edit-actions">
-                <button type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '../index.php'; }" class="btn-voltar">Voltar</button>
+                <button type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = './'; }" class="btn-voltar">Voltar</button>
                 <button type="submit" id="btn-confirmar" class="btn-confirmar" disabled>Confirmar</button>
               </div>
 

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
+require_once __DIR__ . "/admin_helpers.php";
 include __DIR__ . "/bd.php";
 
 header('Content-Type: application/json; charset=utf-8');
@@ -18,9 +19,10 @@ if (!check_rate_limit('fetch_communities', 30, 60)) {
 
 global $conn;
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
+ensure_community_slug_column($conn);
 
 // Traz as comunidades que o usuário administra ou das quais é membro
-$sql = "SELECT c.id_comunidade, c.nome, c.imagem, mc.cargo
+$sql = "SELECT c.id_comunidade, c.nome, c.slug, c.imagem, mc.cargo
         FROM comunidade c
         INNER JOIN membro_comunidade mc ON mc.id_comunidade = c.id_comunidade
         WHERE mc.id_usuario = $id_usuario
@@ -44,6 +46,7 @@ while ($linha = mysqli_fetch_assoc($resultado)) {
     $comunidades[] = [
         "id_comunidade" => intval($linha['id_comunidade']),
         "nome" => $linha['nome'],
+        "slug" => trim((string) ($linha['slug'] ?? '')),
         "imagem" => $imagem ?: null,
         "cargo" => intval($linha['cargo'])
     ];

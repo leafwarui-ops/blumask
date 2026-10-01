@@ -20,6 +20,11 @@ if (!ensure_post_image_column($conn)) {
     echo json_encode(["sucesso" => false, "mensagem" => "Não foi possível preparar o campo de imagem do post."]);
     exit;
 }
+if (!ensure_post_public_id_column($conn)) {
+    http_response_code(503);
+    echo json_encode(["sucesso" => false, "mensagem" => "Não foi possível preparar o identificador do post."]);
+    exit;
+}
 
 // 1. Verificação de Autenticação
 if (!isset($_SESSION['usuario'])) {
@@ -44,8 +49,14 @@ global $conn;
 
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
 $id_comunidade = intval($_POST['id_comunidade'] ?? 0);
+$community_token = (string) ($_POST['community_token'] ?? '');
 $assunto_raw = trim($_POST['assunto'] ?? '');
 $conteudo_raw = str_replace(["\r\n", "\r"], "\n", trim($_POST['conteudo'] ?? ''));
+
+if ((int) ($_SESSION['blumask_current_community_id'] ?? 0) !== $id_comunidade || !verify_community_context_token($id_comunidade, $community_token)) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Contexto da comunidade inválido. A ação foi bloqueada por segurança."]);
+    exit;
+}
 
 if (is_site_admin($conn, $id_usuario)) {
     http_response_code(403);
@@ -178,10 +189,11 @@ if (!$postingLimit['allowed']) {
 }
 
 $data_post = date("Y-m-d H:i:s");
+$public_id = bin2hex(random_bytes(16));
 $imagem_sql = $imagem_path ? ", imagem" : "";
 $imagem_value = $imagem_path ? ", '" . mysqli_real_escape_string($conn, $imagem_path) . "'" : "";
-$sql_insert = "INSERT INTO post (id_comunidade, Data_post, conteudo, id_usuario, assunto" . $imagem_sql . ")
-               VALUES ($id_comunidade, '$data_post', '$conteudo_esc', $id_usuario, '$assunto_esc'" . $imagem_value . ")";
+$sql_insert = "INSERT INTO post (id_comunidade, Data_post, conteudo, id_usuario, assunto, public_id" . $imagem_sql . ")
+               VALUES ($id_comunidade, '$data_post', '$conteudo_esc', $id_usuario, '$assunto_esc', '$public_id'" . $imagem_value . ")";
 
 if (mysqli_query($conn, $sql_insert)) {
     $id_post = mysqli_insert_id($conn);
@@ -189,7 +201,8 @@ if (mysqli_query($conn, $sql_insert)) {
     echo json_encode([
         "sucesso" => true,
         "mensagem" => "Post criado com sucesso!",
-        "id_post" => $id_post
+        "id_post" => $id_post,
+        "public_id" => $public_id
     ]);
 } else {
     echo json_encode(["sucesso" => false, "mensagem" => "Erro ao criar post."]);

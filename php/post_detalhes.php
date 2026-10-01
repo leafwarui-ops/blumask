@@ -5,18 +5,43 @@ include __DIR__ . "/bd.php";
 require_once __DIR__ . "/media.php";
 require_once __DIR__ . "/admin_helpers.php";
 
-$id_post = intval($_GET['id_post'] ?? 0);
+global $conn;
+if (!ensure_post_public_id_column($conn)) {
+    http_response_code(503);
+    exit('Não foi possível carregar o post.');
+}
+if (!ensure_comment_image_column($conn)) {
+    http_response_code(503);
+    exit('Não foi possível carregar os comentários.');
+}
+
+$requestedPublicId = strtolower(trim((string) ($_GET['public_id'] ?? '')));
+$id_post = 0;
+
+if ($requestedPublicId !== '') {
+    if (preg_match('/^[a-f0-9]{32}$/', $requestedPublicId)) {
+        $postLookup = $conn->prepare("SELECT id_post FROM post WHERE public_id = ? LIMIT 1");
+        if ($postLookup) {
+            $postLookup->bind_param('s', $requestedPublicId);
+            $postLookup->execute();
+            $postLookupResult = $postLookup->get_result();
+            $id_post = (int) ($postLookupResult->fetch_assoc()['id_post'] ?? 0);
+            $postLookup->close();
+        }
+    }
+} else {
+    $id_post = intval($_GET['id_post'] ?? 0);
+}
 
 if ($id_post <= 0) {
-    header("Location: ../index.php");
+    header("Location: ../");
     exit;
 }
 
-global $conn;
 $id_usuario = isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0;
 $is_site_admin_user = is_site_admin($conn, $id_usuario);
 
-$sql_post = "SELECT p.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil, c.nome AS nome_comunidade, c.id_comunidade,
+$sql_post = "SELECT p.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil, c.nome AS nome_comunidade, c.slug AS community_slug, c.id_comunidade,
              (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) as total_curtidas,
              (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario) as curtiu,
              (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) as total_comentarios,
@@ -31,7 +56,7 @@ try {
 } catch (mysqli_sql_exception $e) {
     // Possível que a coluna id_comentario_fixado não exista no banco.
     // Faz fallback para uma query sem essa coluna para evitar fatal error.
-    $sql_post_alt = "SELECT p.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil, c.nome AS nome_comunidade, c.id_comunidade,
+    $sql_post_alt = "SELECT p.*, u.nome_de_exibicao, u.nome_de_usuario, u.foto_perfil, c.nome AS nome_comunidade, c.slug AS community_slug, c.id_comunidade,
              (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post) as total_curtidas,
              (SELECT COUNT(*) FROM curtida WHERE id_post = p.id_post AND id_usuario = $id_usuario) as curtiu,
              (SELECT COUNT(*) FROM comentario WHERE id_post = p.id_post) as total_comentarios
@@ -44,11 +69,16 @@ try {
 }
 
 if (!$resultado_post || mysqli_num_rows($resultado_post) === 0) {
-    header("Location: ../index.php");
+    header("Location: ../");
     exit;
 }
 
 $post = mysqli_fetch_assoc($resultado_post);
+if ($requestedPublicId === '') {
+    header('Location: ../post/' . rawurlencode((string) $post['public_id']), true, 301);
+    exit;
+}
+
 $id_comunidade = intval($post['id_comunidade'] ?? 0);
 $eh_membro = false;
 
@@ -101,9 +131,9 @@ if ($resultado_comentarios) {
     </div>
 
     <dialog id="login-box">
-        <form id="popup-form" action="../index.php" method="post">
+        <form id="popup-form" action="../" method="post">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
-            <input type="hidden" name="return_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '../index.php', ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '../', ENT_QUOTES, 'UTF-8') ?>">
             <div class="dialog-tabs">
                 <button type="button" id="btn-entrar-dialog">entrar</button>
                 <button type="button" id="btn-cadastrar-dialog">cadastrar</button>
@@ -152,7 +182,7 @@ if ($resultado_comentarios) {
         </div>
         <header class="topbar" style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px; min-height: 60px; background: #567fd9; border-bottom: 1px solid rgba(255,255,255,0.2); position: sticky; top: 0; z-index: 100;">
             <div style="display: flex; align-items: center; gap: 12px;">
-                <a href="../index.php" style="text-decoration: none; display: flex; align-items: center; gap: 8px; color: #fff;">
+                <a href="../" style="text-decoration: none; display: flex; align-items: center; gap: 8px; color: #fff;">
                     <img src="../style/blumaskWhiteLogo.webp" alt="BluMask Logo" style="height: 36px; width: auto; object-fit: contain;">
                     <h1 style="margin: 0; font-size: 20px; color: #fff;">BluMask</h1>
                 </a>
@@ -185,7 +215,7 @@ if ($resultado_comentarios) {
             <div class="post-detail-card">
                 <?php $postAutorDeletado = trim((string) ($post['nome_de_exibicao'] ?? '')) === 'Usuário deletado' || stripos((string) ($post['nome_de_usuario'] ?? ''), 'usuario_deletado_') === 0; ?>
                 <div class="post-detail-header">
-                    <button type="button" class="community-back-btn" title="Voltar para a página anterior" aria-label="Voltar para a página anterior" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '../index.php'; } return false;">
+                    <button type="button" class="community-back-btn" title="Voltar para a página anterior" aria-label="Voltar para a página anterior" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '../'; } return false;">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18L9 12L15 6"/></svg>
                     </button>
                     <?php if ($postAutorDeletado): ?>
@@ -193,7 +223,7 @@ if ($resultado_comentarios) {
                             <img src="<?= resolve_avatar_url($post['foto_perfil'] ?? null, $post['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar">
                         </span>
                     <?php else: ?>
-                        <a href="user_view.php?id=<?= intval($post['id_usuario']) ?>" class="post-avatar" aria-label="Ver perfil de <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>" style="display:inline-block; text-decoration:none;">
+                        <a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($post['nome_de_usuario'] ?? '')))) ?>" class="post-avatar" aria-label="Ver perfil de <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>" style="display:inline-block; text-decoration:none;">
                             <img src="<?= resolve_avatar_url($post['foto_perfil'] ?? null, $post['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar">
                         </a>
                     <?php endif; ?>
@@ -203,7 +233,7 @@ if ($resultado_comentarios) {
                                 <?php if ($postAutorDeletado): ?>
                                     <span style="text-decoration:none; color:inherit; cursor:default;"><?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></span>
                                 <?php else: ?>
-                                    <a href="user_view.php?id=<?= intval($post['id_usuario']) ?>" style="text-decoration:none; color:inherit;">
+                                    <a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($post['nome_de_usuario'] ?? '')))) ?>" style="text-decoration:none; color:inherit;">
                                         <?= htmlspecialchars($post['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>
                                     </a>
                                 <?php endif; ?>
@@ -212,7 +242,7 @@ if ($resultado_comentarios) {
                                 <?php if ($postAutorDeletado): ?>
                                     <span style="text-decoration:none; color:inherit; cursor:default;">@<?= htmlspecialchars($post['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?></span>
                                 <?php else: ?>
-                                    <a href="user_view.php?id=<?= intval($post['id_usuario']) ?>" style="text-decoration:none; color:inherit;">
+                                    <a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($post['nome_de_usuario'] ?? '')))) ?>" style="text-decoration:none; color:inherit;">
                                         @<?= htmlspecialchars($post['nome_de_usuario'], ENT_QUOTES, 'UTF-8') ?>
                                     </a>
                                 <?php endif; ?>
@@ -234,7 +264,7 @@ if ($resultado_comentarios) {
                 </div>
 
                 <div class="post-detail-community">
-                    <a href="comunidade.php?id=<?= intval($post['id_comunidade']) ?>" style="text-decoration:none; color:#2563eb; font-weight:700;">
+                    <a href="../comunidade/<?= rawurlencode((string) $post['community_slug']) ?>" style="text-decoration:none; color:#2563eb; font-weight:700;">
                         <?= htmlspecialchars($post['nome_comunidade'], ENT_QUOTES, 'UTF-8') ?>
                     </a>
                 </div>
@@ -269,10 +299,17 @@ if ($resultado_comentarios) {
                 <?php if (!$is_site_admin_user): ?>
                 <div class="comment-detail-box">
                     <h3>Adicionar comentário</h3>
-                    <form id="formComentarioDetalhe" class="form-comentario">
+                    <form id="formComentarioDetalhe" class="form-comentario" enctype="multipart/form-data">
                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
-                        <textarea name="conteudo" minlength="2" maxlength="2000" placeholder="Digite seu comentário... (mín. 2 caracteres)" required></textarea>
+                        <textarea name="conteudo" maxlength="2000" placeholder="Digite seu comentário... (mín. 2 caracteres)"></textarea>
+                        <div class="comment-image-tools">
+                            <label class="comment-image-button" for="comment-image-detail">Anexar imagem</label>
+                            <input type="file" id="comment-image-detail" name="imagem" class="comment-image-input" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" hidden>
+                            <span class="comment-image-filename" aria-live="polite"></span>
+                            <button type="button" class="comment-image-remove" hidden>Remover</button>
+                        </div>
+                        <img class="comment-image-preview" alt="Prévia da imagem do comentário" hidden>
                         <div style="display:flex; gap:8px; margin-top:8px;">
                             <button type="button" class="btn-descartar" id="btnDescartarComentarioDetalhe">Descartar</button>
                             <button type="submit">Comentar</button>
@@ -290,7 +327,7 @@ if ($resultado_comentarios) {
                                     <img src="<?= resolve_avatar_url($comentario['foto_perfil'] ?? null, $comentario['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar do usuário">
                                 </span>
                             <?php else: ?>
-                                <a href="user_view.php?id=<?= intval($comentario['id_usuario']) ?>" class="comment-avatar" aria-label="Ver perfil de <?= htmlspecialchars($comentario['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>">
+                                <a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($comentario['nome_de_usuario'] ?? '')))) ?>" class="comment-avatar" aria-label="Ver perfil de <?= htmlspecialchars($comentario['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?>">
                                     <img src="<?= resolve_avatar_url($comentario['foto_perfil'] ?? null, $comentario['nome_de_exibicao'] ?? 'User'); ?>" alt="Avatar do usuário">
                                 </a>
                             <?php endif; ?>
@@ -301,7 +338,7 @@ if ($resultado_comentarios) {
                                             <strong><?= htmlspecialchars($comentario['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></strong>
                                         </span>
                                     <?php else: ?>
-                                        <a href="user_view.php?id=<?= intval($comentario['id_usuario']) ?>" style="text-decoration:none; color:inherit;">
+                                        <a href="../usuario/<?= rawurlencode(strtolower(trim((string) ($comentario['nome_de_usuario'] ?? '')))) ?>" style="text-decoration:none; color:inherit;">
                                             <strong><?= htmlspecialchars($comentario['nome_de_exibicao'], ENT_QUOTES, 'UTF-8') ?></strong>
                                         </a>
                                     <?php endif; ?>
@@ -310,6 +347,10 @@ if ($resultado_comentarios) {
                                 </div>
                                 <div class="comment-actions-and-content">
                                     <p class="comment-content" data-comentario-id="<?= $comentario['id_comentario'] ?>"><?= htmlspecialchars($comentario['conteudo'], ENT_QUOTES, 'UTF-8', false) ?></p>
+                                    <?php $commentImageUrl = resolve_media_url($comentario['imagem'] ?? '', '', '../'); ?>
+                                    <?php if ($commentImageUrl !== ''): ?>
+                                        <div class="post-image-wrap comment-image-wrap"><img class="post-image comment-image" src="<?= $commentImageUrl ?>" alt="Imagem anexada ao comentário" loading="lazy"></div>
+                                    <?php endif; ?>
 
                                     <?php if (!empty($post['id_comentario_fixado']) && (int) $post['id_comentario_fixado'] === (int) $comentario['id_comentario']): ?>
                                         <div class="comment-pinned-badge">📌 Comentário fixado</div>
@@ -551,10 +592,10 @@ if ($resultado_comentarios) {
             const formData = new URLSearchParams();
             formData.set('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
             formData.set('id_post', '<?= $id_post ?>');
-            fetch('excluir_post.php', { method: 'POST', body: formData })
+            fetch('../php/excluir_post.php', { method: 'POST', body: formData })
                 .then((response) => response.json())
                 .then((data) => {
-                    if (data.sucesso) window.location.href = 'comunidade.php?id=<?= $id_comunidade ?>';
+                    if (data.sucesso) window.location.href = '../comunidade/<?= rawurlencode((string) ($post['community_slug'] ?? '')) ?>';
                     else alert(data.mensagem || 'Não foi possível excluir o post.');
                 })
                 .catch(() => alert('Erro ao excluir o post.'));
@@ -564,7 +605,7 @@ if ($resultado_comentarios) {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
             formData.append('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
-            fetch('editar_post.php', { method: 'POST', body: formData })
+            fetch('../php/editar_post.php', { method: 'POST', body: formData })
                 .then((response) => response.json())
                 .then((data) => {
                     if (data.sucesso) window.location.reload();
@@ -638,7 +679,7 @@ if ($resultado_comentarios) {
                 fd.append('id_comentario', idComentario);
                 fd.append('conteudo', novo);
 
-                fetch('editar_comentario.php', { method: 'POST', body: fd })
+                fetch('../php/editar_comentario.php', { method: 'POST', body: fd })
                     .then(r => r.json())
                     .then(data => {
                         if (data.sucesso) {
@@ -661,7 +702,7 @@ if ($resultado_comentarios) {
                 fd.append('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
                 fd.append('id_comentario', idComentario);
 
-                fetch('excluir_comentario.php', { method: 'POST', body: fd })
+                fetch('../php/excluir_comentario.php', { method: 'POST', body: fd })
                     .then(r => r.json())
                         .then(data => {
                             if (data.sucesso) {
@@ -713,7 +754,7 @@ if ($resultado_comentarios) {
             fd.append('id_comentario', idComentario);
             fd.append('destino', 'post');
 
-            fetch('fixar_comentario.php', { method: 'POST', body: fd })
+            fetch('../php/fixar_comentario.php', { method: 'POST', body: fd })
                 .then(r => r.json())
                 .then(data => {
                     if (data.sucesso) {
@@ -741,7 +782,7 @@ if ($resultado_comentarios) {
 
             const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
 
-            fetch('curtir_post.php', {
+            fetch('../php/curtir_post.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -771,6 +812,44 @@ if ($resultado_comentarios) {
                 }, 80);
             }
 
+            const imageInput = formComentarioDetalhe.querySelector('.comment-image-input');
+            const imagePreview = formComentarioDetalhe.querySelector('.comment-image-preview');
+            const imageFilename = formComentarioDetalhe.querySelector('.comment-image-filename');
+            const imageRemoveButton = formComentarioDetalhe.querySelector('.comment-image-remove');
+
+            const clearCommentImage = () => {
+                imageInput.value = '';
+                imagePreview.removeAttribute('src');
+                imagePreview.hidden = true;
+                imageFilename.textContent = '';
+                imageRemoveButton.hidden = true;
+            };
+
+            imageInput.addEventListener('change', () => {
+                const file = imageInput.files[0];
+                if (!file) {
+                    clearCommentImage();
+                    return;
+                }
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('A imagem do comentário deve ter no máximo 2 MB.');
+                    clearCommentImage();
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.addEventListener('load', () => {
+                    if (imageInput.files[0] !== file) return;
+                    imagePreview.src = reader.result;
+                    imagePreview.hidden = false;
+                    imageFilename.textContent = file.name;
+                    imageRemoveButton.hidden = false;
+                });
+                reader.readAsDataURL(file);
+            });
+            imageRemoveButton.addEventListener('click', clearCommentImage);
+            formComentarioDetalhe.addEventListener('reset', () => window.setTimeout(clearCommentImage, 0));
+
             formComentarioDetalhe.addEventListener('submit', function(e) {
                 e.preventDefault();
                 if (this.dataset.enviando === 'true') return;
@@ -786,8 +865,9 @@ if ($resultado_comentarios) {
                 <?php endif; ?>
 
                 const conteudo = this.querySelector('textarea[name="conteudo"]').value.trim();
-                if (conteudo.length < 2) {
-                    alert('O comentário deve ter no mínimo 2 caracteres.');
+                const image = this.querySelector('input[name="imagem"]')?.files?.[0];
+                if (conteudo.length < 2 && !image) {
+                    alert('Escreva ao menos 2 caracteres ou anexe uma imagem.');
                     return;
                 }
 
@@ -801,7 +881,7 @@ if ($resultado_comentarios) {
                     botaoEnviar.textContent = 'Enviando...';
                 }
 
-                fetch('criar_comentario.php', {
+                fetch('../php/criar_comentario.php', {
                     method: 'POST',
                     body: formData
                 })
@@ -891,9 +971,9 @@ if ($resultado_comentarios) {
                     const avatarUrl = escapeHtml(item.foto_perfil || '');
                     const message = escapeHtml(item.mensagem || 'Nova notificação.');
                     const targetCommentId = Number(item.id_comentario) || 0;
-                    const postLink = item.id_post
-                        ? `post_detalhes.php?id_post=${encodeURIComponent(item.id_post)}${targetCommentId ? `#comment-${encodeURIComponent(targetCommentId)}` : ''}`
-                        : '../index.php';
+                    const postLink = item.public_id
+                        ? `../post/${encodeURIComponent(item.public_id)}${targetCommentId ? `#comment-${encodeURIComponent(targetCommentId)}` : ''}`
+                        : '../';
                     const initial = (String(item.nome_remetente || 'A').trim().charAt(0) || 'A').toUpperCase();
                     const avatarMarkup = avatarUrl
                         ? `<img src="${avatarUrl}" alt="${author}">`
@@ -913,7 +993,7 @@ if ($resultado_comentarios) {
 
             const loadNotifications = async () => {
                 try {
-                    const response = await fetch('notificacoes.php?action=list&limit=20', { credentials: 'same-origin' });
+                    const response = await fetch('../php/notificacoes.php?action=list&limit=20', { credentials: 'same-origin' });
                     if (!response.ok) {
                         return;
                     }
@@ -930,7 +1010,7 @@ if ($resultado_comentarios) {
 
             const markNotificationsAsRead = async () => {
                 try {
-                    const response = await fetch('notificacoes.php', {
+                    const response = await fetch('../php/notificacoes.php', {
                         method: 'POST',
                         credentials: 'same-origin',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },

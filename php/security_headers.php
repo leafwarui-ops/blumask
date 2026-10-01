@@ -69,7 +69,7 @@ if (!empty($_SESSION['usuario']['id_usuario'])) {
                 $scriptDirectory = substr($scriptDirectory, 0, -4);
             }
             $siteRoot = rtrim($scriptDirectory, '/');
-            header('Location: ' . ($siteRoot === '' ? '' : $siteRoot) . '/index.php?conta_removida=1');
+            header('Location: ' . ($siteRoot === '' ? '' : $siteRoot) . '/?conta_removida=1');
             exit;
         }
 
@@ -92,7 +92,7 @@ if (!empty($_SESSION['usuario']['id_usuario'])) {
                 $scriptDirectory = substr($scriptDirectory, 0, -4);
             }
             $siteRoot = rtrim($scriptDirectory, '/');
-            header('Location: ' . ($siteRoot === '' ? '' : $siteRoot) . '/index.php?status=suspenso');
+            header('Location: ' . ($siteRoot === '' ? '' : $siteRoot) . '/?status=suspenso');
             exit;
         }
     }
@@ -175,6 +175,26 @@ function verify_csrf_token($token) {
     // Compara os tokens de forma segura (hash_equals previne timing attacks)
     // Timing attacks tentam adivinhar o token medindo quanto tempo leva para a comparação
     return hash_equals($_SESSION['csrf_token'], $token);
+}
+
+function build_community_context_token(int $communityId, int $userId): string {
+    $secret = $_SESSION['csrf_token'] ?? 'blumask-local-secret';
+    $payload = $communityId . ':' . $userId;
+    return hash_hmac('sha256', $payload, $secret);
+}
+
+function verify_community_context_token(int $communityId, string $token): bool {
+    if ($communityId <= 0 || $token === '') {
+        return false;
+    }
+
+    $userId = (int) ($_SESSION['usuario']['id_usuario'] ?? 0);
+    if ($userId <= 0) {
+        return false;
+    }
+
+    $expected = build_community_context_token($communityId, $userId);
+    return hash_equals($expected, $token);
 }
 
 /**

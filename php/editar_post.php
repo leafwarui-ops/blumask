@@ -34,8 +34,14 @@ global $conn;
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
 $id_post = intval($_POST['id_post'] ?? 0);
 $id_comunidade = intval($_POST['id_comunidade'] ?? 0);
+$community_token = (string) ($_POST['community_token'] ?? '');
 $assunto_raw = trim($_POST['assunto'] ?? '');
 $conteudo_raw = str_replace(["\r\n", "\r"], "\n", trim($_POST['conteudo'] ?? ''));
+
+if ((int) ($_SESSION['blumask_current_community_id'] ?? 0) !== $id_comunidade || !verify_community_context_token($id_comunidade, $community_token)) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Contexto da comunidade inválido. A ação foi bloqueada por segurança."]);
+    exit;
+}
 
 if ($id_post <= 0) {
     echo json_encode(["sucesso" => false, "mensagem" => "ID do post inválido."]);
