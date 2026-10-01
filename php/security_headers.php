@@ -36,25 +36,64 @@ if (!empty($_SESSION['usuario']['id_usuario'])) {
     require_once __DIR__ . '/bd.php';
     $sessionUserId = (int) ($_SESSION['usuario']['id_usuario'] ?? 0);
     if ($sessionUserId > 0) {
-        $suspendedCheck = $conn->query("SELECT suspenso_ate FROM usuario WHERE id_usuario = $sessionUserId LIMIT 1");
-        if ($suspendedCheck && $suspendedCheck->num_rows > 0) {
-            $suspendedUser = $suspendedCheck->fetch_assoc();
-            $suspensoAte = trim((string) ($suspendedUser['suspenso_ate'] ?? ''));
-            if ($suspensoAte !== '' && strtotime($suspensoAte) > time()) {
-                session_unset();
-                session_destroy();
-                setcookie('blumask_notice', urlencode('Sua conta foi suspensa por 10 minutos. Você não pode usar o BluMask neste período.'), time() + 120, '/');
-
-                if ((!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') || (isset($_SERVER['CONTENT_TYPE']) && stripos((string) $_SERVER['CONTENT_TYPE'], 'application/json') !== false)) {
-                    http_response_code(403);
-                    header('Content-Type: application/json; charset=utf-8');
-                    echo json_encode(['sucesso' => false, 'mensagem' => 'Sua conta foi suspensa por 10 minutos.']);
-                    exit;
+        $suspendedCheck = $conn->prepare("SELECT id_usuario, suspenso_ate FROM usuario WHERE id_usuario = ? LIMIT 1");
+        $sessionLookupSucceeded = false;
+        $sessionUser = null;
+        if ($suspendedCheck) {
+            $suspendedCheck->bind_param('i', $sessionUserId);
+            if ($suspendedCheck->execute()) {
+                $suspendedResult = $suspendedCheck->get_result();
+                if ($suspendedResult) {
+                    $sessionLookupSucceeded = true;
+                    $sessionUser = $suspendedResult->fetch_assoc();
                 }
+            }
+            $suspendedCheck->close();
+        }
 
-                header('Location: ../index.php?status=suspenso');
+        if ($sessionLookupSucceeded && !$sessionUser) {
+            session_unset();
+            session_destroy();
+            setcookie(session_name(), '', time() - 3600, '/');
+            setcookie('blumask_notice', urlencode('Esta conta foi removida. Você saiu da sessão.'), time() + 120, '/');
+
+            if ((!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') || (isset($_SERVER['CONTENT_TYPE']) && stripos((string) $_SERVER['CONTENT_TYPE'], 'application/json') !== false)) {
+                http_response_code(401);
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(['sucesso' => false, 'mensagem' => 'Esta conta foi removida.']);
                 exit;
             }
+
+            $scriptDirectory = str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/')));
+            if (substr($scriptDirectory, -4) === '/php') {
+                $scriptDirectory = substr($scriptDirectory, 0, -4);
+            }
+            $siteRoot = rtrim($scriptDirectory, '/');
+            header('Location: ' . ($siteRoot === '' ? '' : $siteRoot) . '/index.php?conta_removida=1');
+            exit;
+        }
+
+        $suspensoAte = trim((string) ($sessionUser['suspenso_ate'] ?? ''));
+        if ($sessionLookupSucceeded && $sessionUser && $suspensoAte !== '' && strtotime($suspensoAte) > time()) {
+            session_unset();
+            session_destroy();
+            setcookie(session_name(), '', time() - 3600, '/');
+            setcookie('blumask_notice', urlencode('Sua conta foi suspensa por 10 minutos. Você não pode usar o BluMask neste período.'), time() + 120, '/');
+
+            if ((!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') || (isset($_SERVER['CONTENT_TYPE']) && stripos((string) $_SERVER['CONTENT_TYPE'], 'application/json') !== false)) {
+                http_response_code(403);
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(['sucesso' => false, 'mensagem' => 'Sua conta foi suspensa por 10 minutos.']);
+                exit;
+            }
+
+            $scriptDirectory = str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/')));
+            if (substr($scriptDirectory, -4) === '/php') {
+                $scriptDirectory = substr($scriptDirectory, 0, -4);
+            }
+            $siteRoot = rtrim($scriptDirectory, '/');
+            header('Location: ' . ($siteRoot === '' ? '' : $siteRoot) . '/index.php?status=suspenso');
+            exit;
         }
     }
 }

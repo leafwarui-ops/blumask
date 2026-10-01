@@ -4,6 +4,9 @@ require_once __DIR__ . '/php/bd.php';
 require_once __DIR__ . '/php/admin_helpers.php';
 require_once __DIR__ . '/php/admin_message_store.php';
 
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
 ensure_admin_schema($conn);
 ensure_admin_user($conn);
 
@@ -75,15 +78,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ((int) ($targetData['is_admin'] ?? 0) === 1) {
                         $adminMessage = 'Não é possível excluir a conta do administrador.';
                     } else {
-                        $conn->query("DELETE FROM perfil_post_fixado WHERE id_usuario = $targetId");
-                        $conn->query("DELETE FROM perfil_comentario_fixado WHERE id_usuario = $targetId");
-                        $conn->query("DELETE FROM curtida WHERE id_usuario = $targetId");
-                        $conn->query("DELETE FROM comentario WHERE id_usuario = $targetId");
-                        $conn->query("DELETE FROM post WHERE id_usuario = $targetId");
-                        $conn->query("DELETE FROM membro_comunidade WHERE id_usuario = $targetId");
-                        $conn->query("UPDATE comunidade SET id_usuario = NULL WHERE id_usuario = $targetId");
-                        $conn->query("DELETE FROM usuario WHERE id_usuario = $targetId");
-                        $adminMessage = 'Conta excluída com sucesso.';
+                        $deleteFailureReason = null;
+                        if (delete_user_account_data($conn, $targetId, $targetData, $deleteFailureReason)) {
+                            $adminMessage = 'Conta, posts, comentários e dados vinculados excluídos com sucesso.';
+                        } else {
+                            $adminMessage = 'Não foi possível excluir a conta; nenhuma alteração foi mantida.';
+                            if ($deleteFailureReason !== null && $deleteFailureReason !== '') {
+                                $adminMessage .= ' Erro do banco: ' . $deleteFailureReason;
+                            }
+                        }
                     }
                 }
             }
@@ -104,6 +107,24 @@ if ($usersResult) {
     while ($row = $usersResult->fetch_assoc()) {
         $users[] = $row;
     }
+}
+
+$usersSnapshot = array_map(static function ($user) {
+    return [
+        (int) ($user['id_usuario'] ?? 0),
+        (string) ($user['nome_de_exibicao'] ?? ''),
+        (string) ($user['nome_de_usuario'] ?? ''),
+        (string) ($user['email'] ?? ''),
+        (int) ($user['is_admin'] ?? 0),
+        (string) ($user['suspenso_ate'] ?? ''),
+        is_user_suspended($user)
+    ];
+}, $users);
+
+if (($_GET['ajax'] ?? '') === 'users_refresh') {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($usersSnapshot);
+    exit;
 }
 
 $csrfToken = get_csrf_token();
@@ -619,6 +640,29 @@ $csrfToken = get_csrf_token();
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape' && messageModal.classList.contains('open')) closeAdminMessageModal();
         });
+
+        let currentUsersSnapshot = <?= json_encode($usersSnapshot, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+        const refreshUsersUrl = new URL(window.location.href);
+        refreshUsersUrl.searchParams.set('ajax', 'users_refresh');
+
+        async function refreshUserListIfChanged() {
+            if (document.hidden) return;
+            if (messageModal.classList.contains('open') || document.activeElement?.closest('form')) return;
+
+            try {
+                const response = await fetch(refreshUsersUrl, { cache: 'no-store' });
+                if (!response.ok) return;
+                const latestUsers = await response.json();
+                if (JSON.stringify(latestUsers) !== JSON.stringify(currentUsersSnapshot)) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('Não foi possível atualizar a lista de usuários.');
+            }
+        }
+
+        window.setInterval(refreshUserListIfChanged, 15000);
+        window.addEventListener('pageshow', refreshUserListIfChanged);
     </script>
     <script src="js/admin_messages.js"></script>
     <script src="js/logout_confirm.js"></script>

@@ -3,6 +3,7 @@
   if (!scriptUrl) return;
 
   const endpoint = new URL('../php/admin_message_api.php', scriptUrl);
+  const siteHome = new URL('../index.php', scriptUrl);
   const style = document.createElement('style');
   style.textContent = `
     .admin-inbox-overlay {
@@ -84,7 +85,14 @@
     requestInProgress = true;
 
     try {
-      const response = await fetch(`${endpoint}?acao=proxima`, { cache: 'no-store' });
+      const response = await fetch(`${endpoint}?acao=proxima`, {
+        cache: 'no-store',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      if (response.status === 401) {
+        window.location.replace(`${siteHome.href}?conta_removida=1`);
+        return;
+      }
       if (!response.ok) return;
       const data = await response.json();
       if (data.sucesso && data.mensagem) showMessage(data.mensagem, data.csrf_token);

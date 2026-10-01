@@ -31,6 +31,128 @@ function is_user_suspended($user) {
     return $timestamp > time();
 }
 
+function delete_user_account_data(mysqli $conn, int $userId, array $user, ?string &$failureReason = null): bool {
+    if ($userId <= 0) {
+        return false;
+    }
+
+    require_once __DIR__ . '/profile_pins.php';
+    require_once __DIR__ . '/community_bans.php';
+    require_once __DIR__ . '/admin_message_store.php';
+
+    try {
+        ensure_profile_pin_tables($conn);
+        if (!ensure_community_ban_schema($conn) || !ensure_admin_message_schema($conn)) {
+            throw new RuntimeException('Não foi possível preparar os dados vinculados à conta.');
+        }
+
+        $hasColumn = static function (string $table, string $column) use ($conn): bool {
+            $result = $conn->query("SHOW COLUMNS FROM `$table` LIKE '$column'");
+            if (!$result) {
+                throw new RuntimeException('Não foi possível verificar a estrutura do banco.');
+            }
+            return $result->num_rows > 0;
+        };
+
+        $hasLegacyUserPostPin = $hasColumn('usuario', 'id_post_fixado');
+        $hasLegacyUserCommentPin = $hasColumn('usuario', 'id_comentario_fixado');
+        $hasPostCommentPin = $hasColumn('post', 'id_comentario_fixado');
+        $hasCommunityPostPin = $hasColumn('comunidade', 'id_post_fixado');
+
+        $conn->begin_transaction();
+        $run = static function (string $sql) use ($conn): void {
+            if (!$conn->query($sql)) {
+                throw new RuntimeException($conn->error ?: 'Falha ao remover dados da conta.');
+            }
+        };
+
+        $run("DELETE pp FROM perfil_post_fixado pp
+            LEFT JOIN post p ON p.id_post = pp.id_post
+            WHERE pp.id_usuario = $userId OR p.id_usuario = $userId");
+        $run("DELETE pc FROM perfil_comentario_fixado pc
+            LEFT JOIN comentario c ON c.id_comentario = pc.id_comentario
+            LEFT JOIN post p ON p.id_post = c.id_post
+            WHERE pc.id_usuario = $userId OR c.id_usuario = $userId OR p.id_usuario = $userId");
+
+        if ($hasLegacyUserPostPin) {
+            $run("UPDATE usuario u LEFT JOIN post p ON p.id_post = u.id_post_fixado
+                SET u.id_post_fixado = NULL
+                WHERE u.id_usuario = $userId OR p.id_usuario = $userId");
+        }
+
+        if ($hasLegacyUserCommentPin) {
+            $run("UPDATE usuario u
+                LEFT JOIN comentario c ON c.id_comentario = u.id_comentario_fixado
+                LEFT JOIN post p ON p.id_post = c.id_post
+                SET u.id_comentario_fixado = NULL
+                WHERE u.id_usuario = $userId OR c.id_usuario = $userId OR p.id_usuario = $userId");
+        }
+
+        if ($hasPostCommentPin) {
+            $run("UPDATE post target_post
+                LEFT JOIN comentario pinned_comment ON pinned_comment.id_comentario = target_post.id_comentario_fixado
+                LEFT JOIN post comment_post ON comment_post.id_post = pinned_comment.id_post
+                SET target_post.id_comentario_fixado = NULL
+                WHERE target_post.id_usuario = $userId
+                   OR pinned_comment.id_usuario = $userId
+                   OR comment_post.id_usuario = $userId");
+        }
+
+        if ($hasCommunityPostPin) {
+            $run("UPDATE comunidade c
+                LEFT JOIN post p ON p.id_post = c.id_post_fixado
+                SET c.id_post_fixado = NULL
+                WHERE p.id_usuario = $userId");
+        }
+        $run("DELETE l FROM curtida l
+            LEFT JOIN post p ON p.id_post = l.id_post
+            WHERE l.id_usuario = $userId OR p.id_usuario = $userId");
+        $run("DELETE c FROM comentario c
+            LEFT JOIN post p ON p.id_post = c.id_post
+            WHERE c.id_usuario = $userId OR p.id_usuario = $userId");
+        $run("DELETE FROM post WHERE id_usuario = $userId");
+        $run("DELETE FROM membro_comunidade WHERE id_usuario = $userId");
+        $run("DELETE FROM banimento_comunidade WHERE id_usuario = $userId OR id_usuario_baniu = $userId");
+        $run("DELETE FROM mensagem_administrativa WHERE id_destinatario = $userId OR id_remetente = $userId");
+        $run("UPDATE comunidade SET id_usuario = NULL WHERE id_usuario = $userId");
+        $run("DELETE FROM usuario WHERE id_usuario = $userId AND is_admin = 0");
+
+        if ($conn->affected_rows !== 1) {
+            throw new RuntimeException('A conta não foi removida.');
+        }
+
+        $conn->commit();
+    } catch (Throwable $error) {
+        try {
+            $conn->rollback();
+        } catch (Throwable $rollbackError) {
+        }
+        error_log('Falha ao excluir conta ' . $userId . ': ' . $error->getMessage());
+        $failureReason = $error->getMessage();
+        return false;
+    }
+
+    $uploadDirectories = [
+        ['uploads/avatars/', $user['foto_perfil'] ?? ''],
+        ['uploads/banners/', $user['banner'] ?? '']
+    ];
+    foreach ($uploadDirectories as [$prefix, $relativePath]) {
+        $relativePath = str_replace('\\', '/', trim((string) $relativePath));
+        if (strpos($relativePath, $prefix) !== 0) {
+            continue;
+        }
+        $basePath = realpath(dirname(__DIR__) . '/' . rtrim($prefix, '/'));
+        $filePath = realpath(dirname(__DIR__) . '/' . $relativePath);
+        if ($basePath && $filePath
+            && strpos(strtolower($filePath), strtolower($basePath . DIRECTORY_SEPARATOR)) === 0
+            && is_file($filePath)) {
+            @unlink($filePath);
+        }
+    }
+
+    return true;
+}
+
 function is_site_admin(mysqli $conn, int $userId): bool {
     if ($userId <= 0) {
         return false;

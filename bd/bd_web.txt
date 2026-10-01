@@ -1,0 +1,11 @@
+// Define o host (servidor) onde o MySQL está rodando - "localhost" significa que é na mesma máquina
+$host = "sql112.infinityfree.com";
+
+// Define o usuário do MySQL que será usado para autenticação (padrão de instalação é "root")
+$user = "if0_43054180";
+
+// Define a senha do usuário MySQL (vazio = sem senha configurada no ambiente de desenvolvimento)
+$pass = "yOYtxInlELb";
+
+// Define o nome do banco de dados a ser conectado (criado especificamente para a aplicação BluMask)
+$db = "if0_43054180_teste";
