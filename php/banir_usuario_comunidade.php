@@ -71,7 +71,7 @@ if (!$isOwner && !$isAdmin) {
 
 $target = $conn->prepare("SELECT u.id_usuario, mc.cargo
     FROM usuario u
-    LEFT JOIN membro_comunidade mc ON mc.id_comunidade = ? AND mc.id_usuario = u.id_usuario
+    INNER JOIN membro_comunidade mc ON mc.id_comunidade = ? AND mc.id_usuario = u.id_usuario
     WHERE u.id_usuario = ? LIMIT 1");
 $target->bind_param('ii', $id_comunidade, $id_usuario_banido);
 $target->execute();
@@ -79,7 +79,7 @@ $targetUser = $target->get_result()->fetch_assoc();
 $target->close();
 
 if (!$targetUser) {
-    community_ban_response(['sucesso' => false, 'mensagem' => 'Usuário não encontrado.'], 404);
+    community_ban_response(['sucesso' => false, 'mensagem' => 'Só é possível marcar usuários que estão seguindo esta comunidade.'], 404);
 }
 
 if ((int) $targetUser['id_usuario'] === (int) $community['id_usuario']) {

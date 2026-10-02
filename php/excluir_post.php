@@ -36,7 +36,7 @@ if (!check_rate_limit('delete_post', 20, 3600)) {
 global $conn;
 
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
-$id_post = intval($_POST['id_post'] ?? 0);
+$id_post = normalize_positive_id($_POST['id_post'] ?? 0, 0);
 
 // 4. Validação do ID
 if ($id_post <= 0) {

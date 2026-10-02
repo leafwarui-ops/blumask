@@ -519,6 +519,47 @@
     box-shadow: 0 14px 35px rgba(0, 0, 0, 0.28);
 }
 
+@media (max-width: 560px) {
+    #dialog-ver-usuario,
+    #dialog-ver-comunidade {
+        width: min(92vw, 360px);
+        max-height: calc(100vh - 24px);
+        margin: auto;
+        border-radius: 20px;
+        overflow: auto;
+    }
+
+    #dialog-ver-comunidade {
+        padding: 18px 16px;
+    }
+
+    .user-modal-body {
+        padding: 42px 18px 18px;
+    }
+
+    .user-modal-actions,
+    .comu-modal-actions {
+        flex-direction: column;
+    }
+
+    .user-modal-actions button,
+    .user-modal-actions a,
+    .comu-modal-actions button,
+    .comu-modal-actions a {
+        width: 100%;
+    }
+
+    .comu-modal-header {
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .comu-modal-avatar {
+        width: 52px;
+        height: 52px;
+    }
+}
+
 .comu-modal-header {
     display: flex;
     align-items: center;

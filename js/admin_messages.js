@@ -90,7 +90,7 @@
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
       });
       if (response.status === 401) {
-        window.location.replace(`${siteHome.href}?conta_removida=1`);
+        // Usuário sem sessão ativa ou já saiu do sistema: não é sinal de conta removida.
         return;
       }
       if (!response.ok) return;

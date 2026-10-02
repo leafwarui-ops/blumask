@@ -27,7 +27,9 @@ if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
 global $conn;
 
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
-$id_post = intval($_POST['id_post'] ?? 0);
+$id_post = normalize_positive_id($_POST['id_post'] ?? 0, 0);
+$id_comunidade = normalize_positive_id($_POST['id_comunidade'] ?? 0, 0);
+$community_token = (string) ($_POST['community_token'] ?? '');
 $conteudo_raw = trim((string)($_POST['conteudo'] ?? ''));
 $commentImageTmp = null;
 $commentImageExtension = null;
@@ -43,6 +45,11 @@ if ($id_post <= 0) {
     exit;
 }
 
+if ($id_comunidade <= 0 || (int) ($_SESSION['blumask_current_community_id'] ?? 0) !== $id_comunidade || !verify_community_context_token($id_comunidade, $community_token)) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Contexto da comunidade inválido. A ação foi bloqueada por segurança."]);
+    exit;
+}
+
 $sql_check_post = "SELECT p.id_post, p.id_comunidade, p.id_usuario AS post_autor_id FROM post p WHERE p.id_post = $id_post LIMIT 1";
 $resultado_post = mysqli_query($conn, $sql_check_post);
 
@@ -52,15 +59,20 @@ if (!$resultado_post || mysqli_num_rows($resultado_post) === 0) {
 }
 
 $post = mysqli_fetch_assoc($resultado_post);
-$id_comunidade = intval($post['id_comunidade']);
+$post_comunidade_id = intval($post['id_comunidade'] ?? 0);
 $post_autor_id = intval($post['post_autor_id'] ?? 0);
 
-if (is_user_banned_from_community($conn, $id_usuario, $id_comunidade)) {
+if ($post_comunidade_id !== $id_comunidade) {
+    echo json_encode(["sucesso" => false, "mensagem" => "Este comentário não pertence à comunidade do post."]);
+    exit;
+}
+
+if (is_user_banned_from_community($conn, $id_usuario, $post_comunidade_id)) {
     echo json_encode(["sucesso" => false, "mensagem" => "Você foi banido desta comunidade e não pode comentar."]);
     exit;
 }
 
-$sql_check_membro = "SELECT id_membro_comunidade FROM membro_comunidade WHERE id_usuario = $id_usuario AND id_comunidade = $id_comunidade LIMIT 1";
+$sql_check_membro = "SELECT id_membro_comunidade FROM membro_comunidade WHERE id_usuario = $id_usuario AND id_comunidade = $post_comunidade_id LIMIT 1";
 $resultado_membro = mysqli_query($conn, $sql_check_membro);
 
 if (!$resultado_membro || mysqli_num_rows($resultado_membro) === 0) {

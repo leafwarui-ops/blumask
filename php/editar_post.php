@@ -40,8 +40,8 @@ if (!$imageColumn || (mysqli_num_rows($imageColumn) === 0 && !mysqli_query($conn
 }
 
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
-$id_post = intval($_POST['id_post'] ?? 0);
-$id_comunidade = intval($_POST['id_comunidade'] ?? 0);
+$id_post = normalize_positive_id($_POST['id_post'] ?? 0, 0);
+$id_comunidade = normalize_positive_id($_POST['id_comunidade'] ?? 0, 0);
 $community_token = (string) ($_POST['community_token'] ?? '');
 $assunto_raw = trim($_POST['assunto'] ?? '');
 $conteudo_raw = str_replace(["\r\n", "\r"], "\n", trim($_POST['conteudo'] ?? ''));

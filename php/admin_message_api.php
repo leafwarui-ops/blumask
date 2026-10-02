@@ -58,7 +58,7 @@ if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
     admin_message_json(['sucesso' => false, 'mensagem' => 'Token CSRF inválido.'], 403);
 }
 
-$messageId = (int) ($_POST['id_mensagem'] ?? 0);
+$messageId = normalize_positive_id($_POST['id_mensagem'] ?? 0, 0);
 if ($messageId <= 0) {
     admin_message_json(['sucesso' => false, 'mensagem' => 'Mensagem inválida.'], 400);
 }

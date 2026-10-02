@@ -10,7 +10,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 $id_usuario = isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0;
 $csrf = $_POST['csrf_token'] ?? '';
-$id_comentario = intval($_POST['id_comentario'] ?? 0);
+$id_comentario = normalize_positive_id($_POST['id_comentario'] ?? 0, 0);
 
 if ($id_usuario <= 0) {
     echo json_encode(["sucesso" => false, "mensagem" => "Você precisa estar logado para excluir comentários."]);

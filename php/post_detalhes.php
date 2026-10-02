@@ -80,6 +80,9 @@ if ($requestedPublicId === '') {
 }
 
 $id_comunidade = intval($post['id_comunidade'] ?? 0);
+if ($id_comunidade > 0) {
+    $_SESSION['blumask_current_community_id'] = $id_comunidade;
+}
 $communityContextToken = isset($_SESSION['usuario']) ? build_community_context_token($id_comunidade, (int) $_SESSION['usuario']['id_usuario']) : '';
 $eh_membro = false;
 
@@ -310,6 +313,8 @@ if ($resultado_comentarios) {
                     <form id="formComentarioDetalhe" class="form-comentario" enctype="multipart/form-data">
                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
+                        <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
+                        <input type="hidden" name="community_token" value="<?= htmlspecialchars($communityContextToken, ENT_QUOTES, 'UTF-8') ?>">
                         <textarea name="conteudo" maxlength="2000" placeholder="Digite seu comentário... Use @usuário ou @admin para mencionar alguém."></textarea>
                         <div class="comment-image-tools">
                             <label class="comment-image-button" for="comment-image-detail">Anexar imagem</label>

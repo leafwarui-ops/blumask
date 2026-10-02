@@ -497,6 +497,8 @@ if ($resultado_count) {
                                     <form class="form-comentario" data-post-id="<?= $post['id_post'] ?>" enctype="multipart/form-data">
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
+                                        <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
+                                        <input type="hidden" name="community_token" value="<?= htmlspecialchars($communityContextToken, ENT_QUOTES, 'UTF-8') ?>">
                                         <textarea name="conteudo" rows="3" maxlength="2000" placeholder="Escreva um comentário... Use @usuário ou @admin para mencionar alguém."></textarea>
                                         <div class="comment-image-tools">
                                             <label class="comment-image-button" for="comment-image-<?= (int) $post['id_post'] ?>">Anexar imagem</label>

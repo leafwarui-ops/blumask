@@ -1078,6 +1078,14 @@
   }
 
   @media (max-width: 620px) {
+    #login-box {
+      width: min(360px, calc(100vw - 24px));
+      max-height: calc(100vh - 24px);
+      margin: auto;
+      border-radius: 18px;
+      overflow: auto;
+    }
+
     .feed-search {
       order: 2;
       margin-left: 0;

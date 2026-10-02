@@ -20,6 +20,10 @@ document.addEventListener("DOMContentLoaded", () => {
         previewImagem.style.display = "none";
         previewImagem.hidden = true;
         if (avatarUpload) avatarUpload.classList.remove("has-image");
+        if (window.innerWidth <= 768 && avatarUpload) {
+            previewImagem.style.display = "none";
+            previewImagem.hidden = true;
+        }
     }
 
     btnCriar?.addEventListener("click", () => {
@@ -68,6 +72,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const reader = new FileReader();
         reader.onload = function (event) {
+            if (window.innerWidth <= 768) {
+                previewImagem.removeAttribute("src");
+                previewImagem.style.display = "none";
+                previewImagem.hidden = true;
+                if (avatarUpload) avatarUpload.classList.remove("has-image");
+                return;
+            }
+
             const imageUrl = event.target.result;
             previewImagem.src = imageUrl;
             previewImagem.hidden = false;

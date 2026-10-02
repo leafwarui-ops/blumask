@@ -302,6 +302,13 @@
     cursor: pointer;
     box-shadow: 0 0 0 3px #cfc9f5;
     position: relative;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.avatar-upload-text {
+    display: none;
+    white-space: nowrap;
+    line-height: 1;
 }
 
 .avatar-upload img {
@@ -1673,6 +1680,73 @@ footer.bottombar {
 }
 
 @media (max-width: 768px) {
+    #criar-comunidade-box {
+        width: min(92vw, 420px);
+        padding: 18px 16px 16px;
+        border-radius: 20px;
+    }
+
+    #criar-comunidade-box h2 {
+        font-size: 1.15rem;
+        margin-bottom: 12px;
+    }
+
+    .criar-comunidade-body {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .criar-comunidade-foto {
+        width: 100%;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .criar-comunidade-foto > span {
+        display: none;
+    }
+
+    .avatar-upload {
+        width: 100% !important;
+        min-width: 0;
+        height: 46px !important;
+        border-radius: 12px !important;
+        box-shadow: none !important;
+        border: 1px solid rgba(40, 84, 187, 0.25);
+        background: linear-gradient(135deg, #3b82f6, #2b17e0);
+        overflow: hidden;
+        padding: 0 16px;
+    }
+
+    .avatar-upload-text {
+        display: inline-block;
+        font-size: 0.82rem;
+        color: #fff;
+        font-weight: 700;
+    }
+
+    #preview-imagem-comunidade {
+        display: none !important;
+        visibility: hidden;
+    }
+
+    .avatar-upload .avatar-placeholder-icon {
+        display: none !important;
+    }
+
+    .criar-comunidade-botoes {
+        flex-direction: column-reverse;
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+    .btn-criar,
+    .btn-descartar {
+        width: 100%;
+        padding: 11px 18px;
+    }
+
     body {
         overflow-x: hidden;
     }
@@ -1807,9 +1881,51 @@ footer.bottombar {
         min-width: 0;
     }
 
+    .modal-overlay.ativo {
+        padding: 16px 12px;
+        align-items: center;
+        justify-content: center;
+    }
+
     .modal-content {
-        width: calc(100vw - 24px);
-        padding: 18px 16px;
+        width: min(100%, 360px);
+        max-width: none;
+        max-height: calc(100vh - 32px);
+        overflow: auto;
+        padding: 18px 16px 16px;
+        border-radius: 18px;
+    }
+
+    .modal-header {
+        font-size: 1.08rem;
+        margin-bottom: 8px;
+    }
+
+    .modal-message {
+        font-size: 0.92rem;
+        margin-bottom: 14px;
+    }
+
+    .like-login-modal .modal-content {
+        max-width: 360px;
+        padding: 18px 16px 16px;
+    }
+
+    .modal-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .modal-btn {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 14px;
+    }
+
+    .modal-btn-cancel,
+    .modal-btn-confirm,
+    .modal-btn-danger {
+        width: 100%;
     }
 
     .criar-comunidade-body {

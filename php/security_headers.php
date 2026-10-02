@@ -197,6 +197,48 @@ function verify_community_context_token(int $communityId, string $token): bool {
     return hash_equals($expected, $token);
 }
 
+function normalize_positive_id($value, int $fallback = 0): int {
+    if (!is_scalar($value) && $value !== null) {
+        return $fallback;
+    }
+
+    $raw = trim((string) ($value ?? ''));
+    if ($raw === '' || !preg_match('/^\d+$/', $raw)) {
+        return $fallback;
+    }
+
+    $id = (int) $raw;
+    return $id > 0 ? $id : $fallback;
+}
+
+function assert_user_owns_record(mysqli $conn, int $userId, string $table, string $idField, int $recordId, string $ownerField = 'id_usuario'): bool {
+    if ($userId <= 0 || $recordId <= 0 || $table === '' || $idField === '' || $ownerField === '') {
+        return false;
+    }
+
+    $escapedTable = preg_replace('/[^A-Za-z0-9_]/', '', $table);
+    $escapedIdField = preg_replace('/[^A-Za-z0-9_]/', '', $idField);
+    $escapedOwnerField = preg_replace('/[^A-Za-z0-9_]/', '', $ownerField);
+
+    if ($escapedTable === '' || $escapedIdField === '' || $escapedOwnerField === '') {
+        return false;
+    }
+
+    $sql = "SELECT 1 FROM `$escapedTable` WHERE `$escapedIdField` = ? AND `$escapedOwnerField` = ? LIMIT 1";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param('ii', $recordId, $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $exists = $result ? ($result->num_rows > 0) : false;
+    $stmt->close();
+
+    return $exists;
+}
+
 /**
  * Função: is_same_origin_request()
  * DESCRIÇÃO: Verifica se a requisição veio do mesmo host do site.
