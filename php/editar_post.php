@@ -3,6 +3,7 @@ require_once __DIR__ . "/security_headers.php";
 require_once __DIR__ . "/rate_limit.php";
 include __DIR__ . "/bd.php";
 require_once __DIR__ . "/community_bans.php";
+require_once __DIR__ . "/media.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -30,6 +31,13 @@ if (!check_rate_limit('edit_post', 20, 3600)) {
 }
 
 global $conn;
+
+$imageColumn = mysqli_query($conn, "SHOW COLUMNS FROM post LIKE 'imagem'");
+if (!$imageColumn || (mysqli_num_rows($imageColumn) === 0 && !mysqli_query($conn, "ALTER TABLE post ADD COLUMN imagem VARCHAR(255) NULL AFTER assunto"))) {
+    http_response_code(503);
+    echo json_encode(["sucesso" => false, "mensagem" => "Não foi possível preparar as imagens dos posts."]);
+    exit;
+}
 
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
 $id_post = intval($_POST['id_post'] ?? 0);
@@ -64,6 +72,7 @@ if (mb_strlen($conteudo_raw) < 5 || mb_strlen($conteudo_raw) > 5000) {
 }
 
 $sql_post = "SELECT p.id_post, p.id_comunidade, p.id_usuario AS autor_id, c.id_usuario AS comunidade_dono
+             , p.imagem
              FROM post p
              JOIN comunidade c ON p.id_comunidade = c.id_comunidade
              WHERE p.id_post = $id_post LIMIT 1";
@@ -100,12 +109,38 @@ $conteudo = $conteudo_raw;
 $assunto_esc = mysqli_real_escape_string($conn, $assunto);
 $conteudo_esc = mysqli_real_escape_string($conn, $conteudo);
 $data_edicao = date("Y-m-d H:i:s");
+$imagem_anterior = trim((string) ($post['imagem'] ?? ''));
+$imagem_nova = $imagem_anterior;
+$uploadedImage = $_FILES['imagem'] ?? null;
+$hasUploadedImage = is_array($uploadedImage) && (int) ($uploadedImage['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+
+try {
+    if ($hasUploadedImage) {
+        $imagem_nova = store_uploaded_image($uploadedImage, 'posts', 'post');
+    } elseif (($_POST['remover_imagem'] ?? '') === '1') {
+        $imagem_nova = '';
+    }
+} catch (Throwable $e) {
+    echo json_encode(["sucesso" => false, "mensagem" => $e->getMessage()]);
+    exit;
+}
+
+$imagem_sql = $imagem_nova === '' ? 'NULL' : "'" . mysqli_real_escape_string($conn, $imagem_nova) . "'";
 
 $sql_update = "UPDATE post
-               SET assunto = '$assunto_esc', conteudo = '$conteudo_esc', Data_post = '$data_edicao'
+               SET assunto = '$assunto_esc', conteudo = '$conteudo_esc', imagem = $imagem_sql, Data_post = '$data_edicao'
                WHERE id_post = $id_post AND id_comunidade = $id_comunidade";
 
-if (mysqli_query($conn, $sql_update)) {
+try {
+    $updated = mysqli_query($conn, $sql_update) !== false;
+} catch (Throwable $e) {
+    $updated = false;
+}
+
+if ($updated) {
+    if ($imagem_anterior !== '' && $imagem_anterior !== $imagem_nova) {
+        delete_uploaded_image($imagem_anterior, 'posts');
+    }
     hit_rate_limit('edit_post');
     echo json_encode([
         "sucesso" => true,
@@ -113,5 +148,8 @@ if (mysqli_query($conn, $sql_update)) {
         "id_post" => $id_post
     ]);
 } else {
+    if ($imagem_nova !== '' && $imagem_nova !== $imagem_anterior) {
+        delete_uploaded_image($imagem_nova, 'posts');
+    }
     echo json_encode(["sucesso" => false, "mensagem" => "Erro ao atualizar o post."]);
 }

@@ -160,7 +160,7 @@ if ($resultado_count) {
             <div class="modal-header" id="modalTitle">Confirmação</div>
             <div class="modal-message" id="modalMessage"></div>
 
-            <form id="formEditarPost" class="modal-form">
+            <form id="formEditarPost" class="modal-form" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="<?php echo isset($_SESSION['csrf_token']) ? htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') : ''; ?>">
                 <input type="hidden" name="id_post" value="">
                 <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
@@ -172,6 +172,11 @@ if ($resultado_count) {
                 <label for="editarConteudo">Conteúdo</label>
                 <textarea id="editarConteudo" name="conteudo" minlength="5" maxlength="5000" placeholder="Conteúdo do post (mín. 5 caracteres)" required></textarea>
 
+                <div class="edit-image-tools">
+                    <label class="edit-image-button" for="editarImagemPost">Trocar imagem</label>
+                    <input type="file" id="editarImagemPost" name="imagem" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" hidden>
+                    <label class="edit-image-remove"><input type="checkbox" name="remover_imagem" value="1"> Remover imagem atual</label>
+                </div>
                 <div class="modal-actions">
                     <button type="button" class="modal-btn modal-btn-cancel" onclick="fecharModal()">Cancelar</button>
                     <button type="submit" class="modal-btn modal-btn-confirm">Salvar alterações</button>
@@ -759,6 +764,10 @@ if ($resultado_count) {
             form.querySelector('[name="id_post"]').value = idPost;
             form.querySelector('[name="assunto"]').value = post.assunto || '';
             form.querySelector('[name="conteudo"]').value = post.conteudo || '';
+            const imageInput = form.querySelector('[name="imagem"]');
+            const removeImage = form.querySelector('[name="remover_imagem"]');
+            imageInput.value = '';
+            removeImage.checked = false;
             document.getElementById('confirmModal').classList.add('ativo');
         }
 
@@ -1281,6 +1290,27 @@ if ($resultado_count) {
         }
 
         const formEditarPost = document.getElementById('formEditarPost');
+        const editarImagemPost = document.getElementById('editarImagemPost');
+        const removerImagemPost = formEditarPost?.querySelector('[name="remover_imagem"]');
+
+        editarImagemPost?.addEventListener('change', () => {
+            const file = editarImagemPost.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) {
+                alert('A imagem do post deve ter no máximo 2 MB.');
+                editarImagemPost.value = '';
+                return;
+            }
+
+            removerImagemPost.checked = false;
+        });
+
+        removerImagemPost?.addEventListener('change', () => {
+            if (removerImagemPost.checked) {
+                editarImagemPost.value = '';
+            }
+        });
+
         if (formEditarPost) {
             formEditarPost.addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -1299,6 +1329,8 @@ if ($resultado_count) {
 
                 const formData = new FormData(this);
                 formData.set('csrf_token', csrfToken);
+                formData.set('community_token', communityContextToken);
+                formData.set('id_comunidade', String(<?= (int) $id_comunidade ?>));
 
                 fetch('../php/editar_post.php', {
                     method: 'POST',

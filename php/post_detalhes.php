@@ -80,6 +80,7 @@ if ($requestedPublicId === '') {
 }
 
 $id_comunidade = intval($post['id_comunidade'] ?? 0);
+$communityContextToken = isset($_SESSION['usuario']) ? build_community_context_token($id_comunidade, (int) $_SESSION['usuario']['id_usuario']) : '';
 $eh_membro = false;
 
 if ($id_usuario > 0 && $id_comunidade > 0) {
@@ -148,13 +149,20 @@ if ($resultado_comentarios) {
             <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="postActionTitle">
                 <div class="modal-header" id="postActionTitle">Editar post</div>
                 <div class="modal-message" id="postActionMessage"></div>
-                <form id="postEditForm" class="modal-form">
+                <form id="postEditForm" class="modal-form" enctype="multipart/form-data">
                     <input type="hidden" name="id_post" value="<?= $id_post ?>">
                     <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
+                    <input type="hidden" name="community_token" value="<?= htmlspecialchars($communityContextToken, ENT_QUOTES, 'UTF-8') ?>">
                     <label for="postEditSubject">Título do post</label>
                     <input type="text" id="postEditSubject" name="assunto" minlength="3" maxlength="150" required>
                     <label for="postEditContent">Conteúdo</label>
                     <textarea id="postEditContent" name="conteudo" minlength="5" maxlength="5000" required></textarea>
+                    <div class="edit-image-tools">
+                        <label class="edit-image-button" for="postEditImage">Nova imagem</label>
+                        <input type="file" id="postEditImage" name="imagem" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" hidden>
+                        <span id="postEditImageName" class="edit-image-filename"></span>
+                        <label class="edit-image-remove"><input type="checkbox" name="remover_imagem" value="1"> Remover imagem atual</label>
+                    </div>
                     <div class="modal-actions">
                         <button type="button" class="modal-btn modal-btn-cancel" onclick="fecharPostActionModal()">Cancelar</button>
                         <button type="submit" class="modal-btn modal-btn-confirm">Salvar alterações</button>
@@ -310,7 +318,7 @@ if ($resultado_comentarios) {
                             <button type="button" class="comment-image-remove" hidden>Remover</button>
                         </div>
                         <img class="comment-image-preview" alt="Prévia da imagem do comentário" hidden>
-                        <div style="display:flex; gap:8px; margin-top:8px;">
+                        <div class="comment-compose-actions">
                             <button type="button" class="btn-descartar" id="btnDescartarComentarioDetalhe">Descartar</button>
                             <button type="submit">Comentar</button>
                         </div>
@@ -573,6 +581,9 @@ if ($resultado_comentarios) {
             document.getElementById('postActionMessage').textContent = 'Atualize os dados do post abaixo.';
             form.style.display = 'block';
             document.getElementById('postDeleteActions').style.display = 'none';
+            document.getElementById('postEditImage').value = '';
+            document.getElementById('postEditImageName').textContent = '';
+            document.querySelector('#postEditForm [name="remover_imagem"]').checked = false;
             form.querySelector('[name="assunto"]').value = <?= json_encode($post['assunto'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
             form.querySelector('[name="conteudo"]').value = <?= json_encode($post['conteudo'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
             modal.classList.add('ativo');
@@ -604,7 +615,9 @@ if ($resultado_comentarios) {
         document.getElementById('postEditForm')?.addEventListener('submit', (event) => {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
-            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
+            formData.set('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
+            formData.set('community_token', <?= json_encode($communityContextToken, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>);
+            formData.set('id_comunidade', String(<?= (int) $id_comunidade ?>));
             fetch('../php/editar_post.php', { method: 'POST', body: formData })
                 .then((response) => response.json())
                 .then((data) => {
@@ -612,6 +625,31 @@ if ($resultado_comentarios) {
                     else alert(data.mensagem || 'Não foi possível editar o post.');
                 })
                 .catch(() => alert('Erro ao editar o post.'));
+        });
+
+        const postEditImage = document.getElementById('postEditImage');
+        const postEditImageName = document.getElementById('postEditImageName');
+        const removePostImage = document.querySelector('#postEditForm [name="remover_imagem"]');
+
+        postEditImage?.addEventListener('change', () => {
+            const file = postEditImage.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) {
+                alert('A imagem do post deve ter no máximo 2 MB.');
+                postEditImage.value = '';
+                postEditImageName.textContent = '';
+                return;
+            }
+
+            postEditImageName.textContent = file.name;
+            removePostImage.checked = false;
+        });
+
+        removePostImage?.addEventListener('change', () => {
+            if (removePostImage.checked) {
+                postEditImage.value = '';
+                postEditImageName.textContent = '';
+            }
         });
 
         function toggleCommentMenu(button) {
@@ -640,6 +678,58 @@ if ($resultado_comentarios) {
             textarea.rows = 3;
             textarea.style.width = '100%';
 
+            const currentImage = p.parentNode.querySelector('.comment-image');
+            const currentImageWrap = currentImage?.closest('.comment-image-wrap');
+            const originalImageDisplay = currentImageWrap?.style.display || '';
+            if (currentImageWrap) currentImageWrap.style.display = 'none';
+            const imageTools = document.createElement('div');
+            imageTools.className = 'edit-image-tools';
+
+            const imageInput = document.createElement('input');
+            imageInput.type = 'file';
+            imageInput.accept = 'image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif';
+            imageInput.className = 'edit-image-input';
+            imageInput.hidden = true;
+            imageInput.id = `edit-comment-image-${idComentario}`;
+
+            const imageLabel = document.createElement('label');
+            imageLabel.className = 'edit-image-button';
+            imageLabel.htmlFor = imageInput.id;
+            imageLabel.textContent = 'Nova imagem';
+
+            const imageName = document.createElement('span');
+            imageName.className = 'edit-image-filename';
+
+            const removeLabel = document.createElement('label');
+            removeLabel.className = 'edit-image-remove';
+            const removeInput = document.createElement('input');
+            removeInput.type = 'checkbox';
+            removeInput.name = 'remover_imagem';
+            removeInput.value = '1';
+            removeInput.disabled = !currentImage;
+            removeLabel.append(removeInput, document.createTextNode(' Remover imagem atual'));
+
+            imageTools.append(imageLabel, imageInput, imageName, removeLabel);
+            imageInput.addEventListener('change', () => {
+                const file = imageInput.files[0];
+                if (!file) return;
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('A imagem do comentário deve ter no máximo 2 MB.');
+                    imageInput.value = '';
+                    imageName.textContent = '';
+                    return;
+                }
+
+                imageName.textContent = file.name;
+                removeInput.checked = false;
+            });
+            removeInput.addEventListener('change', () => {
+                if (removeInput.checked) {
+                    imageInput.value = '';
+                    imageName.textContent = '';
+                }
+            });
+
             const saveBtn = document.createElement('button');
             saveBtn.textContent = 'Salvar';
             saveBtn.type = 'button';
@@ -653,6 +743,7 @@ if ($resultado_comentarios) {
             const container = document.createElement('div');
             container.className = 'inline-comment-editor';
             container.appendChild(textarea);
+            container.append(imageTools);
             const actions = document.createElement('div');
             actions.style.marginTop = '6px';
             actions.appendChild(cancelBtn);
@@ -665,6 +756,7 @@ if ($resultado_comentarios) {
             cancelBtn.addEventListener('click', function() {
                 container.remove();
                 p.style.display = '';
+                if (currentImageWrap) currentImageWrap.style.display = originalImageDisplay;
             });
 
             saveBtn.addEventListener('click', function() {
@@ -678,6 +770,8 @@ if ($resultado_comentarios) {
                 fd.append('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
                 fd.append('id_comentario', idComentario);
                 fd.append('conteudo', novo);
+                if (imageInput.files[0]) fd.append('imagem', imageInput.files[0]);
+                if (removeInput.checked) fd.append('remover_imagem', '1');
 
                 fetch('../php/editar_comentario.php', { method: 'POST', body: fd })
                     .then(r => r.json())

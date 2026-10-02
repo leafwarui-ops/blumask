@@ -184,6 +184,22 @@
     max-height: 360px;
     overflow-y: auto;
     background: #fff;
+    display: flex;
+    flex-direction: column;
+    min-height: 88px;
+}
+
+.notification-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 88px;
+    padding: 18px 16px;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.92rem;
+    font-weight: 600;
+    background: #fff;
 }
 
 .notification-item {
@@ -1309,13 +1325,48 @@ footer.bottombar {
 }
 
 .comment-detail-box .form-comentario textarea {
-    min-height: 56px;
-    border: 2px solid #cbd5e1;
+    min-height: 104px;
+    border: 1px solid #d5dce7;
     background: #fff;
+    border-radius: 12px;
+    padding: 13px 14px;
+    color: #1f2937;
+    font-size: 14px;
+    line-height: 1.5;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.comment-detail-box .form-comentario textarea:focus {
+    border-color: #567fd9;
+    box-shadow: 0 0 0 3px rgba(86, 127, 217, 0.14);
+    outline: none;
+}
+
+.comment-compose-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 2px;
+}
+
+.comment-compose-actions button {
+    min-height: 38px;
+    padding: 8px 14px;
     border-radius: 8px;
-    padding: 10px 12px;
     font-size: 13px;
-    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.comment-compose-actions button[type="submit"] {
+    background: #3459a1;
+    color: #fff;
+}
+
+.comment-compose-actions .btn-descartar {
+    background: #fff;
+    color: #475569;
+    border: 1px solid #d5dce7;
 }
 
 .comments-list {
@@ -1488,6 +1539,62 @@ footer.bottombar {
 
 .modal-form textarea {
     min-height: 150px;
+}
+
+.edit-image-tools {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 10px;
+}
+
+.edit-image-button {
+    display: inline-flex !important;
+    align-items: center;
+    margin: 0 !important;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #f1f5f9;
+    color: #334155 !important;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.edit-image-button:hover {
+    background: #e2e8f0;
+}
+
+.edit-image-remove {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+    margin: 0 !important;
+    color: #475569 !important;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.edit-image-remove input {
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.edit-image-input[hidden] {
+    display: none !important;
+}
+
+.inline-comment-editor {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.inline-comment-editor textarea {
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .modal-actions {

@@ -42,3 +42,58 @@ function generated_avatar_data_uri($name): string {
 
     return 'data:image/svg+xml;base64,' . base64_encode($svg);
 }
+
+function store_uploaded_image(array $upload, string $folder, string $prefix, int $maxBytes = 2097152): string {
+    if (!in_array($folder, ['posts', 'comentarios'], true)) {
+        throw new InvalidArgumentException('Pasta de imagem inválida.');
+    }
+    if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Não foi possível receber a imagem.');
+    }
+    if ((int) ($upload['size'] ?? 0) > $maxBytes) {
+        throw new RuntimeException('A imagem deve ter no máximo 2 MB.');
+    }
+
+    $temporaryPath = (string) ($upload['tmp_name'] ?? '');
+    $imageInfo = $temporaryPath !== '' && is_uploaded_file($temporaryPath) ? @getimagesize($temporaryPath) : false;
+    $extensionsByMime = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+        'image/avif' => 'avif',
+    ];
+    $mime = is_array($imageInfo) ? strtolower((string) ($imageInfo['mime'] ?? '')) : '';
+    if (!isset($extensionsByMime[$mime])) {
+        throw new RuntimeException('Formato de imagem inválido. Use JPG, PNG, GIF, WEBP ou AVIF.');
+    }
+
+    $directory = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . $folder;
+    if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
+        throw new RuntimeException('Não foi possível preparar a pasta de imagens.');
+    }
+
+    $filename = $prefix . '_' . bin2hex(random_bytes(16)) . '.' . $extensionsByMime[$mime];
+    if (!move_uploaded_file($temporaryPath, $directory . DIRECTORY_SEPARATOR . $filename)) {
+        throw new RuntimeException('Não foi possível salvar a imagem.');
+    }
+
+    return 'uploads/' . $folder . '/' . $filename;
+}
+
+function delete_uploaded_image(string $path, string $folder): void {
+    $prefix = 'uploads/' . $folder . '/';
+    if (!in_array($folder, ['posts', 'comentarios'], true) || strpos($path, $prefix) !== 0) {
+        return;
+    }
+
+    $filename = basename($path);
+    if ($filename === '' || $filename !== substr($path, strlen($prefix))) {
+        return;
+    }
+
+    $absolutePath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . $folder . DIRECTORY_SEPARATOR . $filename;
+    if (is_file($absolutePath)) {
+        @unlink($absolutePath);
+    }
+}

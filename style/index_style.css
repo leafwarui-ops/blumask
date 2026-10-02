@@ -1189,6 +1189,22 @@
     max-height: 360px;
     overflow-y: auto;
     background: #fff;
+    display: flex;
+    flex-direction: column;
+    min-height: 88px;
+  }
+
+  .notification-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 88px;
+    padding: 18px 16px;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.92rem;
+    font-weight: 600;
+    background: #fff;
   }
 
   .notification-item {
