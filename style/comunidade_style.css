@@ -181,8 +181,12 @@
 }
 
 .notification-list {
-    max-height: 360px;
+    max-height: min(360px, calc(100vh - 140px));
     overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: #9aaed4 #f1f4fa;
     background: #fff;
     display: flex;
     flex-direction: column;

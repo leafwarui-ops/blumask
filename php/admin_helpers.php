@@ -235,6 +235,158 @@ function create_post_comment_notification(mysqli $conn, int $destinatarioId, int
     return $executado;
 }
 
+function ensure_admin_mention_limit_schema(mysqli $conn): bool {
+    $sql = "CREATE TABLE IF NOT EXISTS limite_mencao_admin (
+        id_usuario INT NOT NULL PRIMARY KEY,
+        ultima_notificacao DATETIME NOT NULL,
+        CONSTRAINT fk_limite_mencao_admin_usuario FOREIGN KEY (id_usuario)
+            REFERENCES usuario(id_usuario) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+
+    return $conn->query($sql) !== false;
+}
+
+function create_mention_notification(mysqli $conn, int $destinatarioId, int $remetenteId, int $postId, ?int $comentarioId, string $tipo, string $mensagem): bool {
+    if ($destinatarioId <= 0 || $remetenteId <= 0 || $postId <= 0 || $destinatarioId === $remetenteId) {
+        return false;
+    }
+
+    if ($comentarioId === null) {
+        $stmt = $conn->prepare("INSERT INTO notificacao (id_usuario, id_remetente, id_post, id_comentario, tipo, mensagem, lida, criada_em)
+            VALUES (?, ?, ?, NULL, ?, ?, 0, NOW())");
+        if (!$stmt) {
+            return false;
+        }
+        $stmt->bind_param('iiiss', $destinatarioId, $remetenteId, $postId, $tipo, $mensagem);
+    } else {
+        $stmt = $conn->prepare("INSERT INTO notificacao (id_usuario, id_remetente, id_post, id_comentario, tipo, mensagem, lida, criada_em)
+            VALUES (?, ?, ?, ?, ?, ?, 0, NOW())");
+        if (!$stmt) {
+            return false;
+        }
+        $stmt->bind_param('iiiiss', $destinatarioId, $remetenteId, $postId, $comentarioId, $tipo, $mensagem);
+    }
+
+    $executado = $stmt->execute();
+    $stmt->close();
+    return $executado;
+}
+
+function create_mention_notifications(mysqli $conn, string $conteudo, int $remetenteId, int $postId, ?int $comentarioId = null): bool {
+    if ($remetenteId <= 0 || $postId <= 0) {
+        return false;
+    }
+
+    if (!preg_match_all('/(?<![\p{L}\p{N}_])@([\p{L}\p{N}_.-]{1,100})/u', $conteudo, $matches)) {
+        return true;
+    }
+
+    $nomesUsuario = array_values(array_unique($matches[1]));
+    if (!$nomesUsuario) {
+        return true;
+    }
+
+    if (!ensure_notification_schema($conn)) {
+        return false;
+    }
+
+    $ehPost = $comentarioId === null;
+    $mensagemMencao = $ehPost ? 'mencionou você em um post.' : 'mencionou você em um comentário.';
+    $sucesso = true;
+    $lookup = $conn->prepare('SELECT id_usuario, is_admin FROM usuario WHERE nome_de_usuario = ? LIMIT 1');
+    if (!$lookup) {
+        return false;
+    }
+
+    foreach ($nomesUsuario as $nomeUsuario) {
+        $lookup->bind_param('s', $nomeUsuario);
+        if (!$lookup->execute()) {
+            $sucesso = false;
+            continue;
+        }
+
+        $resultado = $lookup->get_result();
+        $usuario = $resultado ? $resultado->fetch_assoc() : null;
+        $destinatarioId = (int) ($usuario['id_usuario'] ?? 0);
+        if ($destinatarioId <= 0 || $destinatarioId === $remetenteId) {
+            continue;
+        }
+
+        if (strcasecmp($nomeUsuario, 'admin') === 0 && (int) ($usuario['is_admin'] ?? 0) === 1) {
+            continue;
+        }
+
+        if (!create_mention_notification($conn, $destinatarioId, $remetenteId, $postId, $comentarioId, 'mencao', $mensagemMencao)) {
+            $sucesso = false;
+        }
+    }
+    $lookup->close();
+
+    $mencionaAdmin = false;
+    foreach ($nomesUsuario as $nomeUsuario) {
+        if (strcasecmp($nomeUsuario, 'admin') === 0) {
+            $mencionaAdmin = true;
+            break;
+        }
+    }
+    if (!$mencionaAdmin) {
+        return $sucesso;
+    }
+
+    $admins = $conn->query('SELECT id_usuario FROM usuario WHERE is_admin = 1');
+    if (!$admins) {
+        return false;
+    }
+
+    $idsAdmin = [];
+    while ($admin = $admins->fetch_assoc()) {
+        $adminId = (int) ($admin['id_usuario'] ?? 0);
+        if ($adminId > 0 && $adminId !== $remetenteId) {
+            $idsAdmin[] = $adminId;
+        }
+    }
+    if (!$idsAdmin) {
+        return $sucesso;
+    }
+
+    if (!ensure_admin_mention_limit_schema($conn)) {
+        return false;
+    }
+
+    $limite = $conn->prepare("INSERT INTO limite_mencao_admin (id_usuario, ultima_notificacao)
+        VALUES (?, NOW())
+        ON DUPLICATE KEY UPDATE ultima_notificacao = IF(
+            ultima_notificacao <= DATE_SUB(NOW(), INTERVAL 10 MINUTE),
+            NOW(),
+            ultima_notificacao
+        )");
+    if (!$limite) {
+        return false;
+    }
+    $limite->bind_param('i', $remetenteId);
+    $limiteExecutado = $limite->execute();
+    $podeNotificar = $limiteExecutado && $limite->affected_rows > 0;
+    $limite->close();
+
+    if (!$limiteExecutado) {
+        return false;
+    }
+    if (!$podeNotificar) {
+        return $sucesso;
+    }
+
+    $mensagemAdmin = $ehPost
+        ? 'mencionou @admin em um post.'
+        : 'mencionou @admin em um comentário.';
+    foreach ($idsAdmin as $adminId) {
+        if (!create_mention_notification($conn, $adminId, $remetenteId, $postId, $comentarioId, 'mencao_admin', $mensagemAdmin)) {
+            $sucesso = false;
+        }
+    }
+
+    return $sucesso;
+}
+
 function is_user_suspended($user) {
     $suspensoAte = trim((string) ($user['suspenso_ate'] ?? ''));
     if ($suspensoAte === '') {

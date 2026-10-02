@@ -189,6 +189,14 @@ if ($inserted) {
         }
     }
 
+    try {
+        if (!create_mention_notifications($conn, $conteudo, $id_usuario, $id_post, $id_comentario)) {
+            error_log('Falha ao criar notificações de menção do comentário ' . $id_comentario);
+        }
+    } catch (Throwable $e) {
+        error_log('Falha ao criar notificações de menção do comentário ' . $id_comentario . ': ' . $e->getMessage());
+    }
+
     echo json_encode(["sucesso" => true, "mensagem" => "Comentário enviado com sucesso!"]);
 } else {
     if ($imagem_path !== null) {

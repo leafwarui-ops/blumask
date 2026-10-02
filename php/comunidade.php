@@ -381,7 +381,7 @@ if ($resultado_count) {
                                 
                                 <input type="text" id="novo-post-assunto" name="assunto" placeholder="Título do post (mín. 3 caracteres)" minlength="3" maxlength="150" required>
                                 
-                                <textarea id="novo-post-conteudo" name="conteudo" placeholder="O que você quer compartilhar? (mín. 5 caracteres)" minlength="5" maxlength="5000" required></textarea>
+                                <textarea id="novo-post-conteudo" name="conteudo" placeholder="O que você quer compartilhar? Use @usuário ou @admin para mencionar alguém." minlength="5" maxlength="5000" required></textarea>
 
                                 <div class="novo-post-upload">
                                     <label class="novo-post-upload-btn" for="novo-post-imagem">Anexar imagem</label>
@@ -497,7 +497,7 @@ if ($resultado_count) {
                                     <form class="form-comentario" data-post-id="<?= $post['id_post'] ?>" enctype="multipart/form-data">
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
-                                        <textarea name="conteudo" rows="3" maxlength="2000" placeholder="Escreva um comentário... (mín. 2 caracteres)"></textarea>
+                                        <textarea name="conteudo" rows="3" maxlength="2000" placeholder="Escreva um comentário... Use @usuário ou @admin para mencionar alguém."></textarea>
                                         <div class="comment-image-tools">
                                             <label class="comment-image-button" for="comment-image-<?= (int) $post['id_post'] ?>">Anexar imagem</label>
                                             <input type="file" id="comment-image-<?= (int) $post['id_post'] ?>" name="imagem" class="comment-image-input" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" hidden>

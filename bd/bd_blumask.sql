@@ -123,6 +123,13 @@ create table if not exists notificacao(
     constraint fk_notificacao_comentario foreign key (id_comentario) references comentario(id_comentario) on delete cascade
 ) charset=utf8mb4 collate=utf8mb4_unicode_ci;
 
+create table if not exists limite_mencao_admin (
+    id_usuario int not null primary key,
+    ultima_notificacao datetime not null,
+    constraint fk_limite_mencao_admin_usuario foreign key (id_usuario)
+        references usuario(id_usuario) on delete cascade
+) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci;
+
 create table curtida(
 id_curtida int primary key auto_increment,
 id_usuario int,

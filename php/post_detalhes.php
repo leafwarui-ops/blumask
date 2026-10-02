@@ -310,7 +310,7 @@ if ($resultado_comentarios) {
                     <form id="formComentarioDetalhe" class="form-comentario" enctype="multipart/form-data">
                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
-                        <textarea name="conteudo" maxlength="2000" placeholder="Digite seu comentário... (mín. 2 caracteres)"></textarea>
+                        <textarea name="conteudo" maxlength="2000" placeholder="Digite seu comentário... Use @usuário ou @admin para mencionar alguém."></textarea>
                         <div class="comment-image-tools">
                             <label class="comment-image-button" for="comment-image-detail">Anexar imagem</label>
                             <input type="file" id="comment-image-detail" name="imagem" class="comment-image-input" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" hidden>

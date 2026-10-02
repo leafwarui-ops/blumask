@@ -197,7 +197,15 @@ $sql_insert = "INSERT INTO post (id_comunidade, Data_post, conteudo, id_usuario,
 
 if (mysqli_query($conn, $sql_insert)) {
     $id_post = mysqli_insert_id($conn);
-    
+
+    try {
+        if (!create_mention_notifications($conn, $assunto . "\n" . $conteudo, $id_usuario, $id_post)) {
+            error_log('Falha ao criar notificações de menção do post ' . $id_post);
+        }
+    } catch (Throwable $e) {
+        error_log('Falha ao criar notificações de menção do post ' . $id_post . ': ' . $e->getMessage());
+    }
+
     echo json_encode([
         "sucesso" => true,
         "mensagem" => "Post criado com sucesso!",
