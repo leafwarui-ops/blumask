@@ -293,58 +293,58 @@
 .avatar-upload {
     width: 72px;
     height: 72px;
+    padding: 0;
+    border: none;
     border-radius: 50%;
-    background-color: #555;
+    background: #555;
+    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    cursor: pointer;
     box-shadow: 0 0 0 3px #cfc9f5;
+    cursor: pointer;
     position: relative;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.avatar-upload-text {
-    display: none;
-    white-space: nowrap;
-    line-height: 1;
+.avatar-upload:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 0 4px #b8aff0;
 }
 
-.avatar-upload img {
+.modal-form .avatar-upload {
+    display: flex;
+    margin: 4px 0 0;
+    color: #fff;
+    font-weight: 700;
+}
+
+.avatar-upload-text {
+    display: none;
+}
+
+.avatar-upload-preview {
+    display: none;
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    display: none;
 }
 
-.avatar-upload.has-image img {
+.avatar-upload.has-image .avatar-upload-preview {
     display: block;
-}
-
-.avatar-upload img:not([src]),
-.avatar-upload img[src=""] {
-    display: none;
 }
 
 .avatar-upload .avatar-placeholder-icon {
     width: 60%;
     height: 60%;
     fill: #fff;
-    display: block;
 }
 
 .avatar-upload.has-image .avatar-placeholder-icon {
     display: none;
-}
-
-#preview-imagem-comunidade {
-    display: none;
-    border-radius: 50%;
-}
-
-.avatar-upload.has-image #preview-imagem-comunidade {
-    display: block;
 }
 
 .criar-comunidade-botoes {
@@ -1707,16 +1707,17 @@ footer.bottombar {
         display: none;
     }
 
-    .avatar-upload {
+    .avatar-upload,
+    .modal-form .avatar-upload {
         width: 100% !important;
         min-width: 0;
-        height: 46px !important;
-        border-radius: 12px !important;
-        box-shadow: none !important;
-        border: 1px solid rgba(40, 84, 187, 0.25);
-        background: linear-gradient(135deg, #3b82f6, #2b17e0);
-        overflow: hidden;
-        padding: 0 16px;
+        min-height: 46px;
+        height: 46px;
+        margin: 0 0 8px !important;
+        border-radius: 12px;
+        background: var(--accent-blue, #2b17e0);
+        box-shadow: none;
+        padding: 10px 16px;
     }
 
     .avatar-upload-text {
@@ -1726,11 +1727,7 @@ footer.bottombar {
         font-weight: 700;
     }
 
-    #preview-imagem-comunidade {
-        display: none !important;
-        visibility: hidden;
-    }
-
+    .avatar-upload .avatar-upload-preview,
     .avatar-upload .avatar-placeholder-icon {
         display: none !important;
     }

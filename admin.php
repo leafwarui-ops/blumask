@@ -156,10 +156,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $searchTerm = trim((string) ($_GET['q'] ?? ''));
-$usersSql = "SELECT * FROM usuario ORDER BY is_admin DESC, nome_de_exibicao ASC";
+$activeUserFilter = "TRIM(COALESCE(nome_de_exibicao, '')) <> 'Usuário deletado'
+    AND LEFT(COALESCE(nome_de_usuario, ''), 17) <> 'usuario_deletado_'";
+$usersSql = "SELECT * FROM usuario WHERE $activeUserFilter ORDER BY is_admin DESC, nome_de_exibicao ASC";
 if ($searchTerm !== '') {
     $term = $conn->real_escape_string('%' . $searchTerm . '%');
-    $usersSql = "SELECT * FROM usuario WHERE nome_de_exibicao LIKE '$term' OR nome_de_usuario LIKE '$term' OR email LIKE '$term' ORDER BY is_admin DESC, nome_de_exibicao ASC";
+    $usersSql = "SELECT * FROM usuario
+        WHERE $activeUserFilter
+        AND (nome_de_exibicao LIKE '$term' OR nome_de_usuario LIKE '$term' OR email LIKE '$term')
+        ORDER BY is_admin DESC, nome_de_exibicao ASC";
 }
 
 $usersResult = $conn->query($usersSql);
@@ -580,7 +585,7 @@ $csrfToken = get_csrf_token();
         }
         .admin-modal-actions {
             display: flex;
-            justify-content: flex-end;
+            justify-content: center;
             gap: 10px;
             margin-top: 14px;
         }

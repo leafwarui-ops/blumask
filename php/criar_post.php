@@ -199,7 +199,7 @@ if (mysqli_query($conn, $sql_insert)) {
     $id_post = mysqli_insert_id($conn);
 
     try {
-        if (!create_mention_notifications($conn, $assunto . "\n" . $conteudo, $id_usuario, $id_post)) {
+        if (!create_mention_notifications($conn, $assunto . "\n" . $conteudo, $id_usuario, $id_post, $id_comunidade)) {
             error_log('Falha ao criar notificações de menção do post ' . $id_post);
         }
     } catch (Throwable $e) {

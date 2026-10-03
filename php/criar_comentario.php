@@ -202,7 +202,7 @@ if ($inserted) {
     }
 
     try {
-        if (!create_mention_notifications($conn, $conteudo, $id_usuario, $id_post, $id_comentario)) {
+        if (!create_mention_notifications($conn, $conteudo, $id_usuario, $id_post, $post_comunidade_id, $id_comentario)) {
             error_log('Falha ao criar notificações de menção do comentário ' . $id_comentario);
         }
     } catch (Throwable $e) {

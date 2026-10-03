@@ -968,10 +968,10 @@ if ($id_usuario_logado > 0) {
 
             <div class="criar-comunidade-foto">
               <span>Foto / Ícone:</span>
-              <label for="input-imagem-comunidade" class="avatar-upload" title="Escolher Imagem/GIF">
+              <label for="input-imagem-comunidade" class="avatar-upload" title="Escolher foto da comunidade">
                 <span class="avatar-upload-text">Escolher foto</span>
-                <img id="preview-imagem-comunidade" src="" alt="Preview">
-                <svg class="avatar-placeholder-icon" viewBox="0 0 24 24"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>
+                <img id="preview-imagem-comunidade" class="avatar-upload-preview" src="" alt="Prévia da foto da comunidade">
+                <svg class="avatar-placeholder-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>
               </label>
               <input type="file" id="input-imagem-comunidade" name="imagem" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" hidden>
             </div>

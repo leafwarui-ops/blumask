@@ -201,11 +201,12 @@ if ($resultado_count) {
                         </div>
                     </div>
 
-                    <div class="criar-comunidade-foto" style="align-items: center; justify-content: center;">
+                    <div class="criar-comunidade-foto">
                         <span>Foto / Ícone:</span>
-                        <label for="editarImagemComunidade" class="avatar-upload" title="Escolher imagem da comunidade" style="width:72px; height:72px; margin-top: 4px; display: flex; align-items: center; justify-content: center;">
-                            <img id="preview-imagem-comunidade-editar" src="" alt="Preview da comunidade">
-                            <svg class="avatar-placeholder-icon" viewBox="0 0 24 24"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>
+                        <label for="editarImagemComunidade" class="avatar-upload" title="Mudar foto da comunidade">
+                            <span class="avatar-upload-text">Mudar foto</span>
+                            <img id="preview-imagem-comunidade-editar" class="avatar-upload-preview" src="" alt="Prévia da foto da comunidade">
+                            <svg class="avatar-placeholder-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>
                         </label>
                         <input type="file" id="editarImagemComunidade" name="imagem" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" hidden>
                     </div>
@@ -381,7 +382,7 @@ if ($resultado_count) {
                                 
                                 <input type="text" id="novo-post-assunto" name="assunto" placeholder="Título do post (mín. 3 caracteres)" minlength="3" maxlength="150" required>
                                 
-                                <textarea id="novo-post-conteudo" name="conteudo" placeholder="O que você quer compartilhar? Use @usuário ou @admin para mencionar alguém." minlength="5" maxlength="5000" required></textarea>
+                                <textarea id="novo-post-conteudo" name="conteudo" placeholder="O que você quer compartilhar? Mencione com @ apenas membros desta comunidade." minlength="5" maxlength="5000" required></textarea>
 
                                 <div class="novo-post-upload">
                                     <label class="novo-post-upload-btn" for="novo-post-imagem">Anexar imagem</label>
@@ -499,7 +500,7 @@ if ($resultado_count) {
                                         <input type="hidden" name="id_post" value="<?= $post['id_post'] ?>">
                                         <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
                                         <input type="hidden" name="community_token" value="<?= htmlspecialchars($communityContextToken, ENT_QUOTES, 'UTF-8') ?>">
-                                        <textarea name="conteudo" rows="3" maxlength="2000" placeholder="Escreva um comentário... Use @usuário ou @admin para mencionar alguém."></textarea>
+                                        <textarea name="conteudo" rows="3" maxlength="2000" placeholder="Escreva um comentário... Mencione com @ apenas membros desta comunidade."></textarea>
                                         <div class="comment-image-tools">
                                             <label class="comment-image-button" for="comment-image-<?= (int) $post['id_post'] ?>">Anexar imagem</label>
                                             <input type="file" id="comment-image-<?= (int) $post['id_post'] ?>" name="imagem" class="comment-image-input" accept="image/jpeg,image/png,image/gif,image/webp,image/avif,.jpg,.jpeg,.jfif,.png,.gif,.webp,.avif" hidden>

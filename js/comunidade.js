@@ -85,8 +85,6 @@ document.addEventListener("DOMContentLoaded", () => {
             previewImagem.hidden = false;
             previewImagem.style.display = "block";
             previewImagem.style.objectFit = "cover";
-            previewImagem.style.width = "100%";
-            previewImagem.style.height = "100%";
             if (avatarUpload) avatarUpload.classList.add("has-image");
         };
         reader.readAsDataURL(arquivo);

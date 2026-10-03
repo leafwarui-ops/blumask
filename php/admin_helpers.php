@@ -272,8 +272,8 @@ function create_mention_notification(mysqli $conn, int $destinatarioId, int $rem
     return $executado;
 }
 
-function create_mention_notifications(mysqli $conn, string $conteudo, int $remetenteId, int $postId, ?int $comentarioId = null): bool {
-    if ($remetenteId <= 0 || $postId <= 0) {
+function create_mention_notifications(mysqli $conn, string $conteudo, int $remetenteId, int $postId, int $communityId, ?int $comentarioId = null): bool {
+    if ($remetenteId <= 0 || $postId <= 0 || $communityId <= 0) {
         return false;
     }
 
@@ -293,13 +293,17 @@ function create_mention_notifications(mysqli $conn, string $conteudo, int $remet
     $ehPost = $comentarioId === null;
     $mensagemMencao = $ehPost ? 'mencionou você em um post.' : 'mencionou você em um comentário.';
     $sucesso = true;
-    $lookup = $conn->prepare('SELECT id_usuario, is_admin FROM usuario WHERE nome_de_usuario = ? LIMIT 1');
+    $lookup = $conn->prepare('SELECT u.id_usuario, u.is_admin
+        FROM usuario u
+        INNER JOIN membro_comunidade mc ON mc.id_usuario = u.id_usuario
+        WHERE u.nome_de_usuario = ? AND mc.id_comunidade = ?
+        LIMIT 1');
     if (!$lookup) {
         return false;
     }
 
     foreach ($nomesUsuario as $nomeUsuario) {
-        $lookup->bind_param('s', $nomeUsuario);
+        $lookup->bind_param('si', $nomeUsuario, $communityId);
         if (!$lookup->execute()) {
             $sucesso = false;
             continue;
@@ -333,13 +337,12 @@ function create_mention_notifications(mysqli $conn, string $conteudo, int $remet
         return $sucesso;
     }
 
-    $admins = $conn->query('SELECT id_usuario FROM usuario WHERE is_admin = 1');
-    if (!$admins) {
+    $adminResults = $conn->query('SELECT id_usuario FROM usuario WHERE is_admin = 1');
+    if (!$adminResults) {
         return false;
     }
-
     $idsAdmin = [];
-    while ($admin = $admins->fetch_assoc()) {
+    while ($admin = $adminResults->fetch_assoc()) {
         $adminId = (int) ($admin['id_usuario'] ?? 0);
         if ($adminId > 0 && $adminId !== $remetenteId) {
             $idsAdmin[] = $adminId;
