@@ -37,6 +37,7 @@ global $conn;
 
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
 $id_post = normalize_positive_id($_POST['id_post'] ?? 0, 0);
+$isSiteAdmin = is_site_admin($conn, $id_usuario);
 
 // 4. Validação do ID
 if ($id_post <= 0) {
@@ -66,13 +67,13 @@ $comunidade_dono = intval($post['comunidade_dono']);
 $autor_id = intval($post['autor_id']);
 $cargo_usuario = intval($post['cargo_usuario'] ?? 0);
 
-if (is_user_banned_from_community($conn, $id_usuario, $id_comunidade)) {
+if (!$isSiteAdmin && is_user_banned_from_community($conn, $id_usuario, $id_comunidade)) {
     echo json_encode(["sucesso" => false, "mensagem" => "Você foi banido desta comunidade e não pode excluir posts."]);
     exit;
 }
 
 // 6. Verificar se o usuário é o dono do post, o dono da comunidade, administrador da comunidade ou administrador do sistema
-$permitido = ($autor_id === $id_usuario) || ($comunidade_dono === $id_usuario) || ($cargo_usuario === 1) || is_site_admin($conn, $id_usuario);
+$permitido = ($autor_id === $id_usuario) || ($comunidade_dono === $id_usuario) || ($cargo_usuario === 1) || $isSiteAdmin;
 
 if (!$permitido) {
     echo json_encode(["sucesso" => false, "mensagem" => "Você não tem permissão para excluir este post."]);
@@ -96,7 +97,7 @@ try {
     $legacy_references = [
         ['usuario', 'id_post_fixado', "UPDATE usuario SET id_post_fixado = NULL WHERE id_post_fixado = $id_post"],
         ['comunidade', 'id_post_fixado', "UPDATE comunidade SET id_post_fixado = NULL WHERE id_post_fixado = $id_post"],
-        ['post', 'id_comentario_fixado', "UPDATE post SET id_comentario_fixado = NULL WHERE id_post = $id_post"],
+        ['post', 'id_comentario_fixado', "UPDATE post SET id_comentario_fixado = NULL WHERE id_post = $id_post OR id_comentario_fixado IN (SELECT id_comentario FROM comentario WHERE id_post = $id_post)"],
         ['usuario', 'id_comentario_fixado', "UPDATE usuario SET id_comentario_fixado = NULL WHERE id_comentario_fixado IN (SELECT id_comentario FROM comentario WHERE id_post = $id_post)"]
     ];
     foreach ($legacy_references as [$table, $column, $sql]) {
@@ -136,5 +137,6 @@ try {
     ]);
 } catch (Exception $e) {
     mysqli_rollback($conn);
+    error_log('Falha ao excluir post ' . $id_post . ': ' . $e->getMessage());
     echo json_encode(["sucesso" => false, "mensagem" => "Erro ao excluir post."]);
 }

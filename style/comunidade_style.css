@@ -1738,10 +1738,16 @@ footer.bottombar {
         margin-top: 16px;
     }
 
-    .btn-criar,
-    .btn-descartar {
+    #criar-comunidade-box .btn-criar,
+    #criar-comunidade-box .btn-descartar {
         width: 100%;
         padding: 11px 18px;
+    }
+
+    .form-novo-post-actions > button {
+        flex: 1;
+        width: auto;
+        padding: 10px 12px;
     }
 
     body {

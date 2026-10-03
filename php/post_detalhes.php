@@ -147,11 +147,12 @@ if ($resultado_comentarios) {
     </dialog>
 
     <?php $is_post_owner = $id_usuario > 0 && (int) $post['id_usuario'] === $id_usuario; ?>
-    <?php if ($is_post_owner): ?>
+    <?php if ($is_post_owner || $is_site_admin_user): ?>
         <div class="modal-overlay" id="postActionModal">
             <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="postActionTitle">
                 <div class="modal-header" id="postActionTitle">Editar post</div>
                 <div class="modal-message" id="postActionMessage"></div>
+                <?php if ($is_post_owner): ?>
                 <form id="postEditForm" class="modal-form" enctype="multipart/form-data">
                     <input type="hidden" name="id_post" value="<?= $id_post ?>">
                     <input type="hidden" name="id_comunidade" value="<?= $id_comunidade ?>">
@@ -171,6 +172,7 @@ if ($resultado_comentarios) {
                         <button type="submit" class="modal-btn modal-btn-confirm">Salvar alterações</button>
                     </div>
                 </form>
+                <?php endif; ?>
                 <div class="modal-actions" id="postDeleteActions" style="display:none;">
                     <button type="button" class="modal-btn modal-btn-cancel" onclick="fecharPostActionModal()">Cancelar</button>
                     <button type="button" class="modal-btn modal-btn-danger" onclick="confirmarExclusaoPost()">Excluir post</button>
@@ -599,7 +601,8 @@ if ($resultado_comentarios) {
             if (!modal) return;
             document.getElementById('postActionTitle').textContent = 'Excluir post';
             document.getElementById('postActionMessage').textContent = 'Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.';
-            document.getElementById('postEditForm').style.display = 'none';
+            const editForm = document.getElementById('postEditForm');
+            if (editForm) editForm.style.display = 'none';
             document.getElementById('postDeleteActions').style.display = 'flex';
             modal.classList.add('ativo');
         }
