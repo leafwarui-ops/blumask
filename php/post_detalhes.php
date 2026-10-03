@@ -1095,7 +1095,10 @@ if ($resultado_comentarios) {
 
             const loadNotifications = async () => {
                 try {
-                    const response = await fetch('../php/notificacoes.php?action=list&limit=20', { credentials: 'same-origin' });
+                    const response = await fetch('../php/notificacoes.php?action=list&limit=20', {
+                        credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
                     if (!response.ok) {
                         return;
                     }
@@ -1115,7 +1118,10 @@ if ($resultado_comentarios) {
                     const response = await fetch('../php/notificacoes.php', {
                         method: 'POST',
                         credentials: 'same-origin',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
                         body: new URLSearchParams({ action: 'read', csrf_token: csrfToken }).toString()
                     });
 

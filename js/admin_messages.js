@@ -97,7 +97,7 @@
       const data = await response.json();
       if (data.sucesso && data.mensagem) showMessage(data.mensagem, data.csrf_token);
     } catch (error) {
-      console.error('Não foi possível verificar mensagens administrativas.');
+      console.error('Não foi possível verificar mensagens administrativas.', error);
     } finally {
       requestInProgress = false;
     }

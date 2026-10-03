@@ -674,7 +674,7 @@ if ($id_usuario_logado > 0) {
                     <?php if (!empty($post['imagem'])): ?>
                       <?php $post_imagem_url = resolve_index_asset_url($post['imagem'] ?? '', ''); ?>
                       <?php if ($post_imagem_url !== ''): ?>
-                        <div class="post-image-wrap">
+                        <div class="post-image-wrap pinned-post-image-wrap">
                           <img class="post-image" src="<?= $post_imagem_url ?>" alt="Imagem do post" loading="lazy">
                         </div>
                       <?php endif; ?>
@@ -733,7 +733,7 @@ if ($id_usuario_logado > 0) {
                     </div>
                     <div class="post-content"><?= nl2br($comment_conteudo) ?></div>
                     <?php $commentImageUrl = resolve_index_asset_url($comment['imagem'] ?? '', ''); ?>
-                    <?php if ($commentImageUrl !== ''): ?><div class="post-image-wrap comment-image-wrap"><img class="post-image comment-image" src="<?= $commentImageUrl ?>" alt="Imagem anexada ao comentário" loading="lazy"></div><?php endif; ?>
+                    <?php if ($commentImageUrl !== ''): ?><div class="post-image-wrap comment-image-wrap pinned-comment-image-wrap"><img class="post-image comment-image" src="<?= $commentImageUrl ?>" alt="Imagem anexada ao comentário" loading="lazy"></div><?php endif; ?>
                     <div class="post-actions">
                       <button type="button" class="post-action post-pin-action" onclick="event.stopPropagation(); fixarComentarioRecente(<?= $comment_post_id ?>, <?= $comment_id ?>, this)" title="Desfixar comentário">
                         <span>📌</span>
@@ -1429,7 +1429,10 @@ if ($id_usuario_logado > 0) {
 
             const loadNotifications = async () => {
                 try {
-                    const response = await fetch('php/notificacoes.php?action=list&limit=20', { credentials: 'same-origin' });
+                    const response = await fetch('php/notificacoes.php?action=list&limit=20', {
+                        credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
                     if (!response.ok) {
                         return;
                     }
@@ -1450,7 +1453,8 @@ if ($id_usuario_logado > 0) {
                         method: 'POST',
                         credentials: 'same-origin',
                         headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+                            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                            'X-Requested-With': 'XMLHttpRequest'
                         },
                         body: new URLSearchParams({ action: 'read', csrf_token: csrfToken }).toString()
                     });

@@ -185,3 +185,10 @@ primary key (id_usuario, id_comentario),
 foreign key (id_usuario) references usuario(id_usuario),
 foreign key (id_comentario) references comentario(id_comentario)
 );
+
+ALTER DATABASE bd_blumask CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+ALTER TABLE usuario CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE comunidade CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE post CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE comentario CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

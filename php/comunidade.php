@@ -475,7 +475,7 @@ if ($resultado_count) {
                                 <?php if (!empty($post['imagem'])): ?>
                                     <?php $post_imagem_url = resolve_media_url($post['imagem'] ?? '', '', '../'); ?>
                                     <?php if ($post_imagem_url !== ''): ?>
-                                        <div class="post-image-wrap">
+                                        <div class="post-image-wrap<?= !empty($comunidade['id_post_fixado']) && (int) $post['id_post'] === (int) $comunidade['id_post_fixado'] ? ' pinned-post-image-wrap' : '' ?>">
                                             <img class="post-image" src="<?= $post_imagem_url ?>" alt="Imagem do post">
                                         </div>
                                     <?php endif; ?>
@@ -508,7 +508,7 @@ if ($resultado_count) {
                                             <button type="button" class="comment-image-remove" hidden>Remover</button>
                                         </div>
                                         <img class="comment-image-preview" alt="Prévia da imagem do comentário" hidden>
-                                        <div style="display:flex; gap:8px; margin-top:8px;">
+                                        <div class="comment-compose-actions">
                                             <button type="button" class="btn-descartar" onclick="descartarComentarioInline(<?= $post['id_post'] ?>)">Descartar</button>
                                             <button type="submit">Comentar</button>
                                         </div>
@@ -1358,6 +1358,7 @@ if ($resultado_count) {
         const editarImagemInput = document.getElementById('editarImagemComunidade');
         const editarImagemPreview = document.getElementById('preview-imagem-comunidade-editar');
         const editarImagemUpload = editarImagemPreview?.closest('.avatar-upload');
+        const editarImagemUploadText = editarImagemUpload?.querySelector('.avatar-upload-text');
 
         if (editarImagemInput && editarImagemPreview && editarImagemUpload) {
             editarImagemInput.addEventListener('change', function() {
@@ -1365,6 +1366,7 @@ if ($resultado_count) {
                 if (!file) {
                     editarImagemPreview.src = '';
                     editarImagemUpload.classList.remove('has-image');
+                    if (editarImagemUploadText) editarImagemUploadText.textContent = 'Mudar foto';
                     return;
                 }
 
@@ -1373,6 +1375,7 @@ if ($resultado_count) {
                     this.value = '';
                     editarImagemPreview.src = '';
                     editarImagemUpload.classList.remove('has-image');
+                    if (editarImagemUploadText) editarImagemUploadText.textContent = 'Mudar foto';
                     return;
                 }
 
@@ -1382,6 +1385,7 @@ if ($resultado_count) {
                     this.value = '';
                     editarImagemPreview.src = '';
                     editarImagemUpload.classList.remove('has-image');
+                    if (editarImagemUploadText) editarImagemUploadText.textContent = 'Mudar foto';
                     return;
                 }
 
@@ -1389,6 +1393,7 @@ if ($resultado_count) {
                 reader.onload = function(e) {
                     editarImagemPreview.src = e.target.result;
                     editarImagemUpload.classList.add('has-image');
+                    if (editarImagemUploadText) editarImagemUploadText.textContent = 'Foto selecionada';
                 };
                 reader.readAsDataURL(file);
             });
@@ -1506,7 +1511,10 @@ if ($resultado_count) {
 
             const loadNotifications = async () => {
                 try {
-                    const response = await fetch('../php/notificacoes.php?action=list&limit=20', { credentials: 'same-origin' });
+                    const response = await fetch('../php/notificacoes.php?action=list&limit=20', {
+                        credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
                     if (!response.ok) {
                         return;
                     }
@@ -1526,7 +1534,10 @@ if ($resultado_count) {
                     const response = await fetch('../php/notificacoes.php', {
                         method: 'POST',
                         credentials: 'same-origin',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
                         body: new URLSearchParams({ action: 'read', csrf_token: csrfToken }).toString()
                     });
 

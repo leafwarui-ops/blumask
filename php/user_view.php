@@ -484,7 +484,7 @@ function userAvatar($user) {
                       <?php if (!empty($post['imagem'])): ?>
                         <?php $postImageUrl = resolve_asset_url($post['imagem'] ?? '', ''); ?>
                         <?php if ($postImageUrl !== ''): ?>
-                          <div class="post-image-wrap">
+                          <div class="post-image-wrap pinned-post-image-wrap">
                             <img class="post-image" src="<?= $postImageUrl ?>" alt="Imagem do post" loading="lazy">
                           </div>
                         <?php endif; ?>
@@ -541,7 +541,7 @@ function userAvatar($user) {
                       </div>
                       <div class="post-content"><?= nl2br($comment_conteudo) ?></div>
                       <?php $commentImageUrl = resolve_asset_url($comment['imagem'] ?? '', ''); ?>
-                      <?php if ($commentImageUrl !== ''): ?><div class="post-image-wrap comment-image-wrap"><img class="post-image comment-image" src="<?= $commentImageUrl ?>" alt="Imagem anexada ao comentário" loading="lazy"></div><?php endif; ?>
+                      <?php if ($commentImageUrl !== ''): ?><div class="post-image-wrap comment-image-wrap pinned-comment-image-wrap"><img class="post-image comment-image" src="<?= $commentImageUrl ?>" alt="Imagem anexada ao comentário" loading="lazy"></div><?php endif; ?>
                     </article>
                   <?php endforeach; ?>
                 </div>
@@ -946,7 +946,10 @@ function userAvatar($user) {
 
         const loadNotifications = async () => {
             try {
-                const response = await fetch('../php/notificacoes.php?action=list&limit=20', { credentials: 'same-origin' });
+                const response = await fetch('../php/notificacoes.php?action=list&limit=20', {
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
                 if (!response.ok) {
                     return;
                 }
@@ -966,7 +969,10 @@ function userAvatar($user) {
                 const response = await fetch('../php/notificacoes.php', {
                     method: 'POST',
                     credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
                     body: new URLSearchParams({ action: 'read', csrf_token: csrfToken }).toString()
                 });
 

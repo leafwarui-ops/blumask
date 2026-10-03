@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/security_headers.php';
-include __DIR__ . '/bd.php';
+require_once __DIR__ . '/bd.php';
 require_once __DIR__ . '/admin_helpers.php';
 require_once __DIR__ . '/media.php';
 

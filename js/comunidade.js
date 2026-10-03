@@ -10,7 +10,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const inputNome = document.getElementById("input-nome-comunidade");
     const inputImagem = document.getElementById("input-imagem-comunidade");
     const previewImagem = document.getElementById("preview-imagem-comunidade");
-    const avatarUpload = document.querySelector(".avatar-upload");
+    const avatarUpload = previewImagem?.closest(".avatar-upload");
+    const avatarUploadText = avatarUpload?.querySelector(".avatar-upload-text");
     const erroMsg = document.getElementById("erro-criar-comunidade");
     const maxImageSize = 2 * 1024 * 1024;
 
@@ -20,10 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
         previewImagem.style.display = "none";
         previewImagem.hidden = true;
         if (avatarUpload) avatarUpload.classList.remove("has-image");
-        if (window.innerWidth <= 768 && avatarUpload) {
-            previewImagem.style.display = "none";
-            previewImagem.hidden = true;
-        }
+        if (avatarUploadText) avatarUploadText.textContent = "Escolher foto";
     }
 
     btnCriar?.addEventListener("click", () => {
@@ -72,20 +70,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const reader = new FileReader();
         reader.onload = function (event) {
-            if (window.innerWidth <= 768) {
-                previewImagem.removeAttribute("src");
-                previewImagem.style.display = "none";
-                previewImagem.hidden = true;
-                if (avatarUpload) avatarUpload.classList.remove("has-image");
-                return;
-            }
-
             const imageUrl = event.target.result;
             previewImagem.src = imageUrl;
             previewImagem.hidden = false;
             previewImagem.style.display = "block";
             previewImagem.style.objectFit = "cover";
             if (avatarUpload) avatarUpload.classList.add("has-image");
+            if (avatarUploadText) avatarUploadText.textContent = "Foto selecionada";
         };
         reader.readAsDataURL(arquivo);
     });
