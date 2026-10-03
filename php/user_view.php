@@ -719,6 +719,7 @@ function userAvatar($user) {
   <?php if (isset($_SESSION['usuario'])): ?>
   <script src="../js/admin_messages.js?v=<?= time() ?>"></script>
   <?php endif; ?>
+  <script src="../js/image_viewer.js?v=<?= time() ?>"></script>
   <script src="../js/logout_confirm.js?v=<?= time() ?>"></script>
   <script>
     const csrfToken = "<?= htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') ?>";

@@ -35,7 +35,7 @@ if (!check_rate_limit('like_post', 100, 60)) {
 global $conn;
 
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
-$id_post = intval($_POST['id_post'] ?? 0);
+$id_post = normalize_positive_id($_POST['id_post'] ?? 0, 0);
 
 if (is_site_admin($conn, $id_usuario)) {
     echo json_encode(["sucesso" => false, "mensagem" => "Administradores não podem curtir posts."]);

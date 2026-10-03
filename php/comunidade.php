@@ -543,6 +543,7 @@ if ($resultado_count) {
     <?php if (isset($_SESSION['usuario'])): ?>
     <script src="../js/admin_messages.js?v=<?= time() ?>"></script>
     <?php endif; ?>
+    <script src="../js/image_viewer.js?v=<?= time() ?>"></script>
     <script src="../js/logout_confirm.js?v=<?= time() ?>"></script>
     <script>
         const postsMap = <?php echo json_encode($postsMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;

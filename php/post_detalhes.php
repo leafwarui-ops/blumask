@@ -416,6 +416,7 @@ if ($resultado_comentarios) {
     <?php if (isset($_SESSION['usuario'])): ?>
     <script src="../js/admin_messages.js?v=<?= time() ?>"></script>
     <?php endif; ?>
+    <script src="../js/image_viewer.js?v=<?= time() ?>"></script>
     <script>
         const loginPostDialog = document.getElementById('login-box');
         const loginPostContent = document.getElementById('pop-div');

@@ -1500,6 +1500,7 @@ if ($id_usuario_logado > 0) {
 </script>
 <?php endif; ?>
 
+<script src="js/image_viewer.js?v=<?= time() ?>"></script>
 <script src="js/logout_confirm.js?v=<?= time() ?>"></script>
 </body>
 </html>

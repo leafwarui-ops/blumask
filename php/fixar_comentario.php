@@ -8,16 +8,26 @@ header('Content-Type: application/json; charset=utf-8');
 
 $id_usuario = isset($_SESSION['usuario']) ? intval($_SESSION['usuario']['id_usuario']) : 0;
 $csrf = $_POST['csrf_token'] ?? '';
-$id_post = intval($_POST['id_post'] ?? 0);
-$id_comentario = intval($_POST['id_comentario'] ?? 0);
+$id_post = normalize_positive_id($_POST['id_post'] ?? 0, 0);
+$id_comentario = normalize_positive_id($_POST['id_comentario'] ?? 0, 0);
 $destino = ($_POST['destino'] ?? 'post') === 'perfil' ? 'perfil' : 'post';
 
 if ($id_usuario <= 0) {
+    http_response_code(401);
     echo json_encode(["sucesso" => false, "mensagem" => "Você precisa estar logado para fixar comentários."]);
     exit;
 }
 
-if (!isset($_SESSION['csrf_token']) || $csrf !== $_SESSION['csrf_token']) {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(["sucesso" => false, "mensagem" => "Método inválido."]);
+    exit;
+}
+
+require_same_origin_for_state_change();
+
+if (!verify_csrf_token($csrf)) {
+    http_response_code(403);
     echo json_encode(["sucesso" => false, "mensagem" => "Token CSRF inválido."]);
     exit;
 }

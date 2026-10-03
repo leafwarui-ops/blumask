@@ -1238,6 +1238,122 @@ footer.bottombar {
     margin: 0 auto;
 }
 
+img.post-image,
+img.comment-image {
+    cursor: zoom-in;
+}
+
+img.post-image:focus-visible,
+img.comment-image:focus-visible {
+    outline: 3px solid #567fd9;
+    outline-offset: 3px;
+}
+
+.image-lightbox {
+    position: fixed;
+    inset: 0;
+    place-items: center;
+    box-sizing: border-box;
+    width: min(96vw, 1440px);
+    height: min(94vh, 1000px);
+    max-width: none;
+    max-height: none;
+    margin: auto;
+    padding: 52px 8px 60px;
+    border: 0;
+    overflow: hidden;
+    background: transparent;
+    color: #fff;
+}
+
+.image-lightbox:not([open]) {
+    display: none;
+}
+
+.image-lightbox[open] {
+    display: grid;
+}
+
+.image-lightbox::backdrop {
+    background: rgba(9, 15, 26, 0.88);
+    backdrop-filter: blur(3px);
+}
+
+.image-lightbox-image {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: calc(94vh - 112px);
+    border-radius: 12px;
+    object-fit: contain;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.32);
+    cursor: zoom-in;
+    user-select: none;
+    touch-action: none;
+    transform: scale(1);
+    transform-origin: center;
+    transition: transform 150ms ease;
+}
+
+.image-lightbox-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font: 32px/1 Arial, sans-serif;
+    cursor: pointer;
+}
+
+.image-lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.26);
+}
+
+.image-lightbox-zoom-controls {
+    position: absolute;
+    right: 50%;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transform: translateX(50%);
+}
+
+.image-lightbox-zoom-controls button {
+    min-width: 40px;
+    height: 40px;
+    padding: 0 10px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font: 18px/1 Arial, sans-serif;
+    cursor: pointer;
+}
+
+.image-lightbox-zoom-controls button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.26);
+}
+
+.image-lightbox-zoom-controls button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.image-lightbox-zoom-level {
+    min-width: 48px;
+    color: #fff;
+    font: 14px/1 Arial, sans-serif;
+    text-align: center;
+}
+
 @media (min-width: 769px) {
     .post-image-wrap {
         display: grid;

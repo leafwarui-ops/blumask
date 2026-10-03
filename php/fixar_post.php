@@ -26,8 +26,8 @@ if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
 global $conn;
 
 $id_usuario = intval($_SESSION['usuario']['id_usuario']);
-$id_comunidade = intval($_POST['id_comunidade'] ?? 0);
-$id_post = intval($_POST['id_post'] ?? 0);
+$id_comunidade = normalize_positive_id($_POST['id_comunidade'] ?? 0, 0);
+$id_post = normalize_positive_id($_POST['id_post'] ?? 0, 0);
 $destino = ($_POST['destino'] ?? '') === 'perfil' ? 'perfil' : '';
 
 if ($id_post <= 0) {
