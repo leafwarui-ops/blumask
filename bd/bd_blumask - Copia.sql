@@ -1,6 +1,3 @@
-create database bd_blumask character set utf8mb4 collate utf8mb4_unicode_ci;
-use bd_blumask;
-
 create table usuario(
 id_usuario int primary key auto_increment,
 email varchar(100),
@@ -123,6 +120,12 @@ create table if not exists notificacao(
     constraint fk_notificacao_comentario foreign key (id_comentario) references comentario(id_comentario) on delete cascade
 ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 
+-- A tabela referenciada precisa usar InnoDB para aceitar a chave estrangeira.
+ALTER TABLE usuario ENGINE=InnoDB;
+ALTER TABLE comunidade ENGINE=InnoDB;
+ALTER TABLE post ENGINE=InnoDB;
+ALTER TABLE comentario ENGINE=InnoDB;
+
 create table if not exists limite_mencao_admin (
     id_usuario int not null primary key,
     ultima_notificacao datetime not null,
@@ -130,7 +133,7 @@ create table if not exists limite_mencao_admin (
         references usuario(id_usuario) on delete cascade
 ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 
-create table curtida(
+create table if not exists curtida(
 id_curtida int primary key auto_increment,
 id_usuario int,
 id_post int,
@@ -139,36 +142,89 @@ foreign key (id_usuario) references usuario(id_usuario),
 foreign key (id_post) references post(id_post)
 ) engine=InnoDB;
 
-alter table usuario
-add id_post_fixado int;
+-- Adiciona as colunas apenas quando ainda nao existem (compativel com MySQL 5.7).
+SET @sql = IF(
+    (SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario' AND COLUMN_NAME = 'id_post_fixado') = 0,
+    'ALTER TABLE usuario ADD COLUMN id_post_fixado INT',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
-alter table comunidade
-add id_post_fixado int;
+SET @sql = IF(
+    (SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'comunidade' AND COLUMN_NAME = 'id_post_fixado') = 0,
+    'ALTER TABLE comunidade ADD COLUMN id_post_fixado INT',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
-alter table usuario
-add constraint id_post_fixado
-foreign key (id_post_fixado) references post(id_post);
+SET @sql = IF(
+    (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+     WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario' AND CONSTRAINT_NAME = 'id_post_fixado' AND CONSTRAINT_TYPE = 'FOREIGN KEY') = 0,
+    'ALTER TABLE usuario ADD CONSTRAINT id_post_fixado FOREIGN KEY (id_post_fixado) REFERENCES post(id_post)',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
-alter table comunidade
-add constraint id_comu_post_fixado
-foreign key (id_post_fixado) references post(id_post);
+SET @sql = IF(
+    (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+     WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'comunidade' AND CONSTRAINT_NAME = 'id_comu_post_fixado' AND CONSTRAINT_TYPE = 'FOREIGN KEY') = 0,
+    'ALTER TABLE comunidade ADD CONSTRAINT id_comu_post_fixado FOREIGN KEY (id_post_fixado) REFERENCES post(id_post)',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- Permitir fixar um comentário em um post
-alter table post
-add id_comentario_fixado int;
+SET @sql = IF(
+    (SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'post' AND COLUMN_NAME = 'id_comentario_fixado') = 0,
+    'ALTER TABLE post ADD COLUMN id_comentario_fixado INT',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
-alter table post
-add constraint fk_post_comentario_fixado
-foreign key (id_comentario_fixado) references comentario(id_comentario);
+SET @sql = IF(
+    (SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario' AND COLUMN_NAME = 'id_comentario_fixado') = 0,
+    'ALTER TABLE usuario ADD COLUMN id_comentario_fixado INT',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
-alter table usuario
-add id_comentario_fixado int;
+SET @sql = IF(
+    (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+     WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'post' AND CONSTRAINT_NAME = 'fk_post_comentario_fixado' AND CONSTRAINT_TYPE = 'FOREIGN KEY') = 0,
+    'ALTER TABLE post ADD CONSTRAINT fk_post_comentario_fixado FOREIGN KEY (id_comentario_fixado) REFERENCES comentario(id_comentario)',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
-alter table usuario
-add constraint fk_usuario_comentario_fixado
-foreign key (id_comentario_fixado) references comentario(id_comentario);
+SET @sql = IF(
+    (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+     WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario' AND CONSTRAINT_NAME = 'fk_usuario_comentario_fixado' AND CONSTRAINT_TYPE = 'FOREIGN KEY') = 0,
+    'ALTER TABLE usuario ADD CONSTRAINT fk_usuario_comentario_fixado FOREIGN KEY (id_comentario_fixado) REFERENCES comentario(id_comentario)',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
-create table perfil_post_fixado(
+create table if not exists perfil_post_fixado(
 id_usuario int not null,
 id_post int not null,
 data_fixacao timestamp default current_timestamp,
@@ -177,7 +233,7 @@ foreign key (id_usuario) references usuario(id_usuario),
 foreign key (id_post) references post(id_post)
 ) engine=InnoDB;
 
-create table perfil_comentario_fixado(
+create table if not exists perfil_comentario_fixado(
 id_usuario int not null,
 id_comentario int not null,
 data_fixacao timestamp default current_timestamp,
@@ -186,7 +242,7 @@ foreign key (id_usuario) references usuario(id_usuario),
 foreign key (id_comentario) references comentario(id_comentario)
 ) engine=InnoDB;
 
-ALTER DATABASE bd_blumask CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 
 ALTER TABLE usuario CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE comunidade CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
