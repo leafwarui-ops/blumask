@@ -241,7 +241,7 @@ $csrfToken = get_csrf_token();
         * { box-sizing: border-box; }
         html, body {
             min-height: 100%;
-            height: 100%;
+            height: auto;
         }
 
         body {
@@ -250,7 +250,12 @@ $csrfToken = get_csrf_token();
             display: flex;
             flex-direction: column;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background: linear-gradient(180deg, #b9d7ff 0%, #d9ecff 100%);
+            background:
+                radial-gradient(circle at top, rgba(255,255,255,0.82) 0%, rgba(255,255,255,0.12) 22%, transparent 38%),
+                linear-gradient(180deg, #dfeeff 0%, #d5e8ff 22%, #cfe1ff 54%, #bfd7ff 100%);
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            background-size: cover;
             color: var(--text);
         }
 
