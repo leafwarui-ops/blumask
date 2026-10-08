@@ -76,23 +76,4 @@ function trocar(popup,objeto)
                 ]
             }
         escrever(objeto,MenuItens);
-
-        if (popup == 0) {
-            const recoveryButton = document.createElement('button');
-            recoveryButton.type = 'button';
-            recoveryButton.className = 'forgot-password-button';
-            recoveryButton.textContent = 'Esqueci minha senha';
-
-            const recoveryNotice = document.createElement('p');
-            recoveryNotice.className = 'forgot-password-notice';
-            recoveryNotice.hidden = true;
-            recoveryNotice.textContent = 'A recuperação por email ainda não está configurada. Entre em contato com o administrador.';
-
-            recoveryButton.addEventListener('click', () => {
-                recoveryNotice.hidden = false;
-            });
-
-            objeto.appendChild(recoveryButton);
-            objeto.appendChild(recoveryNotice);
-        }
     }

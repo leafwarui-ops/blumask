@@ -1048,30 +1048,6 @@
     box-shadow: 0 8px 16px rgba(43, 23, 224, 0.12);
   }
 
-  #pop-div .forgot-password-button {
-    align-self: center;
-    padding: 2px 4px;
-    border: 0;
-    background: transparent;
-    color: var(--accent-blue);
-    font-size: 0.9rem;
-    font-weight: 600;
-    text-decoration: underline;
-    cursor: pointer;
-  }
-
-  #pop-div .forgot-password-notice {
-    margin: 0;
-    color: var(--muted-text, #5c6670);
-    font-size: 0.85rem;
-    line-height: 1.4;
-    text-align: center;
-  }
-
-  #pop-div .forgot-password-notice[hidden] {
-    display: none;
-  }
-
   #pop-div input[type="submit"]:hover {
     filter: brightness(1.04);
     transform: translateY(-1px);

@@ -108,6 +108,43 @@ try {
     }
     $removeMember->close();
 
+    $postIdsQuery = $conn->prepare("SELECT id_post FROM post WHERE id_comunidade = ? AND id_usuario = ?");
+    $postIdsQuery->bind_param('ii', $id_comunidade, $id_usuario_banido);
+    $postIdsQuery->execute();
+    $postIdsResult = $postIdsQuery->get_result();
+    $postIds = [];
+    while ($row = $postIdsResult->fetch_assoc()) {
+        $postIds[] = (int) $row['id_post'];
+    }
+    $postIdsQuery->close();
+
+    if (!empty($postIds)) {
+        $postIdList = implode(',', $postIds);
+
+        $conn->query("UPDATE comunidade SET id_post_fixado = NULL WHERE id_post_fixado IN ($postIdList)");
+        $conn->query("UPDATE usuario SET id_post_fixado = NULL WHERE id_post_fixado IN ($postIdList)");
+        $conn->query("DELETE FROM curtida WHERE id_post IN ($postIdList)");
+        $conn->query("DELETE FROM perfil_post_fixado WHERE id_post IN ($postIdList)");
+
+        $commentIdsResult = $conn->query("SELECT id_comentario FROM comentario WHERE id_post IN ($postIdList)");
+        $commentIds = [];
+        if ($commentIdsResult) {
+            while ($row = $commentIdsResult->fetch_assoc()) {
+                $commentIds[] = (int) $row['id_comentario'];
+            }
+        }
+
+        if (!empty($commentIds)) {
+            $commentIdList = implode(',', $commentIds);
+            $conn->query("UPDATE post SET id_comentario_fixado = NULL WHERE id_comentario_fixado IN ($commentIdList)");
+            $conn->query("UPDATE usuario SET id_comentario_fixado = NULL WHERE id_comentario_fixado IN ($commentIdList)");
+            $conn->query("DELETE FROM perfil_comentario_fixado WHERE id_comentario IN ($commentIdList)");
+            $conn->query("DELETE FROM comentario WHERE id_comentario IN ($commentIdList)");
+        }
+
+        $conn->query("DELETE FROM post WHERE id_comunidade = $id_comunidade AND id_usuario = $id_usuario_banido");
+    }
+
     $conn->commit();
     hit_rate_limit('ban_community_user');
     community_ban_response(['sucesso' => true, 'mensagem' => 'Usuário banido da comunidade.']);
